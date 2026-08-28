@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 export function SignupForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -18,6 +19,12 @@ export function SignupForm() {
     e.preventDefault();
     setError(null);
     setMessage(null);
+
+    if (password !== confirmPassword) {
+      setError("Les mots de passe ne correspondent pas.");
+      return;
+    }
+
     setLoading(true);
 
     const { data, error } = await supabase.auth.signUp({ email, password });
@@ -57,6 +64,19 @@ export function SignupForm() {
           minLength={6}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-gray-700">
+          Confirmer le mot de passe
+        </label>
+        <input
+          type="password"
+          required
+          minLength={6}
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
         />
       </div>
