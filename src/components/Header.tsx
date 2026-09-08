@@ -1,20 +1,18 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import type { User } from "@supabase/supabase-js";
 import { SignOutButton } from "@/components/SignOutButton";
 
-export async function Header() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+export function Header({ user }: { user: User | null }) {
   return (
     <header className="border-b border-gray-200 bg-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/" className="text-lg font-bold text-gray-900">
           Posto
         </Link>
-        <nav className="flex items-center gap-4 text-sm">
+        <nav className="hidden items-center gap-6 text-sm md:flex">
+          <Link href="/" className="text-gray-700 hover:text-gray-900">
+            Accueil
+          </Link>
           {user ? (
             <>
               <Link href="/dashboard" className="text-gray-700 hover:text-gray-900">
