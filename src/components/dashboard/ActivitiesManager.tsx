@@ -22,7 +22,7 @@ export function ActivitiesManager({
         {activities.map((activity) => (
           <li
             key={activity.id}
-            className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm"
+            className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm"
           >
             <div>
               <p className="font-medium text-gray-900">{activity.name}</p>
@@ -34,12 +34,12 @@ export function ActivitiesManager({
           </li>
         ))}
         {activities.length === 0 && (
-          <p className="text-sm text-gray-400">Aucune activité pour l&apos;instant.</p>
+          <p className="text-sm text-gray-500">Aucune activité pour l&apos;instant.</p>
         )}
       </ul>
 
-      <form action={onCreate} className="flex flex-col gap-2 rounded-md border border-dashed border-gray-300 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+      <form action={onCreate} className="flex flex-col gap-2 rounded-lg border border-dashed border-gray-300 p-3">
+        <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
           Ajouter une activité
         </p>
         <input

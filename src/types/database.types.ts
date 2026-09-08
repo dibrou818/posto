@@ -178,6 +178,7 @@ export type Database = {
           lng: number
           name: string
           owner_id: string
+          phone: string | null
         }
         Insert: {
           address?: string | null
@@ -189,6 +190,7 @@ export type Database = {
           lng: number
           name: string
           owner_id: string
+          phone?: string | null
         }
         Update: {
           address?: string | null
@@ -200,6 +202,7 @@ export type Database = {
           lng?: number
           name?: string
           owner_id?: string
+          phone?: string | null
         }
         Relationships: []
       }

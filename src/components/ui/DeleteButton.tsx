@@ -11,7 +11,10 @@ export function DeleteButton({
 }) {
   return (
     <form action={action}>
-      <button type="submit" className={`text-red-600 hover:underline ${className}`.trim()}>
+      <button
+        type="submit"
+        className={`rounded text-red-600 transition-colors hover:text-red-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/30 ${className}`.trim()}
+      >
         {label}
       </button>
     </form>

@@ -28,7 +28,7 @@ export default async function DashboardPage() {
               <PlaceCard place={place} />
               <Link
                 href={`/dashboard/places/${place.id}`}
-                className="absolute right-3 top-3 rounded-md bg-white/90 px-2 py-1 text-xs font-medium text-gray-900 shadow"
+                className="absolute top-3 right-3 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-gray-900 shadow-sm backdrop-blur transition-colors hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
               >
                 Gérer
               </Link>

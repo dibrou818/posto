@@ -107,7 +107,7 @@ export function LocationWeather({ onLocated }: { onLocated: (loc: UserLocation) 
       type="button"
       onClick={requestLocation}
       disabled={state.status === "loading"}
-      className="flex w-full items-center gap-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-5 py-4 text-left text-gray-400 transition hover:border-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-60"
+      className="flex w-full items-center gap-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-5 py-4 text-left text-gray-500 transition-colors hover:border-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 disabled:opacity-60"
     >
       <LocationIcon />
       <span className="text-sm font-medium">{label}</span>

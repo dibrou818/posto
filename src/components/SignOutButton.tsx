@@ -14,7 +14,7 @@ export function SignOutButton() {
         router.push("/");
         router.refresh();
       }}
-      className="text-gray-700 hover:text-gray-900"
+      className="rounded-md px-1 py-0.5 text-gray-700 transition-colors hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
     >
       Déconnexion
     </button>

@@ -7,6 +7,7 @@ import {
   getUpcomingEventsForPlace,
 } from "@/lib/queries";
 import { isOpenNow, scheduleByDay } from "@/lib/opening-hours";
+import { OpeningHoursAccordion } from "@/components/OpeningHoursAccordion";
 
 const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
   weekday: "long",
@@ -66,6 +67,18 @@ export default async function PlacePage({
       </div>
       <p className="mt-1 text-sm text-gray-500">{place.address}</p>
 
+      {place.phone && (
+        <a
+          href={`tel:${place.phone}`}
+          className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 focus-visible:ring-offset-2"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+            <path d="M3.654 1.328a.678.678 0 0 1 1.015-.063l2.008 2.008a.678.678 0 0 1 .166.685l-.622 2.072a.678.678 0 0 0 .166.685l4.898 4.898a.678.678 0 0 0 .685.166l2.072-.622a.678.678 0 0 1 .685.166l2.008 2.008a.678.678 0 0 1-.063 1.015l-1.462 1.146a1.678 1.678 0 0 1-1.665.229C10.4 14.34 5.66 9.6 4.279 6.455a1.678 1.678 0 0 1 .23-1.665l1.145-1.462Z" />
+          </svg>
+          Appeler {place.phone}
+        </a>
+      )}
+
       <div className="mt-3 flex flex-wrap gap-1.5">
         {place.tags.map((tag) => (
           <span
@@ -83,20 +96,7 @@ export default async function PlacePage({
 
       <section className="mt-8">
         <h2 className="mb-2 text-lg font-semibold text-gray-900">Horaires</h2>
-        <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white text-sm">
-          {schedule.map((day) => (
-            <li key={day.dayOfWeek} className="flex justify-between px-4 py-2">
-              <span className="text-gray-600">{day.label}</span>
-              <span className="text-gray-900">
-                {day.hours.length === 0
-                  ? "Fermé"
-                  : day.hours
-                      .map((h) => `${h.open_time.slice(0, 5)} - ${h.close_time.slice(0, 5)}`)
-                      .join(", ")}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <OpeningHoursAccordion schedule={schedule} todayIndex={new Date().getDay()} />
       </section>
 
       {activities.length > 0 && (
@@ -106,7 +106,7 @@ export default async function PlacePage({
             {activities.map((activity) => (
               <li
                 key={activity.id}
-                className="rounded-lg border border-gray-200 bg-white p-3 text-sm"
+                className="rounded-xl border border-gray-200 bg-white p-3 text-sm"
               >
                 <p className="font-medium text-gray-900">{activity.name}</p>
                 {activity.description && (
@@ -127,16 +127,16 @@ export default async function PlacePage({
               return (
                 <li
                   key={event.id}
-                  className="flex overflow-hidden rounded-lg border border-gray-200 bg-white text-sm"
+                  className="flex overflow-hidden rounded-xl border border-gray-200 bg-white text-sm"
                 >
                   <div className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 border-r border-gray-100 bg-gray-50 px-1 text-center">
-                    <span className="text-[11px] font-medium uppercase text-gray-400">
+                    <span className="text-[11px] font-medium uppercase text-gray-500">
                       {badgeWeekdayFormatter.format(start)}
                     </span>
                     <span className="text-2xl leading-none font-bold text-gray-900">
                       {start.getDate()}
                     </span>
-                    <span className="text-[11px] font-medium uppercase text-gray-400">
+                    <span className="text-[11px] font-medium uppercase text-gray-500">
                       {badgeMonthFormatter.format(start)}
                     </span>
                   </div>

@@ -13,7 +13,7 @@ const CITY_ZOOM = 12;
 const Map = dynamic(() => import("@/components/Map").then((m) => m.Map), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full w-full items-center justify-center text-sm text-gray-400">
+    <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">
       Chargement de la carte...
     </div>
   ),
@@ -87,7 +87,7 @@ export function FullScreenMap({ places }: { places: PlaceWithRelations[] }) {
         {selectedTag && (
           <button
             onClick={() => setSelectedTag(null)}
-            className="pointer-events-auto flex w-fit items-center gap-1 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow"
+            className="pointer-events-auto flex w-fit items-center gap-1 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-md transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
           >
             {selectedTag.label} ✕
           </button>

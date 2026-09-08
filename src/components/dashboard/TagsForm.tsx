@@ -18,7 +18,7 @@ export function TagsForm({
         {allTags.map((tag) => (
           <label
             key={tag.id}
-            className="flex items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1.5 text-sm has-[:checked]:border-gray-900 has-[:checked]:bg-gray-900 has-[:checked]:text-white"
+            className="flex cursor-pointer items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1.5 text-sm transition-colors has-[:checked]:border-gray-900 has-[:checked]:bg-gray-900 has-[:checked]:text-white"
           >
             <input
               type="checkbox"

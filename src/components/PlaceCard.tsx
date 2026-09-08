@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { PlaceWithRelations } from "@/lib/queries";
 import { isOpenNow } from "@/lib/opening-hours";
 import { formatDistance } from "@/lib/distance";
+import { cardClass } from "@/lib/ui";
 
 export function PlaceCard({
   place,
@@ -16,9 +17,9 @@ export function PlaceCard({
   return (
     <Link
       href={`/places/${place.id}`}
-      className="flex gap-4 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-gray-300 hover:shadow-sm"
+      className={`flex gap-4 p-3 focus:outline-none focus:ring-2 focus:ring-gray-900/20 ${cardClass}`}
     >
-      <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-md bg-gray-100">
+      <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-lg bg-gray-100">
         {place.cover_photo_url ? (
           <Image
             src={place.cover_photo_url}
@@ -51,7 +52,7 @@ export function PlaceCard({
             </span>
           ))}
           {distanceKm !== undefined && (
-            <span className="ml-auto text-xs text-gray-400">{formatDistance(distanceKm)}</span>
+            <span className="ml-auto text-xs text-gray-500">{formatDistance(distanceKm)}</span>
           )}
         </div>
       </div>

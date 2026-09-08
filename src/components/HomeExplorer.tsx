@@ -45,7 +45,7 @@ export function HomeExplorer({ places }: { places: PlaceWithRelations[] }) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-500">
               Aucun lieu à moins de {NEARBY_RADIUS_KM} km de votre position pour l&apos;instant.
             </p>
           )}
@@ -61,26 +61,31 @@ export function HomeExplorer({ places }: { places: PlaceWithRelations[] }) {
         {selectedTag && (
           <button
             onClick={() => setSelectedTag(null)}
-            className="flex w-fit items-center gap-1 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-medium text-white"
+            className="flex w-fit items-center gap-1 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
           >
             {selectedTag.label} ✕
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {sortedPlaces.map((place) => (
-          <PlaceCard
-            key={place.id}
-            place={place}
-            distanceKm={
-              userLocation
-                ? haversineKm(userLocation.lat, userLocation.lng, place.lat, place.lng)
-                : undefined
-            }
-          />
-        ))}
-      </div>
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-semibold text-gray-900">
+          {selectedTag ? `Lieux taggés ${selectedTag.label}` : "Tous les lieux"}
+        </h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {sortedPlaces.map((place) => (
+            <PlaceCard
+              key={place.id}
+              place={place}
+              distanceKm={
+                userLocation
+                  ? haversineKm(userLocation.lat, userLocation.lng, place.lat, place.lng)
+                  : undefined
+              }
+            />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

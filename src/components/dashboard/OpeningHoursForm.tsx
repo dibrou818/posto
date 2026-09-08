@@ -39,7 +39,7 @@ export function OpeningHoursForm({
             disabled={!openDays[day]}
             className="rounded-md border border-gray-300 px-2 py-1 text-sm disabled:opacity-40"
           />
-          <span className="text-gray-400">à</span>
+          <span className="text-gray-500">à</span>
           <input
             type="time"
             name={`close_time_${day}`}

@@ -65,6 +65,14 @@ export function PlaceForm({
 
       <TextField label="Adresse" name="address" defaultValue={place?.address ?? ""} />
 
+      <TextField
+        label="Téléphone"
+        name="phone"
+        type="tel"
+        placeholder="06 12 34 56 78"
+        defaultValue={place?.phone ?? ""}
+      />
+
       <div className="grid grid-cols-2 gap-3">
         <TextField
           label="Latitude"
@@ -88,10 +96,10 @@ export function PlaceForm({
         <label className={labelClass}>Photo de couverture</label>
         <input type="file" accept="image/*" onChange={handleFileChange} className="text-sm" />
         <input type="hidden" name="cover_photo_url" value={coverPhotoUrl} />
-        {uploading && <p className="mt-1 text-xs text-gray-400">Envoi en cours...</p>}
+        {uploading && <p className="mt-1 text-xs text-gray-500">Envoi en cours...</p>}
         {coverPhotoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={coverPhotoUrl} alt="Aperçu" className="mt-2 h-32 w-48 rounded-md object-cover" />
+          <img src={coverPhotoUrl} alt="Aperçu" className="mt-2 h-32 w-48 rounded-lg object-cover" />
         )}
       </div>
 

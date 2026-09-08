@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 export function DashboardSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="mb-10">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">{title}</h2>
+      <h2 className="mb-3 text-sm font-semibold tracking-wide text-gray-500 uppercase">{title}</h2>
       {children}
     </section>
   );

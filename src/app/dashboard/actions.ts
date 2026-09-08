@@ -38,6 +38,7 @@ function parsePlaceFields(formData: FormData) {
     lng,
     description: textField(formData, "description"),
     address: textField(formData, "address"),
+    phone: textField(formData, "phone"),
     cover_photo_url: textField(formData, "cover_photo_url"),
   };
 }

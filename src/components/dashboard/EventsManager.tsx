@@ -22,7 +22,7 @@ export function EventsManager({
         {events.map((event) => (
           <li
             key={event.id}
-            className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm"
+            className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm"
           >
             <div>
               <p className="font-medium text-gray-900">{event.title}</p>
@@ -35,12 +35,12 @@ export function EventsManager({
           </li>
         ))}
         {events.length === 0 && (
-          <p className="text-sm text-gray-400">Aucun événement à venir.</p>
+          <p className="text-sm text-gray-500">Aucun événement à venir.</p>
         )}
       </ul>
 
-      <form action={onCreate} className="flex flex-col gap-2 rounded-md border border-dashed border-gray-300 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+      <form action={onCreate} className="flex flex-col gap-2 rounded-lg border border-dashed border-gray-300 p-3">
+        <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
           Ajouter un événement
         </p>
         <input

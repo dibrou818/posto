@@ -88,14 +88,14 @@ export function BottomNav({ user }: { user: User | null }) {
             <Link
               key={item.href}
               href={item.href}
-              className="flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-1.5"
+              className="flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-1.5 transition-colors focus:outline-none focus-visible:bg-gray-50"
               aria-current={active ? "page" : undefined}
             >
-              <span className={active ? "text-gray-900" : "text-gray-400"}>
+              <span className={active ? "text-gray-900" : "text-gray-500"}>
                 <Icon active={active} />
               </span>
               <span
-                className={`text-[11px] ${active ? "font-medium text-gray-900" : "text-gray-400"}`}
+                className={`text-[11px] ${active ? "font-medium text-gray-900" : "text-gray-500"}`}
               >
                 {item.label}
               </span>
