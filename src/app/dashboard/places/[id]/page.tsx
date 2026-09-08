@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/server";
 import {
   getPlaceById,
   getAllTags,
@@ -11,6 +11,8 @@ import { OpeningHoursForm } from "@/components/dashboard/OpeningHoursForm";
 import { TagsForm } from "@/components/dashboard/TagsForm";
 import { ActivitiesManager } from "@/components/dashboard/ActivitiesManager";
 import { EventsManager } from "@/components/dashboard/EventsManager";
+import { DashboardSection } from "@/components/dashboard/DashboardSection";
+import { DeleteButton } from "@/components/ui/DeleteButton";
 import {
   updatePlace,
   deletePlace,
@@ -28,12 +30,7 @@ export default async function EditPlacePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const place = await getPlaceById(supabase, id);
   if (!place) notFound();
@@ -49,59 +46,46 @@ export default async function EditPlacePage({
     <div className="mx-auto w-full max-w-2xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">{place.name}</h1>
-        <form action={deletePlace.bind(null, id)}>
-          <button type="submit" className="text-sm text-red-600 hover:underline">
-            Supprimer le lieu
-          </button>
-        </form>
+        <DeleteButton
+          action={deletePlace.bind(null, id)}
+          label="Supprimer le lieu"
+          className="text-sm"
+        />
       </div>
 
-      <section className="mb-10">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-          Informations
-        </h2>
+      <DashboardSection title="Informations">
         <PlaceForm place={place} action={updatePlace.bind(null, id)} />
-      </section>
+      </DashboardSection>
 
-      <section className="mb-10">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-          Horaires
-        </h2>
+      <DashboardSection title="Horaires">
         <OpeningHoursForm hours={place.opening_hours} action={saveOpeningHours.bind(null, id)} />
-      </section>
+      </DashboardSection>
 
-      <section className="mb-10">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">Tags</h2>
+      <DashboardSection title="Tags">
         <TagsForm
           allTags={allTags}
           selectedTagIds={place.tags.map((t) => t.id)}
           action={savePlaceTags.bind(null, id)}
         />
-      </section>
+      </DashboardSection>
 
-      <section className="mb-10">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-          Activités récurrentes
-        </h2>
+      <DashboardSection title="Activités récurrentes">
         <ActivitiesManager
           activities={activities}
           allTags={allTags}
           onCreate={createActivity.bind(null, id)}
           onDelete={deleteActivity.bind(null, id)}
         />
-      </section>
+      </DashboardSection>
 
-      <section className="mb-10">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-          Événements
-        </h2>
+      <DashboardSection title="Événements">
         <EventsManager
           events={events}
           allTags={allTags}
           onCreate={createEvent.bind(null, id)}
           onDelete={deleteEvent.bind(null, id)}
         />
-      </section>
+      </DashboardSection>
     </div>
   );
 }

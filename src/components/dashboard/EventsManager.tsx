@@ -1,6 +1,9 @@
 "use client";
 
 import type { Event, Tag } from "@/lib/queries";
+import { compactInputClass } from "@/lib/ui";
+import { Button } from "@/components/ui/Button";
+import { DeleteButton } from "@/components/ui/DeleteButton";
 
 export function EventsManager({
   events,
@@ -28,11 +31,7 @@ export function EventsManager({
                 {event.recurrence_rule ? ` · ${event.recurrence_rule}` : ""}
               </p>
             </div>
-            <form action={onDelete.bind(null, event.id)}>
-              <button type="submit" className="text-xs text-red-600 hover:underline">
-                Supprimer
-              </button>
-            </form>
+            <DeleteButton action={onDelete.bind(null, event.id)} />
           </li>
         ))}
         {events.length === 0 && (
@@ -48,12 +47,12 @@ export function EventsManager({
           name="title"
           placeholder="Titre de l'événement"
           required
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+          className={compactInputClass}
         />
         <input
           name="description"
           placeholder="Description (optionnel)"
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+          className={compactInputClass}
         />
         <div className="grid grid-cols-2 gap-2">
           <div>
@@ -62,7 +61,7 @@ export function EventsManager({
               type="datetime-local"
               name="start_datetime"
               required
-              className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+              className={`w-full ${compactInputClass}`}
             />
           </div>
           <div>
@@ -70,16 +69,16 @@ export function EventsManager({
             <input
               type="datetime-local"
               name="end_datetime"
-              className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+              className={`w-full ${compactInputClass}`}
             />
           </div>
         </div>
         <input
           name="recurrence_rule"
           placeholder="Récurrence, ex: weekly:thursday (optionnel)"
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+          className={compactInputClass}
         />
-        <select name="tag_id" className="rounded-md border border-gray-300 px-3 py-1.5 text-sm">
+        <select name="tag_id" className={compactInputClass}>
           <option value="">Hérite des tags du lieu</option>
           {allTags.map((tag) => (
             <option key={tag.id} value={tag.id}>
@@ -87,12 +86,9 @@ export function EventsManager({
             </option>
           ))}
         </select>
-        <button
-          type="submit"
-          className="self-start rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
-        >
+        <Button type="submit" size="compact" className="self-start">
           Ajouter
-        </button>
+        </Button>
       </form>
     </div>
   );

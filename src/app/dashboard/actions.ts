@@ -2,16 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-
-async function requireUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  return { supabase, user };
-}
+import { createClient, requireUser } from "@/lib/supabase/server";
 
 async function assertOwnsPlace(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -28,23 +19,36 @@ async function assertOwnsPlace(
   }
 }
 
-export async function createPlace(formData: FormData) {
-  const { supabase, user } = await requireUser();
+function textField(formData: FormData, key: string): string | null {
+  return String(formData.get(key) ?? "").trim() || null;
+}
 
-  const name = String(formData.get("name") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim() || null;
-  const address = String(formData.get("address") ?? "").trim() || null;
+function parsePlaceFields(formData: FormData) {
+  const name = textField(formData, "name");
   const lat = Number(formData.get("lat"));
   const lng = Number(formData.get("lng"));
-  const cover_photo_url = String(formData.get("cover_photo_url") ?? "").trim() || null;
 
   if (!name || Number.isNaN(lat) || Number.isNaN(lng)) {
     throw new Error("Nom, latitude et longitude sont requis.");
   }
 
+  return {
+    name,
+    lat,
+    lng,
+    description: textField(formData, "description"),
+    address: textField(formData, "address"),
+    cover_photo_url: textField(formData, "cover_photo_url"),
+  };
+}
+
+export async function createPlace(formData: FormData) {
+  const { supabase, user } = await requireUser();
+  const fields = parsePlaceFields(formData);
+
   const { data, error } = await supabase
     .from("places")
-    .insert({ name, description, address, lat, lng, cover_photo_url, owner_id: user.id })
+    .insert({ ...fields, owner_id: user.id })
     .select("id")
     .single();
 
@@ -57,23 +61,9 @@ export async function createPlace(formData: FormData) {
 export async function updatePlace(placeId: string, formData: FormData) {
   const { supabase, user } = await requireUser();
   await assertOwnsPlace(supabase, user.id, placeId);
+  const fields = parsePlaceFields(formData);
 
-  const name = String(formData.get("name") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim() || null;
-  const address = String(formData.get("address") ?? "").trim() || null;
-  const lat = Number(formData.get("lat"));
-  const lng = Number(formData.get("lng"));
-  const cover_photo_url = String(formData.get("cover_photo_url") ?? "").trim() || null;
-
-  if (!name || Number.isNaN(lat) || Number.isNaN(lng)) {
-    throw new Error("Nom, latitude et longitude sont requis.");
-  }
-
-  const { error } = await supabase
-    .from("places")
-    .update({ name, description, address, lat, lng, cover_photo_url })
-    .eq("id", placeId);
-
+  const { error } = await supabase.from("places").update(fields).eq("id", placeId);
   if (error) throw new Error(error.message);
 
   revalidatePath(`/dashboard/places/${placeId}`);
@@ -145,9 +135,9 @@ export async function createActivity(placeId: string, formData: FormData) {
   const { supabase, user } = await requireUser();
   await assertOwnsPlace(supabase, user.id, placeId);
 
-  const name = String(formData.get("name") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim() || null;
-  const tag_id = String(formData.get("tag_id") ?? "").trim() || null;
+  const name = textField(formData, "name");
+  const description = textField(formData, "description");
+  const tag_id = textField(formData, "tag_id");
 
   if (!name) throw new Error("Le nom de l'activité est requis.");
 
@@ -173,12 +163,12 @@ export async function createEvent(placeId: string, formData: FormData) {
   const { supabase, user } = await requireUser();
   await assertOwnsPlace(supabase, user.id, placeId);
 
-  const title = String(formData.get("title") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim() || null;
-  const start_datetime = String(formData.get("start_datetime") ?? "");
-  const end_datetime = String(formData.get("end_datetime") ?? "") || null;
-  const recurrence_rule = String(formData.get("recurrence_rule") ?? "").trim() || null;
-  const tag_id = String(formData.get("tag_id") ?? "").trim() || null;
+  const title = textField(formData, "title");
+  const description = textField(formData, "description");
+  const start_datetime = textField(formData, "start_datetime");
+  const end_datetime = textField(formData, "end_datetime");
+  const recurrence_rule = textField(formData, "recurrence_rule");
+  const tag_id = textField(formData, "tag_id");
 
   if (!title || !start_datetime) {
     throw new Error("Titre et date de début sont requis.");

@@ -24,3 +24,30 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* iOS Safari auto-zooms the page when focusing a text input smaller than
+   16px. Force 16px on small screens so typing never triggers that zoom. */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Required map attribution (OpenStreetMap/CARTO licensing), kept legible but
+   as unobtrusive as possible: tiny, low-opacity, no background chrome. */
+.leaflet-control-attribution {
+  padding: 1px 4px !important;
+  font-size: 8px !important;
+  line-height: 1.4 !important;
+  background: rgba(255, 255, 255, 0.4) !important;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+.leaflet-control-attribution:hover {
+  opacity: 1;
+}
+.leaflet-control-attribution a {
+  color: inherit !important;
+}

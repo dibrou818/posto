@@ -22,6 +22,25 @@ function HomeIcon({ active }: { active: boolean }) {
   );
 }
 
+function MapIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="22"
+      height="22"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={active ? 2.2 : 1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 4.5 4 6.5v13l5-2 6 2 5-2v-13l-5 2-6-2Z" />
+      <path d="M9 4.5v13" />
+      <path d="M15 6.5v13" />
+    </svg>
+  );
+}
+
 function UserIcon({ active }: { active: boolean }) {
   return (
     <svg
@@ -46,10 +65,12 @@ export function BottomNav({ user }: { user: User | null }) {
   const items = user
     ? [
         { href: "/", label: "Accueil", icon: HomeIcon },
+        { href: "/map", label: "Carte", icon: MapIcon },
         { href: "/dashboard", label: "Mon espace", icon: UserIcon },
       ]
     : [
         { href: "/", label: "Accueil", icon: HomeIcon },
+        { href: "/map", label: "Carte", icon: MapIcon },
         { href: "/login", label: "Connexion", icon: UserIcon },
       ];
 

@@ -1,27 +1,18 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/server";
 import { getPlacesByOwner } from "@/lib/queries";
 import { PlaceCard } from "@/components/PlaceCard";
+import { buttonClass } from "@/lib/ui";
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/login");
-
+  const { supabase, user } = await requireUser();
   const places = await getPlacesByOwner(supabase, user.id);
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">Mes lieux</h1>
-        <Link
-          href="/dashboard/places/new"
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-        >
+        <Link href="/dashboard/places/new" className={buttonClass()}>
           + Nouveau lieu
         </Link>
       </div>

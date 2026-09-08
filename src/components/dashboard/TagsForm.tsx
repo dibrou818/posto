@@ -1,6 +1,7 @@
 "use client";
 
 import type { Tag } from "@/lib/queries";
+import { Button } from "@/components/ui/Button";
 
 export function TagsForm({
   allTags,
@@ -30,12 +31,9 @@ export function TagsForm({
           </label>
         ))}
       </div>
-      <button
-        type="submit"
-        className="self-start rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-      >
+      <Button type="submit" className="self-start">
         Enregistrer les tags
-      </button>
+      </Button>
     </form>
   );
 }

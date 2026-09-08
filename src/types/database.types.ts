@@ -266,9 +266,3 @@ type DefaultSchema = Database["public"]
 
 export type Tables<T extends keyof DefaultSchema["Tables"]> =
   DefaultSchema["Tables"][T]["Row"]
-
-export type TablesInsert<T extends keyof DefaultSchema["Tables"]> =
-  DefaultSchema["Tables"][T]["Insert"]
-
-export type TablesUpdate<T extends keyof DefaultSchema["Tables"]> =
-  DefaultSchema["Tables"][T]["Update"]

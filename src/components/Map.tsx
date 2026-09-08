@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet.markercluster";
@@ -9,7 +9,7 @@ import type { PlaceWithRelations } from "@/lib/queries";
 import { isOpenNow } from "@/lib/opening-hours";
 
 const LILLE_CENTER: [number, number] = [50.6292, 3.0573];
-const DEFAULT_ZOOM = 12;
+const DEFAULT_ZOOM = 13;
 
 // CARTO Voyager basemap. Anonymous usage is rate-limited; set
 // NEXT_PUBLIC_CARTO_API_KEY once you have a CARTO account to lift the limits.
@@ -68,8 +68,20 @@ function popupHtml(place: PlaceWithRelations) {
   `;
 }
 
-function ClusteredMarkers({ places }: { places: PlaceWithRelations[] }) {
+export type MapFocusTarget = { id: string; lat: number; lng: number };
+
+function ClusteredMarkers({
+  places,
+  focusTarget,
+}: {
+  places: PlaceWithRelations[];
+  focusTarget?: MapFocusTarget | null;
+}) {
   const map = useMap();
+  const groupRef = useRef<L.MarkerClusterGroup | null>(null);
+  // Plain object, not a JS `Map`, to avoid shadowing by this file's own
+  // exported `Map` component.
+  const markersByPlaceId = useRef<Record<string, L.Marker>>({});
 
   useEffect(() => {
     const group = L.markerClusterGroup({
@@ -79,13 +91,17 @@ function ClusteredMarkers({ places }: { places: PlaceWithRelations[] }) {
       maxClusterRadius: 50,
     });
 
+    const markersById: Record<string, L.Marker> = {};
     places.forEach((place) => {
       const marker = L.marker([place.lat, place.lng], { icon: placeIcon });
       marker.bindPopup(popupHtml(place));
       group.addLayer(marker);
+      markersById[place.id] = marker;
     });
 
     map.addLayer(group);
+    groupRef.current = group;
+    markersByPlaceId.current = markersById;
 
     if (places.length > 0) {
       const bounds = L.latLngBounds(places.map((p) => [p.lat, p.lng] as [number, number]));
@@ -94,13 +110,35 @@ function ClusteredMarkers({ places }: { places: PlaceWithRelations[] }) {
 
     return () => {
       map.removeLayer(group);
+      groupRef.current = null;
     };
   }, [places, map]);
+
+  useEffect(() => {
+    if (!focusTarget) return;
+
+    const marker = markersByPlaceId.current[focusTarget.id];
+    if (marker && groupRef.current) {
+      // Zooms/pans just enough to pull the marker out of its cluster (if any),
+      // then opens its popup once it's actually visible on screen.
+      groupRef.current.zoomToShowLayer(marker, () => marker.openPopup());
+    } else {
+      // Marker not in the current (possibly tag-filtered) set — still take
+      // the user to the right spot.
+      map.flyTo([focusTarget.lat, focusTarget.lng], 16);
+    }
+  }, [focusTarget, map]);
 
   return null;
 }
 
-export function Map({ places }: { places: PlaceWithRelations[] }) {
+export function Map({
+  places,
+  focusTarget,
+}: {
+  places: PlaceWithRelations[];
+  focusTarget?: MapFocusTarget | null;
+}) {
   return (
     <MapContainer
       center={LILLE_CENTER}
@@ -114,7 +152,7 @@ export function Map({ places }: { places: PlaceWithRelations[] }) {
         subdomains="abcd"
         maxZoom={20}
       />
-      <ClusteredMarkers places={places} />
+      <ClusteredMarkers places={places} focusTarget={focusTarget} />
     </MapContainer>
   );
 }

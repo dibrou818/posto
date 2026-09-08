@@ -1,15 +1,9 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/server";
 import { PlaceForm } from "@/components/dashboard/PlaceForm";
 import { createPlace } from "@/app/dashboard/actions";
 
 export default async function NewPlacePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/login");
+  await requireUser();
 
   return (
     <div className="mx-auto w-full max-w-lg px-4 py-8">
