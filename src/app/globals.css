@@ -35,6 +35,15 @@ body {
   }
 }
 
+/* The map's +/- zoom control isn't needed on mobile (pinch-to-zoom already
+   works), so it's dropped entirely there instead of fighting for space with
+   the search bar overlay. */
+@media (max-width: 767px) {
+  .leaflet-control-zoom {
+    display: none !important;
+  }
+}
+
 /* Required map attribution (OpenStreetMap/CARTO licensing), kept legible but
    as unobtrusive as possible: tiny, low-opacity, no background chrome. */
 .leaflet-control-attribution {

@@ -20,21 +20,90 @@ export type TagResult = {
   similarity: number;
 };
 
+export type CityResult = {
+  label: string;
+  subtitle: string | null;
+  lat: number;
+  lng: number;
+};
+
 interface Props {
   onSelectTag: (tag: TagResult) => void;
   onSelectResult: (result: SearchResult) => void;
+  onSelectCity: (city: CityResult) => void;
   placeholder?: string;
+}
+
+// Small, minimal icons so a result's kind is obvious at a glance without
+// needing a category label: a tag for filters, a pin for a specific venue,
+// a calendar for a dated event, a target for a city/area.
+function TagIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12.5 3H5a2 2 0 0 0-2 2v7.5a1 1 0 0 0 .3.7l9 9a1 1 0 0 0 1.4 0l7.5-7.5a1 1 0 0 0 0-1.4l-9-9a1 1 0 0 0-.7-.3Z" />
+      <circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function PinIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 21s-7-6.5-7-11.5a7 7 0 0 1 14 0C19 14.5 12 21 12 21Z" />
+      <circle cx="12" cy="9.5" r="2.2" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="5" width="17" height="16" rx="2" />
+      <path d="M3.5 9.5h17" />
+      <path d="M8 3v4" />
+      <path d="M16 3v4" />
+    </svg>
+  );
+}
+
+function CityIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="7.5" />
+      <circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+type Row =
+  | { kind: "city"; key: string; title: string; subtitle: string | null; city: CityResult }
+  | { kind: "tag"; key: string; title: string; subtitle: string | null; tag: TagResult }
+  | {
+      kind: "place" | "activity" | "event";
+      key: string;
+      title: string;
+      subtitle: string | null;
+      result: SearchResult;
+    };
+
+function RowIcon({ kind }: { kind: Row["kind"] }) {
+  if (kind === "tag") return <TagIcon />;
+  if (kind === "event") return <CalendarIcon />;
+  if (kind === "city") return <CityIcon />;
+  return <PinIcon />; // place & activity: both anchored to a specific venue
 }
 
 export function SearchBar({
   onSelectTag,
   onSelectResult,
+  onSelectCity,
   placeholder = "Rechercher un lieu, une activité, un tag...",
 }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [tags, setTags] = useState<TagResult[]>([]);
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [cities, setCities] = useState<CityResult[]>([]);
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -50,6 +119,7 @@ export function SearchBar({
         const data = await res.json();
         setTags(data.tags ?? []);
         setResults(data.results ?? []);
+        setCities(data.cities ?? []);
         setOpen(true);
       } finally {
         setLoading(false);
@@ -71,9 +141,39 @@ export function SearchBar({
 
   // Stale results from a previous longer query shouldn't show once the
   // query is cleared back down, so gate on length instead of clearing state.
-  const visibleTags = queryTooShort ? [] : tags;
-  const visibleResults = queryTooShort ? [] : results;
-  const hasContent = visibleTags.length > 0 || visibleResults.length > 0;
+  const rows: Row[] = queryTooShort
+    ? []
+    : [
+        ...cities.map((city): Row => ({
+          kind: "city",
+          key: `city-${city.label}-${city.lat}`,
+          title: city.label,
+          subtitle: city.subtitle,
+          city,
+        })),
+        ...tags.map((tag): Row => ({
+          kind: "tag",
+          key: `tag-${tag.id}`,
+          title: tag.label,
+          subtitle: null,
+          tag,
+        })),
+        ...results.map((result): Row => ({
+          kind: result.result_type,
+          key: `${result.result_type}-${result.id}`,
+          title: result.title,
+          subtitle: result.subtitle,
+          result,
+        })),
+      ];
+
+  function selectRow(row: Row) {
+    setOpen(false);
+    setQuery("");
+    if (row.kind === "city") onSelectCity(row.city);
+    else if (row.kind === "tag") onSelectTag(row.tag);
+    else onSelectResult(row.result);
+  }
 
   return (
     <div ref={containerRef} className="relative w-full max-w-xl">
@@ -85,54 +185,33 @@ export function SearchBar({
         placeholder={placeholder}
         className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
       />
-      {open && (loading || hasContent || query.trim().length >= 2) && (
+      {open && (loading || rows.length > 0 || query.trim().length >= 2) && (
         <div className="absolute z-20 mt-1 max-h-96 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
           {loading && <div className="px-4 py-3 text-sm text-gray-400">Recherche...</div>}
 
-          {!loading && visibleTags.length > 0 && (
-            <div className="border-b border-gray-100 py-1">
-              <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Tags correspondants
-              </p>
-              {visibleTags.map((tag) => (
-                <button
-                  key={tag.id}
-                  onClick={() => {
-                    onSelectTag(tag);
-                    setQuery("");
-                    setOpen(false);
-                  }}
-                  className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50"
-                >
-                  Voir tous les lieux taggés <strong>{tag.label}</strong>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {!loading && visibleResults.length > 0 && (
+          {!loading && rows.length > 0 && (
             <div className="py-1">
-              <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Résultats
-              </p>
-              {visibleResults.map((r) => (
+              {rows.map((row) => (
                 <button
-                  key={`${r.result_type}-${r.id}`}
-                  onClick={() => {
-                    setOpen(false);
-                    setQuery("");
-                    onSelectResult(r);
-                  }}
-                  className="flex w-full flex-col px-4 py-2 text-left text-sm hover:bg-gray-50"
+                  key={row.key}
+                  onClick={() => selectRow(row)}
+                  className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm hover:bg-gray-50"
                 >
-                  <span className="font-medium">{r.title}</span>
-                  {r.subtitle && <span className="text-xs text-gray-400">{r.subtitle}</span>}
+                  <span className="shrink-0 text-gray-400">
+                    <RowIcon kind={row.kind} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-gray-900">{row.title}</span>
+                    {row.subtitle && (
+                      <span className="block truncate text-xs text-gray-400">{row.subtitle}</span>
+                    )}
+                  </span>
                 </button>
               ))}
             </div>
           )}
 
-          {!loading && !hasContent && (
+          {!loading && rows.length === 0 && (
             <div className="px-4 py-3 text-sm text-gray-400">Aucun résultat</div>
           )}
         </div>

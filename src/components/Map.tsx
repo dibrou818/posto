@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, ZoomControl, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -68,7 +68,7 @@ function popupHtml(place: PlaceWithRelations) {
   `;
 }
 
-export type MapFocusTarget = { id: string; lat: number; lng: number };
+export type MapFocusTarget = { id: string; lat: number; lng: number; zoom?: number };
 
 function ClusteredMarkers({
   places,
@@ -123,9 +123,10 @@ function ClusteredMarkers({
       // then opens its popup once it's actually visible on screen.
       groupRef.current.zoomToShowLayer(marker, () => marker.openPopup());
     } else {
-      // Marker not in the current (possibly tag-filtered) set — still take
-      // the user to the right spot.
-      map.flyTo([focusTarget.lat, focusTarget.lng], 16);
+      // No matching marker — either it's outside the current (possibly
+      // tag-filtered) set, or this target is a city/area rather than a
+      // venue. Still take the user to the right spot.
+      map.flyTo([focusTarget.lat, focusTarget.lng], focusTarget.zoom ?? 16);
     }
   }, [focusTarget, map]);
 
@@ -144,6 +145,7 @@ export function Map({
       center={LILLE_CENTER}
       zoom={DEFAULT_ZOOM}
       scrollWheelZoom
+      zoomControl={false}
       className="h-full w-full"
     >
       <TileLayer
@@ -152,6 +154,9 @@ export function Map({
         subdomains="abcd"
         maxZoom={20}
       />
+      {/* Bottom-right so it never overlaps the search bar; hidden on mobile
+          entirely (globals.css) since pinch-to-zoom already works there. */}
+      <ZoomControl position="bottomright" />
       <ClusteredMarkers places={places} focusTarget={focusTarget} />
     </MapContainer>
   );

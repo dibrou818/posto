@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import type { PlaceWithRelations } from "@/lib/queries";
 import type { MapFocusTarget } from "@/components/Map";
-import { SearchBar, type SearchResult } from "@/components/SearchBar";
+import { SearchBar, type SearchResult, type CityResult } from "@/components/SearchBar";
 import { usePlacesExplorer } from "@/lib/usePlacesExplorer";
+
+const CITY_ZOOM = 12;
 
 const Map = dynamic(() => import("@/components/Map").then((m) => m.Map), {
   ssr: false,
@@ -32,15 +35,38 @@ function useLockBodyScroll() {
   }, []);
 }
 
+/** Reads ?lat=&lng= (set when a city was picked from the search bar on
+ * another page — see HomeExplorer) so the map opens already centered there. */
+function useInitialCityFocus(): MapFocusTarget | null {
+  const searchParams = useSearchParams();
+  const latParam = searchParams.get("lat");
+  const lngParam = searchParams.get("lng");
+  // `.get()` returns null when the param is absent, and Number(null) is 0
+  // (not NaN) — without this check every plain visit to /map would "focus"
+  // on [0, 0], off the coast of Africa, instead of falling back to Lille.
+  if (!latParam || !lngParam) return null;
+
+  const lat = Number(latParam);
+  const lng = Number(lngParam);
+  if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+  return { id: "city:initial", lat, lng, zoom: CITY_ZOOM };
+}
+
 export function FullScreenMap({ places }: { places: PlaceWithRelations[] }) {
   useLockBodyScroll();
   const { selectedTag, setSelectedTag, places: filteredPlaces } = usePlacesExplorer(places);
-  const [focusTarget, setFocusTarget] = useState<MapFocusTarget | null>(null);
+  const [focusTarget, setFocusTarget] = useState<MapFocusTarget | null>(useInitialCityFocus());
 
   function handleSelectResult(result: SearchResult) {
     // Re-selecting the same place should still re-trigger the zoom/popup
     // even if it's already the focus target.
     setFocusTarget({ id: result.place_id, lat: result.lat, lng: result.lng });
+  }
+
+  function handleSelectCity(city: CityResult) {
+    // No marker will ever match this id, so Map falls back to a plain
+    // flyTo — exactly what a city/area target needs (no popup to open).
+    setFocusTarget({ id: `city:${city.label}:${Date.now()}`, lat: city.lat, lng: city.lng, zoom: CITY_ZOOM });
   }
 
   return (
@@ -54,6 +80,7 @@ export function FullScreenMap({ places }: { places: PlaceWithRelations[] }) {
           <SearchBar
             onSelectTag={setSelectedTag}
             onSelectResult={handleSelectResult}
+            onSelectCity={handleSelectCity}
             placeholder="Rechercher un lieu, une ville, un événement..."
           />
         </div>

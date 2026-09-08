@@ -16,6 +16,10 @@ const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
   minute: "2-digit",
 });
 
+// Short weekday/month for the big date badge on each event card (e.g. "mer." / "9" / "sept.").
+const badgeWeekdayFormatter = new Intl.DateTimeFormat("fr-FR", { weekday: "short" });
+const badgeMonthFormatter = new Intl.DateTimeFormat("fr-FR", { month: "short" });
+
 export default async function PlacePage({
   params,
 }: {
@@ -118,20 +122,36 @@ export default async function PlacePage({
         <section className="mt-8">
           <h2 className="mb-2 text-lg font-semibold text-gray-900">Événements à venir</h2>
           <ul className="space-y-2">
-            {events.map((event) => (
-              <li
-                key={event.id}
-                className="rounded-lg border border-gray-200 bg-white p-3 text-sm"
-              >
-                <p className="font-medium text-gray-900">{event.title}</p>
-                <p className="text-xs text-gray-500">
-                  {eventDateFormatter.format(new Date(event.start_datetime))}
-                </p>
-                {event.description && (
-                  <p className="mt-1 text-gray-600">{event.description}</p>
-                )}
-              </li>
-            ))}
+            {events.map((event) => {
+              const start = new Date(event.start_datetime);
+              return (
+                <li
+                  key={event.id}
+                  className="flex overflow-hidden rounded-lg border border-gray-200 bg-white text-sm"
+                >
+                  <div className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 border-r border-gray-100 bg-gray-50 px-1 text-center">
+                    <span className="text-[11px] font-medium uppercase text-gray-400">
+                      {badgeWeekdayFormatter.format(start)}
+                    </span>
+                    <span className="text-2xl leading-none font-bold text-gray-900">
+                      {start.getDate()}
+                    </span>
+                    <span className="text-[11px] font-medium uppercase text-gray-400">
+                      {badgeMonthFormatter.format(start)}
+                    </span>
+                  </div>
+                  <div className="flex-1 p-3">
+                    <p className="font-medium text-gray-900">{event.title}</p>
+                    {event.description && (
+                      <p className="mt-1 text-gray-600">{event.description}</p>
+                    )}
+                    <p className="mt-1 text-xs text-gray-500">
+                      {eventDateFormatter.format(start)}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
