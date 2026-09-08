@@ -60,18 +60,3 @@ body {
 .leaflet-control-attribution a {
   color: inherit !important;
 }
-
-/* "You are here" pulsing dot for the map's live geolocation marker. */
-@keyframes posto-locate-pulse {
-  0% {
-    transform: scale(0.6);
-    opacity: 0.55;
-  }
-  100% {
-    transform: scale(2.2);
-    opacity: 0;
-  }
-}
-.posto-locate-pulse {
-  animation: posto-locate-pulse 2s ease-out infinite;
-}

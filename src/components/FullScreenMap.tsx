@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
+import type L from "leaflet";
 import type { PlaceWithRelations } from "@/lib/queries";
 import type { MapFocusTarget } from "@/components/Map";
 import { SearchBar, type SearchResult, type CityResult } from "@/components/SearchBar";
+import { MapCompass } from "@/components/MapCompass";
 import { usePlacesExplorer } from "@/lib/usePlacesExplorer";
 
 const CITY_ZOOM = 12;
@@ -56,6 +58,7 @@ export function FullScreenMap({ places }: { places: PlaceWithRelations[] }) {
   useLockBodyScroll();
   const { selectedTag, setSelectedTag, places: filteredPlaces } = usePlacesExplorer(places);
   const [focusTarget, setFocusTarget] = useState<MapFocusTarget | null>(useInitialCityFocus());
+  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
 
   function handleSelectResult(result: SearchResult) {
     // Re-selecting the same place should still re-trigger the zoom/popup
@@ -72,17 +75,22 @@ export function FullScreenMap({ places }: { places: PlaceWithRelations[] }) {
   return (
     <div className="relative min-h-0 flex-1">
       <div className="absolute inset-0">
-        <Map places={filteredPlaces} focusTarget={focusTarget} />
+        <Map places={filteredPlaces} focusTarget={focusTarget} onMapReady={setMapInstance} />
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[1000] flex flex-col gap-2 p-3">
-        <div className="pointer-events-auto">
-          <SearchBar
-            onSelectTag={setSelectedTag}
-            onSelectResult={handleSelectResult}
-            onSelectCity={handleSelectCity}
-            placeholder="Rechercher un lieu, une ville, un événement..."
-          />
+        <div className="flex items-start gap-2">
+          <div className="pointer-events-auto min-w-0 flex-1">
+            <SearchBar
+              onSelectTag={setSelectedTag}
+              onSelectResult={handleSelectResult}
+              onSelectCity={handleSelectCity}
+              placeholder="Rechercher un lieu, une ville, un événement..."
+            />
+          </div>
+          <div className="pointer-events-auto">
+            <MapCompass map={mapInstance} />
+          </div>
         </div>
         {selectedTag && (
           <button

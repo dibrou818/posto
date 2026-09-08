@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, ZoomControl, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet-rotate";
 import type { PlaceWithRelations } from "@/lib/queries";
 import { isOpenNow } from "@/lib/opening-hours";
 
@@ -54,219 +55,16 @@ function clusterIcon(count: number) {
   });
 }
 
-type LocateStatus = "idle" | "locating" | "active" | "denied";
-
-/** Blue "you are here" dot, with an optional cone pointing in the direction
- * the phone is facing (from the device compass). The cone is only drawn once
- * a heading reading actually comes in — desktop browsers with no compass
- * simply never get one, so the dot degrades gracefully to a plain pin. */
-function userLocationIcon(heading: number | null) {
-  const cone =
-    heading !== null
-      ? `<div style="
-          position:absolute;left:50%;top:50%;width:0;height:0;
-          transform:translate(-50%,-100%) rotate(${heading}deg);
-          transform-origin:50% 100%;
-          border-left:8px solid transparent;
-          border-right:8px solid transparent;
-          border-bottom:22px solid rgba(37,99,235,0.4);
-        "></div>`
-      : "";
-  return L.divIcon({
-    className: "",
-    html: `
-      <div style="position:relative;width:18px;height:18px;">
-        <div class="posto-locate-pulse" style="
-          position:absolute;inset:0;border-radius:50%;background:#2563eb;
-        "></div>
-        ${cone}
-        <div style="
-          position:absolute;inset:0;border-radius:50%;
-          background:#2563eb;border:3px solid #ffffff;
-          box-shadow:0 0 0 1px rgba(37,99,235,0.4),0 1px 4px rgba(0,0,0,0.35);
-        "></div>
-      </div>
-    `,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
-  });
-}
-
-function locateButtonIcon(status: LocateStatus) {
-  const color = status === "active" ? "#2563eb" : status === "denied" ? "#dc2626" : "#374151";
-  return `
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="3"></circle>
-      <path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path>
-    </svg>
-  `;
-}
-
-/** Custom Leaflet control (bottom-right, next to the zoom control) that lets
- * the user request their live position on the map — a plain button rather
- * than a React node, since Leaflet's control container isn't part of the
- * React tree. */
-function LocateControl({ status, onClick }: { status: LocateStatus; onClick: () => void }) {
+/** Notifies the parent (outside the react-leaflet tree) once the underlying
+ * Leaflet map instance exists, so it can render UI — like the compass — that
+ * needs to call map methods (setBearing, etc.) from ordinary React, outside
+ * Leaflet's own control system. */
+function MapReadyBridge({ onReady }: { onReady?: (map: L.Map) => void }) {
   const map = useMap();
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const onClickRef = useRef(onClick);
-
   useEffect(() => {
-    onClickRef.current = onClick;
-  }, [onClick]);
-
-  useEffect(() => {
-    const control = new L.Control({ position: "bottomright" });
-    control.onAdd = () => {
-      const button = L.DomUtil.create("button") as HTMLButtonElement;
-      button.type = "button";
-      button.setAttribute("aria-label", "Me localiser");
-      button.style.cssText =
-        "width:34px;height:34px;display:flex;align-items:center;justify-content:center;" +
-        "background:#fff;border-radius:8px;cursor:pointer;border:none;" +
-        "box-shadow:0 1px 4px rgba(0,0,0,0.3);";
-      L.DomEvent.disableClickPropagation(button);
-      L.DomEvent.on(button, "click", () => onClickRef.current());
-      buttonRef.current = button;
-      return button;
-    };
-    control.addTo(map);
-    return () => {
-      control.remove();
-      buttonRef.current = null;
-    };
-  }, [map]);
-
-  useEffect(() => {
-    if (buttonRef.current) buttonRef.current.innerHTML = locateButtonIcon(status);
-  }, [status]);
-
+    onReady?.(map);
+  }, [map, onReady]);
   return null;
-}
-
-/** Reads webkitCompassHeading (iOS) or the standardized absolute alpha
- * (Android/Chrome) into a single 0-360 compass heading, or null when neither
- * is available. */
-function headingFromOrientationEvent(event: DeviceOrientationEvent): number | null {
-  const iosEvent = event as DeviceOrientationEvent & { webkitCompassHeading?: number };
-  if (typeof iosEvent.webkitCompassHeading === "number") return iosEvent.webkitCompassHeading;
-  if (event.absolute && typeof event.alpha === "number") return (360 - event.alpha) % 360;
-  return null;
-}
-
-/** Live "you are here" pin: a locate button that requests geolocation (kept
- * live via watchPosition) and, on phones, the compass heading, then draws a
- * marker + accuracy circle that follow the user as they move and turn. */
-function UserLocationLayer() {
-  const map = useMap();
-  const [status, setStatus] = useState<LocateStatus>("idle");
-  const [heading, setHeading] = useState<number | null>(null);
-  const markerRef = useRef<L.Marker | null>(null);
-  const accuracyCircleRef = useRef<L.Circle | null>(null);
-  const watchIdRef = useRef<number | null>(null);
-  const hasCenteredRef = useRef(false);
-  const lastHeadingRef = useRef<number | null>(null);
-
-  const handleOrientation = useCallback((event: DeviceOrientationEvent) => {
-    const value = headingFromOrientationEvent(event);
-    if (value === null) return;
-    // Compass events fire very frequently — only re-render on a real change
-    // so a still phone doesn't spam React with near-identical values.
-    const last = lastHeadingRef.current;
-    if (last === null || Math.abs(value - last) >= 2) {
-      lastHeadingRef.current = value;
-      setHeading(value);
-    }
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-      window.removeEventListener("deviceorientation", handleOrientation);
-      window.removeEventListener("deviceorientationabsolute", handleOrientation as EventListener);
-      markerRef.current?.remove();
-      accuracyCircleRef.current?.remove();
-    };
-  }, [handleOrientation]);
-
-  useEffect(() => {
-    markerRef.current?.setIcon(userLocationIcon(heading));
-  }, [heading]);
-
-  function updatePosition(lat: number, lng: number, accuracy: number) {
-    const latlng = L.latLng(lat, lng);
-    if (!markerRef.current) {
-      markerRef.current = L.marker(latlng, {
-        icon: userLocationIcon(lastHeadingRef.current),
-        zIndexOffset: 1000,
-        interactive: false,
-      }).addTo(map);
-    } else {
-      markerRef.current.setLatLng(latlng);
-    }
-    if (!accuracyCircleRef.current) {
-      accuracyCircleRef.current = L.circle(latlng, {
-        radius: accuracy,
-        color: "#2563eb",
-        weight: 1,
-        fillColor: "#2563eb",
-        fillOpacity: 0.1,
-        interactive: false,
-      }).addTo(map);
-    } else {
-      accuracyCircleRef.current.setLatLng(latlng);
-      accuracyCircleRef.current.setRadius(accuracy);
-    }
-  }
-
-  function startWatching() {
-    setStatus("locating");
-
-    // iOS 13+ only grants compass access after an explicit, user-gesture
-    // triggered prompt; every other browser fires the events without asking.
-    // Best-effort either way — the pin still works with no heading cone.
-    const DeviceOrientation = window.DeviceOrientationEvent as unknown as {
-      requestPermission?: () => Promise<"granted" | "denied">;
-    };
-    if (typeof DeviceOrientation?.requestPermission === "function") {
-      DeviceOrientation.requestPermission()
-        .then((result) => {
-          if (result === "granted") window.addEventListener("deviceorientation", handleOrientation);
-        })
-        .catch(() => {});
-    } else if (typeof window.DeviceOrientationEvent !== "undefined") {
-      window.addEventListener("deviceorientationabsolute", handleOrientation as EventListener);
-      window.addEventListener("deviceorientation", handleOrientation);
-    }
-
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        setStatus("active");
-        updatePosition(latitude, longitude, accuracy);
-        if (!hasCenteredRef.current) {
-          hasCenteredRef.current = true;
-          map.flyTo([latitude, longitude], Math.max(map.getZoom(), 15));
-        }
-      },
-      () => setStatus("denied"),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
-    );
-  }
-
-  function handleClick() {
-    if (!navigator.geolocation) {
-      setStatus("denied");
-      return;
-    }
-    if (status === "active" && markerRef.current) {
-      map.flyTo(markerRef.current.getLatLng(), Math.max(map.getZoom(), 15));
-      return;
-    }
-    startWatching();
-  }
-
-  return <LocateControl status={status} onClick={handleClick} />;
 }
 
 function popupHtml(place: PlaceWithRelations) {
@@ -351,9 +149,13 @@ function ClusteredMarkers({
 export function Map({
   places,
   focusTarget,
+  onMapReady,
 }: {
   places: PlaceWithRelations[];
   focusTarget?: MapFocusTarget | null;
+  /** Called once the Leaflet map instance is ready, so a sibling component
+   * (e.g. the compass overlaid outside the map) can read/set its bearing. */
+  onMapReady?: (map: L.Map) => void;
 }) {
   return (
     <MapContainer
@@ -368,6 +170,15 @@ export function Map({
       // Forcing it on keeps every marker locked to its real position the
       // entire time, on every device.
       markerZoomAnimation
+      // leaflet-rotate: lets the map be spun freely with a two-finger touch
+      // gesture (no device sensors/permissions involved, purely manual).
+      // rotateControl is off because the compass overlay (outside the map,
+      // see FullScreenMap) is our own UI for the same job.
+      rotate
+      touchRotate
+      shiftKeyRotate={false}
+      rotateControl={false}
+      bearing={0}
       className="h-full w-full"
     >
       <TileLayer
@@ -380,7 +191,7 @@ export function Map({
           entirely (globals.css) since pinch-to-zoom already works there. */}
       <ZoomControl position="bottomright" />
       <ClusteredMarkers places={places} focusTarget={focusTarget} />
-      <UserLocationLayer />
+      <MapReadyBridge onReady={onMapReady} />
     </MapContainer>
   );
 }
