@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getEventById } from "@/lib/queries";
+import { BackButton } from "@/components/ui/BackButton";
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
   weekday: "long",
@@ -48,6 +49,9 @@ export default async function EventPage({
             priority
           />
         )}
+        <div className="absolute top-3 left-3">
+          <BackButton fallbackHref="/" />
+        </div>
       </div>
 
       <div className="flex items-start justify-between gap-3">

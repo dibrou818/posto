@@ -2,7 +2,7 @@
 
 import type { Event, Tag } from "@/lib/queries";
 import { compactInputClass } from "@/lib/ui";
-import { Button } from "@/components/ui/Button";
+import { SaveButton } from "@/components/ui/SaveButton";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 
 export function EventsManager({
@@ -94,9 +94,9 @@ export function EventsManager({
             </option>
           ))}
         </select>
-        <Button type="submit" size="compact" className="self-start">
+        <SaveButton size="compact" className="self-start" savedLabel="Ajouté" pendingLabel="Ajout...">
           Ajouter
-        </Button>
+        </SaveButton>
       </form>
     </div>
   );

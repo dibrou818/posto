@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import {
@@ -13,6 +14,8 @@ import { ActivitiesManager } from "@/components/dashboard/ActivitiesManager";
 import { EventsManager } from "@/components/dashboard/EventsManager";
 import { DashboardSection } from "@/components/dashboard/DashboardSection";
 import { DeleteButton } from "@/components/ui/DeleteButton";
+import { BackButton } from "@/components/ui/BackButton";
+import { buttonClass } from "@/lib/ui";
 import {
   updatePlace,
   deletePlace,
@@ -26,10 +29,13 @@ import {
 
 export default async function EditPlacePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ created?: string }>;
 }) {
   const { id } = await params;
+  const { created } = await searchParams;
   const { supabase, user } = await requireUser();
 
   const place = await getPlaceById(supabase, id);
@@ -44,13 +50,38 @@ export default async function EditPlacePage({
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex items-center gap-3">
+        <BackButton fallbackHref="/dashboard" />
+        <Link
+          href="/dashboard"
+          className="text-sm text-gray-500 transition-colors hover:text-gray-900 focus:outline-none focus-visible:underline"
+        >
+          Mes lieux
+        </Link>
+      </div>
+
+      {created === "1" && (
+        <div className="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <p className="font-medium">✅ Lieu créé avec succès.</p>
+          <p className="mt-0.5 text-green-700">
+            Complétez ci-dessous les horaires, tags, activités et événements si besoin — chaque
+            section s&apos;enregistre indépendamment. Revenez à votre liste quand vous avez terminé.
+          </p>
+        </div>
+      )}
+
+      <div className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-gray-900">{place.name}</h1>
-        <DeleteButton
-          action={deletePlace.bind(null, id)}
-          label="Supprimer le lieu"
-          className="text-sm"
-        />
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard" className={buttonClass("compact")}>
+            Terminé
+          </Link>
+          <DeleteButton
+            action={deletePlace.bind(null, id)}
+            label="Supprimer le lieu"
+            className="text-sm"
+          />
+        </div>
       </div>
 
       <DashboardSection title="Informations">

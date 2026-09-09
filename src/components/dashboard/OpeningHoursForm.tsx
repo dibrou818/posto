@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { OpeningHour } from "@/lib/queries";
 import { dayLabel } from "@/lib/opening-hours";
-import { Button } from "@/components/ui/Button";
+import { SaveButton } from "@/components/ui/SaveButton";
 
 export function OpeningHoursForm({
   hours,
@@ -49,9 +49,9 @@ export function OpeningHoursForm({
           />
         </div>
       ))}
-      <Button type="submit" className="mt-2 self-start">
+      <SaveButton className="mt-2 self-start" savedLabel="Horaires enregistrés">
         Enregistrer les horaires
-      </Button>
+      </SaveButton>
     </form>
   );
 }

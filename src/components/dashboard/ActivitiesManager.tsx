@@ -2,7 +2,7 @@
 
 import type { Activity, Tag } from "@/lib/queries";
 import { compactInputClass } from "@/lib/ui";
-import { Button } from "@/components/ui/Button";
+import { SaveButton } from "@/components/ui/SaveButton";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 
 export function ActivitiesManager({
@@ -61,9 +61,9 @@ export function ActivitiesManager({
             </option>
           ))}
         </select>
-        <Button type="submit" size="compact" className="self-start">
+        <SaveButton size="compact" className="self-start" savedLabel="Ajoutée" pendingLabel="Ajout...">
           Ajouter
-        </Button>
+        </SaveButton>
       </form>
     </div>
   );

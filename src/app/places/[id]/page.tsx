@@ -9,6 +9,7 @@ import {
 } from "@/lib/queries";
 import { isOpenNow, scheduleByDay } from "@/lib/opening-hours";
 import { OpeningHoursAccordion } from "@/components/OpeningHoursAccordion";
+import { BackButton } from "@/components/ui/BackButton";
 
 const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
   weekday: "long",
@@ -54,6 +55,9 @@ export default async function PlacePage({
             priority
           />
         )}
+        <div className="absolute top-3 left-3">
+          <BackButton fallbackHref="/" />
+        </div>
       </div>
 
       <div className="flex items-start justify-between gap-3">

@@ -56,7 +56,7 @@ export async function createPlace(formData: FormData) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/dashboard");
-  redirect(`/dashboard/places/${data.id}`);
+  redirect(`/dashboard/places/${data.id}?created=1`);
 }
 
 export async function updatePlace(placeId: string, formData: FormData) {

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Tag } from "@/lib/queries";
-import { Button } from "@/components/ui/Button";
+import { SaveButton } from "@/components/ui/SaveButton";
 
 export function TagsForm({
   allTags,
@@ -31,9 +31,9 @@ export function TagsForm({
           </label>
         ))}
       </div>
-      <Button type="submit" className="self-start">
+      <SaveButton className="self-start" savedLabel="Tags enregistrés">
         Enregistrer les tags
-      </Button>
+      </SaveButton>
     </form>
   );
 }
