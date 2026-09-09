@@ -59,7 +59,7 @@ export function SignupForm() {
         label="Mot de passe"
         type="password"
         required
-        minLength={6}
+        minLength={8}
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
@@ -67,7 +67,7 @@ export function SignupForm() {
         label="Confirmer le mot de passe"
         type="password"
         required
-        minLength={6}
+        minLength={8}
         value={confirmPassword}
         onChange={(e) => setConfirmPassword(e.target.value)}
       />
