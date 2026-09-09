@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -67,17 +68,31 @@ export default async function PlacePage({
       </div>
       <p className="mt-1 text-sm text-gray-500">{place.address}</p>
 
-      {place.phone && (
+      <div className="mt-3 flex flex-wrap gap-2">
+        {place.phone && (
+          <a
+            href={`tel:${place.phone}`}
+            className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 focus-visible:ring-offset-2"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+              <path d="M3.654 1.328a.678.678 0 0 1 1.015-.063l2.008 2.008a.678.678 0 0 1 .166.685l-.622 2.072a.678.678 0 0 0 .166.685l4.898 4.898a.678.678 0 0 0 .685.166l2.072-.622a.678.678 0 0 1 .685.166l2.008 2.008a.678.678 0 0 1-.063 1.015l-1.462 1.146a1.678 1.678 0 0 1-1.665.229C10.4 14.34 5.66 9.6 4.279 6.455a1.678 1.678 0 0 1 .23-1.665l1.145-1.462Z" />
+            </svg>
+            Appeler {place.phone}
+          </a>
+        )}
         <a
-          href={`tel:${place.phone}`}
-          className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 focus-visible:ring-offset-2"
+          href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
         >
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M3.654 1.328a.678.678 0 0 1 1.015-.063l2.008 2.008a.678.678 0 0 1 .166.685l-.622 2.072a.678.678 0 0 0 .166.685l4.898 4.898a.678.678 0 0 0 .685.166l2.072-.622a.678.678 0 0 1 .685.166l2.008 2.008a.678.678 0 0 1-.063 1.015l-1.462 1.146a1.678 1.678 0 0 1-1.665.229C10.4 14.34 5.66 9.6 4.279 6.455a1.678 1.678 0 0 1 .23-1.665l1.145-1.462Z" />
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
+            <path d="M10 18s6-5.5 6-10a6 6 0 1 0-12 0c0 4.5 6 10 6 10Z" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="10" cy="8" r="2.2" />
           </svg>
-          Appeler {place.phone}
+          Itinéraire
         </a>
-      )}
+      </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {place.tags.map((tag) => (
@@ -125,30 +140,39 @@ export default async function PlacePage({
             {events.map((event) => {
               const start = new Date(event.start_datetime);
               return (
-                <li
-                  key={event.id}
-                  className="flex overflow-hidden rounded-xl border border-gray-200 bg-white text-sm"
-                >
-                  <div className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 border-r border-gray-100 bg-gray-50 px-1 text-center">
-                    <span className="text-[11px] font-medium uppercase text-gray-500">
-                      {badgeWeekdayFormatter.format(start)}
-                    </span>
-                    <span className="text-2xl leading-none font-bold text-gray-900">
-                      {start.getDate()}
-                    </span>
-                    <span className="text-[11px] font-medium uppercase text-gray-500">
-                      {badgeMonthFormatter.format(start)}
-                    </span>
-                  </div>
-                  <div className="flex-1 p-3">
-                    <p className="font-medium text-gray-900">{event.title}</p>
-                    {event.description && (
-                      <p className="mt-1 text-gray-600">{event.description}</p>
-                    )}
-                    <p className="mt-1 text-xs text-gray-500">
-                      {eventDateFormatter.format(start)}
-                    </p>
-                  </div>
+                <li key={event.id}>
+                  <Link
+                    href={`/events/${event.id}`}
+                    className="flex overflow-hidden rounded-xl border border-gray-200 bg-white text-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+                  >
+                    <div className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 border-r border-gray-100 bg-gray-50 px-1 text-center">
+                      <span className="text-[11px] font-medium uppercase text-gray-500">
+                        {badgeWeekdayFormatter.format(start)}
+                      </span>
+                      <span className="text-2xl leading-none font-bold text-gray-900">
+                        {start.getDate()}
+                      </span>
+                      <span className="text-[11px] font-medium uppercase text-gray-500">
+                        {badgeMonthFormatter.format(start)}
+                      </span>
+                    </div>
+                    <div className="flex-1 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium text-gray-900">{event.title}</p>
+                        {event.price && (
+                          <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                            {event.price}
+                          </span>
+                        )}
+                      </div>
+                      {event.description && (
+                        <p className="mt-1 text-gray-600">{event.description}</p>
+                      )}
+                      <p className="mt-1 text-xs text-gray-500">
+                        {eventDateFormatter.format(start)}
+                      </p>
+                    </div>
+                  </Link>
                 </li>
               );
             })}

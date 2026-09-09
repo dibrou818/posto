@@ -61,6 +61,7 @@ export type Database = {
           end_datetime: string | null
           id: string
           place_id: string
+          price: string | null
           recurrence_rule: string | null
           start_datetime: string
           tag_id: string | null
@@ -72,6 +73,7 @@ export type Database = {
           end_datetime?: string | null
           id?: string
           place_id: string
+          price?: string | null
           recurrence_rule?: string | null
           start_datetime: string
           tag_id?: string | null
@@ -83,6 +85,7 @@ export type Database = {
           end_datetime?: string | null
           id?: string
           place_id?: string
+          price?: string | null
           recurrence_rule?: string | null
           start_datetime?: string
           tag_id?: string | null

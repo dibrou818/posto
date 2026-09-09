@@ -170,6 +170,7 @@ export async function createEvent(placeId: string, formData: FormData) {
   const end_datetime = textField(formData, "end_datetime");
   const recurrence_rule = textField(formData, "recurrence_rule");
   const tag_id = textField(formData, "tag_id");
+  const price = textField(formData, "price");
 
   if (!title || !start_datetime) {
     throw new Error("Titre et date de début sont requis.");
@@ -183,6 +184,7 @@ export async function createEvent(placeId: string, formData: FormData) {
     end_datetime: end_datetime ? new Date(end_datetime).toISOString() : null,
     recurrence_rule,
     tag_id,
+    price,
   });
   if (error) throw new Error(error.message);
 

@@ -93,6 +93,22 @@ function RowIcon({ kind }: { kind: Row["kind"] }) {
   return <PinIcon />; // place & activity: both anchored to a specific venue
 }
 
+type ResultFilter = "all" | "place" | "event";
+
+const FILTER_OPTIONS: { value: ResultFilter; label: string }[] = [
+  { value: "all", label: "Tout" },
+  { value: "place", label: "Lieux" },
+  { value: "event", label: "Événements" },
+];
+
+// "place" filter also covers "activity" rows — both are anchored to a venue
+// rather than a date, so from the user's point of view they're both "un lieu".
+function matchesFilter(kind: SearchResult["result_type"], filter: ResultFilter) {
+  if (filter === "all") return true;
+  if (filter === "event") return kind === "event";
+  return kind === "place" || kind === "activity";
+}
+
 export function SearchBar({
   onSelectTag,
   onSelectResult,
@@ -105,6 +121,7 @@ export function SearchBar({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [cities, setCities] = useState<CityResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState<ResultFilter>("all");
   const containerRef = useRef<HTMLDivElement>(null);
 
   const queryTooShort = query.trim().length < 2;
@@ -158,13 +175,15 @@ export function SearchBar({
           subtitle: null,
           tag,
         })),
-        ...results.map((result): Row => ({
-          kind: result.result_type,
-          key: `${result.result_type}-${result.id}`,
-          title: result.title,
-          subtitle: result.subtitle,
-          result,
-        })),
+        ...results
+          .filter((result) => matchesFilter(result.result_type, filter))
+          .map((result): Row => ({
+            kind: result.result_type,
+            key: `${result.result_type}-${result.id}`,
+            title: result.title,
+            subtitle: result.subtitle,
+            result,
+          })),
       ];
 
   function selectRow(row: Row) {
@@ -187,6 +206,23 @@ export function SearchBar({
       />
       {open && (loading || rows.length > 0 || query.trim().length >= 2) && (
         <div className="absolute z-20 mt-1 max-h-96 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+          <div className="flex gap-1.5 border-b border-gray-100 px-3 py-2">
+            {FILTER_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setFilter(option.value)}
+                className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
+                  filter === option.value
+                    ? "bg-gray-900 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
           {loading && <div className="px-4 py-3 text-sm text-gray-500">Recherche...</div>}
 
           {!loading && rows.length > 0 && (

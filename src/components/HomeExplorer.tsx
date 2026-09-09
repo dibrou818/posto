@@ -55,7 +55,9 @@ export function HomeExplorer({ places }: { places: PlaceWithRelations[] }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <SearchBar
           onSelectTag={setSelectedTag}
-          onSelectResult={(r) => router.push(`/places/${r.place_id}`)}
+          onSelectResult={(r) =>
+            router.push(r.result_type === "event" ? `/events/${r.id}` : `/places/${r.place_id}`)
+          }
           onSelectCity={(city) => router.push(`/map?lat=${city.lat}&lng=${city.lng}`)}
         />
         {selectedTag && (

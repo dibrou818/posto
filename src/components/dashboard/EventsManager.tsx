@@ -29,6 +29,7 @@ export function EventsManager({
               <p className="text-xs text-gray-500">
                 {new Date(event.start_datetime).toLocaleString("fr-FR")}
                 {event.recurrence_rule ? ` · ${event.recurrence_rule}` : ""}
+                {event.price ? ` · ${event.price}` : ""}
               </p>
             </div>
             <DeleteButton action={onDelete.bind(null, event.id)} />
@@ -73,11 +74,18 @@ export function EventsManager({
             />
           </div>
         </div>
-        <input
-          name="recurrence_rule"
-          placeholder="Récurrence, ex: weekly:thursday (optionnel)"
-          className={compactInputClass}
-        />
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            name="recurrence_rule"
+            placeholder="Récurrence, ex: weekly:thursday"
+            className={compactInputClass}
+          />
+          <input
+            name="price"
+            placeholder="Prix, ex: Gratuit / 10€"
+            className={compactInputClass}
+          />
+        </div>
         <select name="tag_id" className={compactInputClass}>
           <option value="">Hérite des tags du lieu</option>
           {allTags.map((tag) => (

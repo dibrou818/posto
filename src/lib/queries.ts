@@ -81,6 +81,22 @@ export async function getUpcomingEventsForPlace(
   return data;
 }
 
+export type EventWithPlace = Event & { place: Tables<"places"> };
+
+export async function getEventById(
+  supabase: SupabaseClient<Database>,
+  id: string,
+): Promise<EventWithPlace | null> {
+  const { data, error } = await supabase
+    .from("events")
+    .select("*, place:places(*)")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return data as unknown as EventWithPlace;
+}
+
 export async function getAllEventsForPlace(
   supabase: SupabaseClient<Database>,
   placeId: string,
