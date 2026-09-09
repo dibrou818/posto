@@ -86,10 +86,14 @@ export async function GET(request: NextRequest) {
   ]);
 
   if (tagsRes.error) {
-    return NextResponse.json({ error: tagsRes.error.message }, { status: 500 });
+    // Log the real Postgres/Supabase error server-side only — surfacing it
+    // to the client would leak internal schema/function details.
+    console.error("search_tags RPC failed:", tagsRes.error);
+    return NextResponse.json({ error: "Une erreur est survenue, réessaie." }, { status: 500 });
   }
   if (resultsRes.error) {
-    return NextResponse.json({ error: resultsRes.error.message }, { status: 500 });
+    console.error("search_all RPC failed:", resultsRes.error);
+    return NextResponse.json({ error: "Une erreur est survenue, réessaie." }, { status: 500 });
   }
 
   return NextResponse.json({
