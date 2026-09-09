@@ -154,8 +154,18 @@ export async function deleteActivity(placeId: string, activityId: string) {
   const { supabase, user } = await requireUser();
   await assertOwnsPlace(supabase, user.id, placeId);
 
-  const { error } = await supabase.from("activities").delete().eq("id", activityId);
+  // Re-scope by place_id too, not just id: assertOwnsPlace only proves the
+  // caller owns `placeId` — without this, nothing here actually confirms
+  // `activityId` belongs to that place rather than someone else's. RLS also
+  // blocks a mismatched delete, but the app-level check should be correct on
+  // its own rather than depending entirely on that second layer.
+  const { error, count } = await supabase
+    .from("activities")
+    .delete({ count: "exact" })
+    .eq("id", activityId)
+    .eq("place_id", placeId);
   if (error) throw new Error(error.message);
+  if (!count) throw new Error("Cette activité n'appartient pas à ce lieu.");
 
   revalidatePath(`/dashboard/places/${placeId}`);
 }
@@ -195,8 +205,15 @@ export async function deleteEvent(placeId: string, eventId: string) {
   const { supabase, user } = await requireUser();
   await assertOwnsPlace(supabase, user.id, placeId);
 
-  const { error } = await supabase.from("events").delete().eq("id", eventId);
+  // Same reasoning as deleteActivity above: re-scope by place_id, don't rely
+  // on RLS alone to catch a mismatched id.
+  const { error, count } = await supabase
+    .from("events")
+    .delete({ count: "exact" })
+    .eq("id", eventId)
+    .eq("place_id", placeId);
   if (error) throw new Error(error.message);
+  if (!count) throw new Error("Cet événement n'appartient pas à ce lieu.");
 
   revalidatePath(`/dashboard/places/${placeId}`);
 }
