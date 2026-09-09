@@ -221,12 +221,23 @@ function MapReadyBridge({ onReady }: { onReady?: (map: L.Map) => void }) {
   return null;
 }
 
+// Leaflet's bindPopup(string) injects the string as raw HTML with no
+// escaping of its own — place.name/place.address are free text any signed-up
+// user controls, so they must be entity-encoded before going anywhere near
+// this template, or a malicious place name becomes stored XSS for every
+// visitor who opens its popup on the public map.
+function escapeHtml(value: string): string {
+  const div = document.createElement("div");
+  div.textContent = value;
+  return div.innerHTML;
+}
+
 function popupHtml(place: PlaceWithRelations) {
   const open = isOpenNow(place.opening_hours);
   return `
     <div style="display:flex;flex-direction:column;gap:4px;">
-      <span style="font-weight:600;">${place.name}</span>
-      <span style="font-size:12px;color:#6b7280;">${place.address ?? ""}</span>
+      <span style="font-weight:600;">${escapeHtml(place.name)}</span>
+      <span style="font-size:12px;color:#6b7280;">${escapeHtml(place.address ?? "")}</span>
       <span style="font-size:12px;font-weight:500;">${open ? "🟢 Ouvert" : "🔴 Fermé"}</span>
       <a href="/places/${place.id}" style="font-size:12px;color:#2563eb;text-decoration:underline;">
         Voir la fiche
