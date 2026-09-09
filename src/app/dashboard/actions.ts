@@ -23,6 +23,27 @@ function textField(formData: FormData, key: string): string | null {
   return String(formData.get(key) ?? "").trim() || null;
 }
 
+// Keep in sync with images.remotePatterns in next.config.ts — a place owner
+// could otherwise submit this action directly (bypassing the upload flow in
+// PlaceForm) with an arbitrary URL in the hidden cover_photo_url field.
+const ALLOWED_PHOTO_HOSTS = ["images.unsplash.com", "picsum.photos", "khvchawnkzamhfwrbhtz.supabase.co"];
+
+function parseCoverPhotoUrl(formData: FormData): string | null {
+  const value = textField(formData, "cover_photo_url");
+  if (!value) return null;
+
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("URL de photo invalide.");
+  }
+  if (url.protocol !== "https:" || !ALLOWED_PHOTO_HOSTS.includes(url.hostname)) {
+    throw new Error("URL de photo non autorisée.");
+  }
+  return value;
+}
+
 function parsePlaceFields(formData: FormData) {
   const name = textField(formData, "name");
   const lat = Number(formData.get("lat"));
@@ -39,7 +60,7 @@ function parsePlaceFields(formData: FormData) {
     description: textField(formData, "description"),
     address: textField(formData, "address"),
     phone: textField(formData, "phone"),
-    cover_photo_url: textField(formData, "cover_photo_url"),
+    cover_photo_url: parseCoverPhotoUrl(formData),
   };
 }
 
