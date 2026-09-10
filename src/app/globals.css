@@ -76,6 +76,19 @@ body {
   color: inherit !important;
 }
 
+/* CARTO's raster tiles are pre-rendered PNGs — there's no per-feature style
+   control (no "make water bluer, leave the rest alone") the way there'd be
+   with vector tiles, since we're not drawing the map, just displaying an
+   image of it. A CSS filter on the tile images is the practical middle
+   ground: it can't isolate water vs. forest independently, but it uniformly
+   pushes the whole palette to read as more vivid, which is most of what
+   "plus peps" asks for. Scoped to .leaflet-tile-pane only (not markers,
+   popups, or controls — those live in separate Leaflet panes) so pins and
+   UI stay exactly as designed. */
+.leaflet-tile-pane {
+  filter: saturate(1.5) contrast(1.08) brightness(1.02);
+}
+
 /* "You are here" pulsing dot for the map's live geolocation marker. */
 @keyframes posto-locate-pulse {
   0% {
