@@ -4,14 +4,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getEventById } from "@/lib/queries";
 import { BackButton } from "@/components/ui/BackButton";
-
-const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
-const timeFormatter = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" });
+import { RecurrenceBadge } from "@/components/RecurrenceBadge";
+import { formatEventSchedule } from "@/lib/eventSchedule";
 
 export default async function EventPage({
   params,
@@ -28,13 +22,7 @@ export default async function EventPage({
   const start = new Date(event.start_datetime);
   const end = event.end_datetime ? new Date(event.end_datetime) : null;
   const isPast = (end ?? start).getTime() < new Date().getTime();
-
-  // Same day: "mercredi 9 septembre 2026, 19:00 - 23:00"; different days:
-  // full date on both ends.
-  const sameDay = end ? start.toDateString() === end.toDateString() : true;
-  const dateLabel = sameDay
-    ? `${dateFormatter.format(start)}, ${timeFormatter.format(start)}${end ? ` - ${timeFormatter.format(end)}` : ""}`
-    : `${dateFormatter.format(start)} ${timeFormatter.format(start)} - ${end ? `${dateFormatter.format(end)} ${timeFormatter.format(end)}` : ""}`;
+  const dateLabel = formatEventSchedule(event.start_datetime, event.end_datetime);
 
   // The event can have its own photo; falls back to the place's when it
   // doesn't bother setting one.
@@ -70,9 +58,6 @@ export default async function EventPage({
       </div>
 
       <p className="mt-1 text-sm text-gray-500">{dateLabel}</p>
-      {event.recurrence_rule && (
-        <p className="mt-0.5 text-xs text-gray-500">Récurrence : {event.recurrence_rule}</p>
-      )}
 
       <div className="mt-3 flex flex-wrap gap-2">
         {place.phone && (
@@ -100,11 +85,14 @@ export default async function EventPage({
         </a>
       </div>
 
-      {event.price && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          <span className="rounded-full bg-gray-900 px-2.5 py-1 text-xs font-medium text-white">
-            {event.price}
-          </span>
+      {(event.price || event.recurrence_rule) && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          {event.price && (
+            <span className="rounded-full bg-gray-900 px-2.5 py-1 text-xs font-medium text-white">
+              {event.price}
+            </span>
+          )}
+          <RecurrenceBadge rule={event.recurrence_rule} />
         </div>
       )}
 

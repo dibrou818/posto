@@ -89,11 +89,19 @@ export function HomeExplorer({
   // location/tag claim the results no longer back up.
   const placesDisplay = useMemo(() => {
     if (visiblePlaces.length > 0) {
+      // No tag/location active is the default "just browsing" state — a
+      // heading like "Tous les lieux" only restates the obvious there, and
+      // in Lieux/Événements-only mode it's pure noise right under a filter
+      // pill that already says the same thing. Only show one when it's
+      // actually informative, or as a section label while both grids share
+      // the page (kindFilter "all").
       const heading = selectedTag
         ? `Lieux taggés ${selectedTag.label}`
         : locationFilter
           ? `Lieux près de ${locationFilter.label}`
-          : "Tous les lieux";
+          : kindFilter === "all"
+            ? "Lieux"
+            : null;
       return { list: visiblePlaces, heading, note: null as string | null };
     }
     if (sortedPlaces.length > 0) {
@@ -111,7 +119,7 @@ export function HomeExplorer({
       };
     }
     return { list: [], heading: "Lieux", note: "Aucun lieu pour l'instant." };
-  }, [visiblePlaces, sortedPlaces, places, selectedTag, locationFilter, sortByDistance]);
+  }, [visiblePlaces, sortedPlaces, places, selectedTag, locationFilter, kindFilter, sortByDistance]);
 
   const eventsDisplay = useMemo(() => {
     if (visibleEvents.length > 0) {
@@ -119,7 +127,9 @@ export function HomeExplorer({
         ? `Événements taggés ${selectedTag.label}`
         : locationFilter
           ? `Événements près de ${locationFilter.label}`
-          : "Événements à venir";
+          : kindFilter === "all"
+            ? "Événements"
+            : null;
       return { list: visibleEvents, heading, note: null as string | null };
     }
     if (tagFilteredEvents.length > 0) {
@@ -143,7 +153,7 @@ export function HomeExplorer({
       };
     }
     return { list: [], heading: "Événements à venir", note: "Aucun événement à venir pour l'instant." };
-  }, [visibleEvents, tagFilteredEvents, events, selectedTag, locationFilter, sortByDistance]);
+  }, [visibleEvents, tagFilteredEvents, events, selectedTag, locationFilter, kindFilter, sortByDistance]);
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
@@ -182,7 +192,9 @@ export function HomeExplorer({
       <div className="flex flex-col gap-6">
         {showPlaces && (
           <section className="flex flex-col gap-2">
-            <h2 className="text-sm font-semibold text-gray-900">{placesDisplay.heading}</h2>
+            {placesDisplay.heading && (
+              <h2 className="text-sm font-semibold text-gray-900">{placesDisplay.heading}</h2>
+            )}
             {placesDisplay.note && (
               <p className="text-sm text-gray-500">{placesDisplay.note}</p>
             )}
@@ -206,7 +218,9 @@ export function HomeExplorer({
 
         {showEvents && (
           <section className="flex flex-col gap-2">
-            <h2 className="text-sm font-semibold text-gray-900">{eventsDisplay.heading}</h2>
+            {eventsDisplay.heading && (
+              <h2 className="text-sm font-semibold text-gray-900">{eventsDisplay.heading}</h2>
+            )}
             {eventsDisplay.note && (
               <p className="text-sm text-gray-500">{eventsDisplay.note}</p>
             )}

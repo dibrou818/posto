@@ -7,6 +7,7 @@ import { compactInputClass, labelClass } from "@/lib/ui";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { QrCodeSection } from "@/components/dashboard/QrCodeSection";
+import { formatEventSchedule, formatRecurrence } from "@/lib/eventSchedule";
 
 export function EventsManager({
   events,
@@ -69,8 +70,8 @@ export function EventsManager({
               <div className="min-w-0">
                 <p className="truncate font-medium text-gray-900">{event.title}</p>
                 <p className="text-xs text-gray-500">
-                  {new Date(event.start_datetime).toLocaleString("fr-FR")}
-                  {event.recurrence_rule ? ` · ${event.recurrence_rule}` : ""}
+                  {formatEventSchedule(event.start_datetime, event.end_datetime)}
+                  {event.recurrence_rule ? ` · ${formatRecurrence(event.recurrence_rule)}` : ""}
                   {event.price ? ` · ${event.price}` : ""}
                 </p>
               </div>
