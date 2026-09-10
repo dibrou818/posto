@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
 import { SearchBar } from "@/components/SearchBar";
@@ -49,17 +49,19 @@ export function HomeExplorer({
     );
   }, [sortedPlaces, locationFilter]);
 
+  const tagFilteredEvents = useMemo(
+    () => (selectedTag ? events.filter((e) => e.tag_id === selectedTag.id) : events),
+    [events, selectedTag],
+  );
+
   const visibleEvents = useMemo(() => {
-    let list = selectedTag ? events.filter((e) => e.tag_id === selectedTag.id) : events;
-    if (locationFilter) {
-      list = list.filter(
-        (e) =>
-          haversineKm(locationFilter.lat, locationFilter.lng, e.place.lat, e.place.lng) <=
-          LOCATION_FILTER_RADIUS_KM,
-      );
-    }
-    return list;
-  }, [events, selectedTag, locationFilter]);
+    if (!locationFilter) return tagFilteredEvents;
+    return tagFilteredEvents.filter(
+      (e) =>
+        haversineKm(locationFilter.lat, locationFilter.lng, e.place.lat, e.place.lng) <=
+        LOCATION_FILTER_RADIUS_KM,
+    );
+  }, [tagFilteredEvents, locationFilter]);
 
   const showPlaces = kindFilter !== "event";
   const showEvents = kindFilter !== "place";
@@ -75,6 +77,65 @@ export function HomeExplorer({
     if (locationFilter) return `Événements près de ${locationFilter.label}`;
     return "Événements à venir";
   }
+
+  const sortByDistance = useCallback(
+    <T extends { lat: number; lng: number }>(list: T[]): T[] => {
+      if (!referencePoint) return list;
+      return [...list].sort(
+        (a, b) =>
+          haversineKm(referencePoint.lat, referencePoint.lng, a.lat, a.lng) -
+          haversineKm(referencePoint.lat, referencePoint.lng, b.lat, b.lng),
+      );
+    },
+    [referencePoint],
+  );
+
+  const FALLBACK_COUNT = 6;
+
+  // Never leave the user looking at a blank section: if nothing matches
+  // the active filters, fall back one step at a time (drop the distance
+  // cap, then the tag) until something can be shown — always labeled
+  // clearly so it's obvious these aren't exact matches. Only a genuinely
+  // empty database ends up with nothing to fall back to.
+  const placesDisplay = useMemo(() => {
+    if (visiblePlaces.length > 0) return { list: visiblePlaces, note: null as string | null };
+    if (sortedPlaces.length > 0) {
+      return {
+        list: sortedPlaces.slice(0, FALLBACK_COUNT),
+        note: `Aucun lieu dans cette zone — voici les plus proches :`,
+      };
+    }
+    if (places.length > 0) {
+      return {
+        list: sortByDistance(places).slice(0, FALLBACK_COUNT),
+        note: "Aucun lieu avec ce tag — voici tous les lieux :",
+      };
+    }
+    return { list: [], note: "Aucun lieu pour l'instant." };
+  }, [visiblePlaces, sortedPlaces, places, sortByDistance]);
+
+  const eventsDisplay = useMemo(() => {
+    if (visibleEvents.length > 0) return { list: visibleEvents, note: null as string | null };
+    if (tagFilteredEvents.length > 0) {
+      return {
+        list: sortByDistance(tagFilteredEvents.map((e) => ({ ...e, lat: e.place.lat, lng: e.place.lng }))).slice(
+          0,
+          FALLBACK_COUNT,
+        ),
+        note: "Aucun événement dans cette zone — voici les plus proches :",
+      };
+    }
+    if (events.length > 0) {
+      return {
+        list: sortByDistance(events.map((e) => ({ ...e, lat: e.place.lat, lng: e.place.lng }))).slice(
+          0,
+          FALLBACK_COUNT,
+        ),
+        note: "Aucun événement avec ce tag — voici tous les événements à venir :",
+      };
+    }
+    return { list: [], note: "Aucun événement à venir pour l'instant." };
+  }, [visibleEvents, tagFilteredEvents, events, sortByDistance]);
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
@@ -114,9 +175,12 @@ export function HomeExplorer({
         {showPlaces && (
           <section className="flex flex-col gap-2">
             <h2 className="text-sm font-semibold text-gray-900">{placesHeading()}</h2>
-            {visiblePlaces.length > 0 ? (
+            {placesDisplay.note && (
+              <p className="text-sm text-gray-500">{placesDisplay.note}</p>
+            )}
+            {placesDisplay.list.length > 0 && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {visiblePlaces.map((place) => (
+                {placesDisplay.list.map((place) => (
                   <PlaceCard
                     key={place.id}
                     place={place}
@@ -128,12 +192,6 @@ export function HomeExplorer({
                   />
                 ))}
               </div>
-            ) : (
-              <p className="text-sm text-gray-500">
-                {locationFilter
-                  ? `Aucun lieu à moins de ${LOCATION_FILTER_RADIUS_KM} km de ${locationFilter.label}.`
-                  : "Aucun lieu pour l'instant."}
-              </p>
             )}
           </section>
         )}
@@ -141,9 +199,12 @@ export function HomeExplorer({
         {showEvents && (
           <section className="flex flex-col gap-2">
             <h2 className="text-sm font-semibold text-gray-900">{eventsHeading()}</h2>
-            {visibleEvents.length > 0 ? (
+            {eventsDisplay.note && (
+              <p className="text-sm text-gray-500">{eventsDisplay.note}</p>
+            )}
+            {eventsDisplay.list.length > 0 && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {visibleEvents.map((event) => (
+                {eventsDisplay.list.map((event) => (
                   <EventCard
                     key={event.id}
                     event={event}
@@ -155,12 +216,6 @@ export function HomeExplorer({
                   />
                 ))}
               </div>
-            ) : (
-              <p className="text-sm text-gray-500">
-                {locationFilter
-                  ? `Aucun événement à moins de ${LOCATION_FILTER_RADIUS_KM} km de ${locationFilter.label}.`
-                  : "Aucun événement à venir pour l'instant."}
-              </p>
             )}
           </section>
         )}
