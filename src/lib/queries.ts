@@ -97,6 +97,19 @@ export async function getEventById(
   return data as unknown as EventWithPlace;
 }
 
+export async function getUpcomingEvents(
+  supabase: SupabaseClient<Database>,
+): Promise<EventWithPlace[]> {
+  const { data, error } = await supabase
+    .from("events")
+    .select("*, place:places(*)")
+    .gte("start_datetime", new Date().toISOString())
+    .order("start_datetime")
+    .limit(60);
+  if (error) throw error;
+  return data as unknown as EventWithPlace[];
+}
+
 export async function getAllEventsForPlace(
   supabase: SupabaseClient<Database>,
   placeId: string,

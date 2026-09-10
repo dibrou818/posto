@@ -45,7 +45,17 @@ function SunIcon() {
   );
 }
 
-export function LocationWeather({ onLocated }: { onLocated: (loc: UserLocation) => void }) {
+export function LocationWeather({
+  onLocated,
+  onCityResolved,
+}: {
+  onLocated: (loc: UserLocation) => void;
+  /** Fired once the city name resolves (or fails to), bundled with the same
+   * coords — a separate callback rather than reusing `onLocated` so callers
+   * needing the city (e.g. auto-filling a location filter) never have to
+   * read back a possibly-stale `userLocation` from their own state. */
+  onCityResolved?: (city: string | null, loc: UserLocation) => void;
+}) {
   const [state, setState] = useState<State>({ status: "idle" });
 
   function requestLocation() {
@@ -66,12 +76,15 @@ export function LocationWeather({ onLocated }: { onLocated: (loc: UserLocation) 
         try {
           const res = await fetch(`/api/location?lat=${location.lat}&lng=${location.lng}`);
           const data = await res.json();
+          const city = typeof data.city === "string" ? data.city : null;
+          onCityResolved?.(city, location);
           setState({
             status: "granted",
-            city: data.city ?? "Votre position",
+            city: city ?? "Votre position",
             temperatureC: typeof data.temperatureC === "number" ? data.temperatureC : null,
           });
         } catch {
+          onCityResolved?.(null, location);
           setState({ status: "granted", city: "Votre position", temperatureC: null });
         }
       },

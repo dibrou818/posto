@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { matchesResultKind, RESULT_KIND_OPTIONS, type ResultKindFilter } from "@/lib/resultFilter";
 
 export type SearchResult = {
   result_type: "place" | "activity" | "event";
@@ -32,6 +33,11 @@ interface Props {
   onSelectResult: (result: SearchResult) => void;
   onSelectCity: (city: CityResult) => void;
   placeholder?: string;
+  /** Controls the Lieux/Événements filter from outside (e.g. a persistent
+   * button next to the search bar) instead of the internal pills row below.
+   * Omit both to keep the bar fully self-contained (used on /map). */
+  filter?: ResultKindFilter;
+  onFilterChange?: (filter: ResultKindFilter) => void;
 }
 
 // Small, minimal icons so a result's kind is obvious at a glance without
@@ -93,27 +99,13 @@ function RowIcon({ kind }: { kind: Row["kind"] }) {
   return <PinIcon />; // place & activity: both anchored to a specific venue
 }
 
-type ResultFilter = "all" | "place" | "event";
-
-const FILTER_OPTIONS: { value: ResultFilter; label: string }[] = [
-  { value: "all", label: "Tout" },
-  { value: "place", label: "Lieux" },
-  { value: "event", label: "Événements" },
-];
-
-// "place" filter also covers "activity" rows — both are anchored to a venue
-// rather than a date, so from the user's point of view they're both "un lieu".
-function matchesFilter(kind: SearchResult["result_type"], filter: ResultFilter) {
-  if (filter === "all") return true;
-  if (filter === "event") return kind === "event";
-  return kind === "place" || kind === "activity";
-}
-
 export function SearchBar({
   onSelectTag,
   onSelectResult,
   onSelectCity,
   placeholder = "Rechercher un lieu, une activité, un tag...",
+  filter: controlledFilter,
+  onFilterChange,
 }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -121,8 +113,17 @@ export function SearchBar({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [cities, setCities] = useState<CityResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<ResultFilter>("all");
+  const [internalFilter, setInternalFilter] = useState<ResultKindFilter>("all");
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Externally controlled (a KindFilter button sits next to the bar) when
+  // `filter` is passed; otherwise the dropdown manages its own pills row.
+  const isControlled = controlledFilter !== undefined;
+  const filter = controlledFilter ?? internalFilter;
+  function setFilter(next: ResultKindFilter) {
+    if (onFilterChange) onFilterChange(next);
+    else setInternalFilter(next);
+  }
 
   const queryTooShort = query.trim().length < 2;
 
@@ -176,7 +177,7 @@ export function SearchBar({
           tag,
         })),
         ...results
-          .filter((result) => matchesFilter(result.result_type, filter))
+          .filter((result) => matchesResultKind(result.result_type, filter))
           .map((result): Row => ({
             kind: result.result_type,
             key: `${result.result_type}-${result.id}`,
@@ -206,8 +207,8 @@ export function SearchBar({
       />
       {open && (loading || rows.length > 0 || query.trim().length >= 2) && (
         <div className="absolute z-20 mt-1 max-h-96 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-          <div className="flex gap-1.5 border-b border-gray-100 px-3 py-2">
-            {FILTER_OPTIONS.map((option) => (
+          <div hidden={isControlled} className="flex gap-1.5 border-b border-gray-100 px-3 py-2">
+            {RESULT_KIND_OPTIONS.map((option) => (
               <button
                 key={option.value}
                 type="button"
