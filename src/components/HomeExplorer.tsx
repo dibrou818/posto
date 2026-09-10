@@ -66,18 +66,6 @@ export function HomeExplorer({
   const showPlaces = kindFilter !== "event";
   const showEvents = kindFilter !== "place";
 
-  function placesHeading() {
-    if (selectedTag) return `Lieux taggés ${selectedTag.label}`;
-    if (locationFilter) return `Lieux près de ${locationFilter.label}`;
-    return "Tous les lieux";
-  }
-
-  function eventsHeading() {
-    if (selectedTag) return `Événements taggés ${selectedTag.label}`;
-    if (locationFilter) return `Événements près de ${locationFilter.label}`;
-    return "Événements à venir";
-  }
-
   const sortByDistance = useCallback(
     <T extends { lat: number; lng: number }>(list: T[]): T[] => {
       if (!referencePoint) return list;
@@ -92,37 +80,56 @@ export function HomeExplorer({
 
   const FALLBACK_COUNT = 6;
 
-  // Never leave the user looking at a blank section: if nothing matches
-  // the active filters, fall back one step at a time (drop the distance
-  // cap, then the tag) until something can be shown — always labeled
-  // clearly so it's obvious these aren't exact matches. Only a genuinely
-  // empty database ends up with nothing to fall back to.
+  // Never leave the user looking at a blank section: if nothing matches the
+  // active filters, fall back one step at a time (drop the distance cap,
+  // then the tag) until something can be shown. The heading is computed
+  // *here*, tied to which tier actually produced the list, so it can never
+  // claim "près de Reims" while showing places 160km away — once we're
+  // shown a fallback list, the heading says so instead of repeating the
+  // location/tag claim the results no longer back up.
   const placesDisplay = useMemo(() => {
-    if (visiblePlaces.length > 0) return { list: visiblePlaces, note: null as string | null };
+    if (visiblePlaces.length > 0) {
+      const heading = selectedTag
+        ? `Lieux taggés ${selectedTag.label}`
+        : locationFilter
+          ? `Lieux près de ${locationFilter.label}`
+          : "Tous les lieux";
+      return { list: visiblePlaces, heading, note: null as string | null };
+    }
     if (sortedPlaces.length > 0) {
       return {
         list: sortedPlaces.slice(0, FALLBACK_COUNT),
-        note: `Aucun lieu dans cette zone — voici les plus proches :`,
+        heading: `Aucun lieu près de ${locationFilter?.label}`,
+        note: "Voici les lieux les plus proches :",
       };
     }
     if (places.length > 0) {
       return {
         list: sortByDistance(places).slice(0, FALLBACK_COUNT),
-        note: "Aucun lieu avec ce tag — voici tous les lieux :",
+        heading: "Aucun lieu avec ce tag",
+        note: "Voici tous les lieux :",
       };
     }
-    return { list: [], note: "Aucun lieu pour l'instant." };
-  }, [visiblePlaces, sortedPlaces, places, sortByDistance]);
+    return { list: [], heading: "Lieux", note: "Aucun lieu pour l'instant." };
+  }, [visiblePlaces, sortedPlaces, places, selectedTag, locationFilter, sortByDistance]);
 
   const eventsDisplay = useMemo(() => {
-    if (visibleEvents.length > 0) return { list: visibleEvents, note: null as string | null };
+    if (visibleEvents.length > 0) {
+      const heading = selectedTag
+        ? `Événements taggés ${selectedTag.label}`
+        : locationFilter
+          ? `Événements près de ${locationFilter.label}`
+          : "Événements à venir";
+      return { list: visibleEvents, heading, note: null as string | null };
+    }
     if (tagFilteredEvents.length > 0) {
       return {
         list: sortByDistance(tagFilteredEvents.map((e) => ({ ...e, lat: e.place.lat, lng: e.place.lng }))).slice(
           0,
           FALLBACK_COUNT,
         ),
-        note: "Aucun événement dans cette zone — voici les plus proches :",
+        heading: `Aucun événement près de ${locationFilter?.label}`,
+        note: "Voici les événements les plus proches :",
       };
     }
     if (events.length > 0) {
@@ -131,11 +138,12 @@ export function HomeExplorer({
           0,
           FALLBACK_COUNT,
         ),
-        note: "Aucun événement avec ce tag — voici tous les événements à venir :",
+        heading: "Aucun événement avec ce tag",
+        note: "Voici tous les événements à venir :",
       };
     }
-    return { list: [], note: "Aucun événement à venir pour l'instant." };
-  }, [visibleEvents, tagFilteredEvents, events, sortByDistance]);
+    return { list: [], heading: "Événements à venir", note: "Aucun événement à venir pour l'instant." };
+  }, [visibleEvents, tagFilteredEvents, events, selectedTag, locationFilter, sortByDistance]);
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
@@ -174,7 +182,7 @@ export function HomeExplorer({
       <div className="flex flex-col gap-6">
         {showPlaces && (
           <section className="flex flex-col gap-2">
-            <h2 className="text-sm font-semibold text-gray-900">{placesHeading()}</h2>
+            <h2 className="text-sm font-semibold text-gray-900">{placesDisplay.heading}</h2>
             {placesDisplay.note && (
               <p className="text-sm text-gray-500">{placesDisplay.note}</p>
             )}
@@ -198,7 +206,7 @@ export function HomeExplorer({
 
         {showEvents && (
           <section className="flex flex-col gap-2">
-            <h2 className="text-sm font-semibold text-gray-900">{eventsHeading()}</h2>
+            <h2 className="text-sm font-semibold text-gray-900">{eventsDisplay.heading}</h2>
             {eventsDisplay.note && (
               <p className="text-sm text-gray-500">{eventsDisplay.note}</p>
             )}
