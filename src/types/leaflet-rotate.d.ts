@@ -15,4 +15,9 @@ declare module "leaflet" {
     setBearing(degrees: number): void;
     getBearing(): number;
   }
+
+  namespace DomUtil {
+    const RAD_TO_DEG: number;
+    const DEG_TO_RAD: number;
+  }
 }

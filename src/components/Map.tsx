@@ -8,6 +8,12 @@ import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet-rotate";
 import type { PlaceWithRelations } from "@/lib/queries";
 import { isOpenNow } from "@/lib/opening-hours";
+import { applyTouchRotateThreshold } from "@/lib/leafletRotateThreshold";
+
+// Must run after "leaflet-rotate" has registered L.Map.TouchGestures, and
+// this module only ever loads client-side (dynamic import, ssr: false —
+// see FullScreenMap), so it's safe to patch at module scope, once.
+applyTouchRotateThreshold();
 
 const LILLE_CENTER: [number, number] = [50.6292, 3.0573];
 const DEFAULT_ZOOM = 13;
