@@ -34,7 +34,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
         <Header user={user} />
-        <main className="flex-1 flex flex-col pb-16 md:pb-0">{children}</main>
+        {/* This padding exists purely to keep content from sitting under the
+            fixed BottomNav — it must match that nav's real rendered height
+            exactly, or a page whose content fills to the very bottom (like
+            /map) leaves a visible gap of bare background. BottomNav is
+            `min-h-14` (3.5rem) plus the device's safe-area inset, so this
+            mirrors both terms rather than a flat guess like `pb-16`. */}
+        <main className="flex-1 flex flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
+          {children}
+        </main>
         <BottomNav user={user} />
       </body>
     </html>
