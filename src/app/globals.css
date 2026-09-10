@@ -19,6 +19,18 @@
   }
 }
 
+/* Systemic safety net: no element (a long untruncated city/place name, a
+   dropdown positioned slightly off, etc.) should ever be able to make the
+   page itself pannable/scrollable sideways — vertical scroll is the only
+   scroll this app should ever have. This doesn't fix a component that
+   overflows for real (that's still a bug to find and fix at the source,
+   e.g. missing `truncate`/`min-w-0`) — it just stops that bug from letting
+   people scroll/pinch-zoom their way to content that fell off the edge. */
+html,
+body {
+  overflow-x: hidden;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

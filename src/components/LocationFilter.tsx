@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CityResult } from "@/components/SearchBar";
 
 export type LocationFilterValue = { label: string; lat: number; lng: number };
 
 export const LOCATION_FILTER_RADIUS_KM = 30;
 const RADIUS_KM = LOCATION_FILTER_RADIUS_KM;
+
+// Keeps the dropdown fully inside the viewport regardless of where the chip
+// sits on screen — clipping it with overflow-hidden would just cut it off
+// instead of actually fixing anything.
+const VIEWPORT_MARGIN = 12;
+const DROPDOWN_MAX_WIDTH = 256;
 
 function PinIcon() {
   return (
@@ -40,6 +46,7 @@ export function LocationFilter({
   const [query, setQuery] = useState("");
   const [cities, setCities] = useState<CityResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const queryTooShort = query.trim().length < 2;
@@ -74,6 +81,35 @@ export function LocationFilter({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Measures the chip's actual on-screen position and clamps the dropdown
+  // (rendered `fixed`, so it isn't clipped by any scrolling/overflow
+  // ancestor) so it always stays within the viewport horizontally — a real
+  // reposition, not just a CSS max-width clip, since the chip can end up
+  // anywhere in its row depending on screen width and what's next to it.
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    function reposition() {
+      const el = containerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const width = Math.min(DROPDOWN_MAX_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 2);
+      const left = Math.min(
+        Math.max(rect.left, VIEWPORT_MARGIN),
+        window.innerWidth - width - VIEWPORT_MARGIN,
+      );
+      setDropdownPos({ top: rect.bottom + 4, left, width });
+    }
+
+    reposition();
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, [open]);
+
   function pick(city: CityResult) {
     onChange({ label: city.label, lat: city.lat, lng: city.lng });
     setOpen(false);
@@ -81,15 +117,15 @@ export function LocationFilter({
   }
 
   return (
-    <div ref={containerRef} className="relative shrink-0">
-      <div className="flex items-center gap-1 rounded-lg border border-gray-300 bg-white pr-1 text-xs">
+    <div ref={containerRef} className="relative min-w-0">
+      <div className="flex min-w-0 items-center gap-1 rounded-lg border border-gray-300 bg-white pr-1 text-xs">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1.5 rounded-l-lg px-3 py-1.5 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+          className="flex min-w-0 items-center gap-1.5 rounded-l-lg px-3 py-1.5 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
         >
           <PinIcon />
-          <span className="max-w-[9rem] truncate">
+          <span className="min-w-0 max-w-[7rem] truncate sm:max-w-[9rem]">
             {value ? `${value.label} · ${RADIUS_KM} km` : "Choisir une ville"}
           </span>
           <ChevronIcon />
@@ -100,15 +136,18 @@ export function LocationFilter({
             onClick={() => onChange(null)}
             aria-label="Réinitialiser le filtre de ville"
             title="Réinitialiser"
-            className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+            className="shrink-0 rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
           >
             ✕
           </button>
         )}
       </div>
 
-      {open && (
-        <div className="absolute z-20 mt-1 w-64 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
+      {open && dropdownPos && (
+        <div
+          className="fixed z-50 rounded-lg border border-gray-200 bg-white p-2 shadow-lg"
+          style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+        >
           <input
             autoFocus
             type="text"
@@ -127,10 +166,12 @@ export function LocationFilter({
                 key={`${city.label}-${city.lat}`}
                 type="button"
                 onClick={() => pick(city)}
-                className="flex w-full flex-col items-start rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-gray-50 focus:outline-none focus-visible:bg-gray-50"
+                className="flex w-full min-w-0 flex-col items-start rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-gray-50 focus:outline-none focus-visible:bg-gray-50"
               >
-                <span className="text-gray-900">{city.label}</span>
-                {city.subtitle && <span className="text-xs text-gray-500">{city.subtitle}</span>}
+                <span className="w-full truncate text-gray-900">{city.label}</span>
+                {city.subtitle && (
+                  <span className="w-full truncate text-xs text-gray-500">{city.subtitle}</span>
+                )}
               </button>
             ))}
           </div>

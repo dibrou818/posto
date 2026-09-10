@@ -81,17 +81,21 @@ export function HomeExplorer({
       <LocationWeather onLocated={setUserLocation} onCityResolved={handleCityResolved} />
 
       <div className="flex flex-col gap-2">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <SearchBar
-            onSelectTag={setSelectedTag}
-            onSelectResult={(r) =>
-              router.push(r.result_type === "event" ? `/events/${r.id}` : `/places/${r.place_id}`)
-            }
-            onSelectCity={(city) => router.push(`/map?lat=${city.lat}&lng=${city.lng}`)}
-            filter={kindFilter}
-            onFilterChange={setKindFilter}
-          />
-          <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
+            <SearchBar
+              onSelectTag={setSelectedTag}
+              onSelectResult={(r) =>
+                router.push(r.result_type === "event" ? `/events/${r.id}` : `/places/${r.place_id}`)
+              }
+              onSelectCity={(city) => router.push(`/map?lat=${city.lat}&lng=${city.lng}`)}
+              filter={kindFilter}
+              onFilterChange={setKindFilter}
+            />
+          </div>
+          {/* Wraps to its own line rather than forcing the page to overflow
+              horizontally when both filters don't fit next to a long city name. */}
+          <div className="flex flex-wrap items-center gap-2">
             <KindFilter value={kindFilter} onChange={setKindFilter} />
             <LocationFilter value={locationFilter} onChange={setLocationFilter} />
           </div>
