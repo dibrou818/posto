@@ -10,6 +10,7 @@ import {
 import { isOpenNow, scheduleByDay } from "@/lib/opening-hours";
 import { OpeningHoursAccordion } from "@/components/OpeningHoursAccordion";
 import { BackButton } from "@/components/ui/BackButton";
+import { ShareButton } from "@/components/ui/ShareButton";
 
 const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
   weekday: "long",
@@ -96,6 +97,7 @@ export default async function PlacePage({
           </svg>
           Itinéraire
         </a>
+        <ShareButton title={place.name} text={`${place.name} sur Posto`} />
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
