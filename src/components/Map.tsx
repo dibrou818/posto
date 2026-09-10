@@ -26,6 +26,12 @@ applyTouchRotateThreshold();
 const LILLE_CENTER: [number, number] = [50.6292, 3.0573];
 const DEFAULT_ZOOM = 13;
 
+// 85.0511° is the standard Web Mercator latitude limit (where the
+// projection would otherwise reach infinity) — capping the map here, and
+// clamping panning to it below, is what stops a corner of the screen from
+// ever showing bare background past the edge of the world.
+const WORLD_BOUNDS = L.latLngBounds([-85.0511, -180], [85.0511, 180]);
+
 // CARTO Voyager basemap. Anonymous usage is rate-limited; set
 // NEXT_PUBLIC_CARTO_API_KEY once you have a CARTO account to lift the limits.
 const CARTO_API_KEY = process.env.NEXT_PUBLIC_CARTO_API_KEY;
@@ -276,6 +282,37 @@ function MapReadyBridge({ onReady }: { onReady?: (map: L.Map) => void }) {
   return null;
 }
 
+/** Keeps the world basemap always filling the screen, at any viewport size
+ * or zoom level. `maxBounds` alone (set on MapContainer) stops the user
+ * panning past the edge of the world, but a fixed `minZoom` can still leave
+ * the *zoomed-out* world smaller than a big/ultrawide viewport — showing
+ * blank background in a corner or strip regardless of panning. So this
+ * recomputes, on every container resize, the lowest zoom at which the
+ * world's rendered pixel size (256 * 2^zoom) still covers the container in
+ * both dimensions, and pushes it up via setMinZoom (which also snaps the
+ * current view up if it's now below that floor). */
+function MinZoomGuard() {
+  const map = useMap();
+
+  useEffect(() => {
+    function updateMinZoom() {
+      map.invalidateSize();
+      const { x, y } = map.getSize();
+      const largestDimension = Math.max(x, y);
+      if (largestDimension <= 0) return;
+      const requiredZoom = Math.ceil(Math.log2(largestDimension / 256));
+      map.setMinZoom(Math.max(requiredZoom, 0));
+    }
+
+    updateMinZoom();
+    const observer = new ResizeObserver(updateMinZoom);
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+
+  return null;
+}
+
 // Leaflet's bindPopup(string) injects the string as raw HTML with no
 // escaping of its own — place.name/place.address are free text any signed-up
 // user controls, so they must be entity-encoded before going anywhere near
@@ -467,6 +504,14 @@ export function Map({
       shiftKeyRotate={false}
       rotateControl={false}
       bearing={0}
+      // Hard-stops panning at the edge of the world (see WORLD_BOUNDS) —
+      // viscosity 1 means the edge is a wall, not a rubber-band you can
+      // drag past. Combined with MinZoomGuard's dynamic minZoom, this is
+      // what makes it impossible to ever pan/zoom into blank background,
+      // and impossible to circle the globe and lose track of a pin that
+      // only ever exists at its one real coordinate.
+      maxBounds={WORLD_BOUNDS}
+      maxBoundsViscosity={1.0}
       className="h-full w-full"
     >
       <TileLayer
@@ -482,6 +527,7 @@ export function Map({
       <EventClusteredMarkers events={events} focusTarget={focusTarget} />
       <UserLocationLayer />
       <MapReadyBridge onReady={onMapReady} />
+      <MinZoomGuard />
     </MapContainer>
   );
 }
