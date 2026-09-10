@@ -13,6 +13,7 @@ import { TagsForm } from "@/components/dashboard/TagsForm";
 import { ActivitiesManager } from "@/components/dashboard/ActivitiesManager";
 import { EventsManager } from "@/components/dashboard/EventsManager";
 import { DashboardSection } from "@/components/dashboard/DashboardSection";
+import { QrCodeSection } from "@/components/dashboard/QrCodeSection";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { BackButton } from "@/components/ui/BackButton";
 import { buttonClass } from "@/lib/ui";
@@ -25,6 +26,8 @@ import {
   deleteActivity,
   createEvent,
   deleteEvent,
+  generatePlaceQrCode,
+  generateEventQrCode,
 } from "@/app/dashboard/actions";
 
 export default async function EditPlacePage({
@@ -88,6 +91,14 @@ export default async function EditPlacePage({
         <PlaceForm place={place} action={updatePlace.bind(null, id)} />
       </DashboardSection>
 
+      <DashboardSection title="Code QR">
+        <QrCodeSection
+          qrCodeUrl={place.qr_code_url}
+          publicPath={`/places/${place.id}`}
+          action={generatePlaceQrCode.bind(null, id)}
+        />
+      </DashboardSection>
+
       <DashboardSection title="Horaires">
         <OpeningHoursForm hours={place.opening_hours} action={saveOpeningHours.bind(null, id)} />
       </DashboardSection>
@@ -115,6 +126,7 @@ export default async function EditPlacePage({
           allTags={allTags}
           onCreate={createEvent.bind(null, id)}
           onDelete={deleteEvent.bind(null, id)}
+          onGenerateQr={generateEventQrCode.bind(null, id)}
         />
       </DashboardSection>
     </div>

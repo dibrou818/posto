@@ -36,12 +36,16 @@ export default async function EventPage({
     ? `${dateFormatter.format(start)}, ${timeFormatter.format(start)}${end ? ` - ${timeFormatter.format(end)}` : ""}`
     : `${dateFormatter.format(start)} ${timeFormatter.format(start)} - ${end ? `${dateFormatter.format(end)} ${timeFormatter.format(end)}` : ""}`;
 
+  // The event can have its own photo; falls back to the place's when it
+  // doesn't bother setting one.
+  const coverPhotoUrl = event.cover_photo_url ?? place.cover_photo_url;
+
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
       <div className="relative mb-4 h-64 w-full overflow-hidden rounded-xl bg-gray-100">
-        {place.cover_photo_url && (
+        {coverPhotoUrl && (
           <Image
-            src={place.cover_photo_url}
+            src={coverPhotoUrl}
             alt={event.title}
             fill
             sizes="768px"

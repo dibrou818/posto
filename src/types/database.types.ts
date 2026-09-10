@@ -56,36 +56,42 @@ export type Database = {
       }
       events: {
         Row: {
+          cover_photo_url: string | null
           created_at: string
           description: string | null
           end_datetime: string | null
           id: string
           place_id: string
           price: string | null
+          qr_code_url: string | null
           recurrence_rule: string | null
           start_datetime: string
           tag_id: string | null
           title: string
         }
         Insert: {
+          cover_photo_url?: string | null
           created_at?: string
           description?: string | null
           end_datetime?: string | null
           id?: string
           place_id: string
           price?: string | null
+          qr_code_url?: string | null
           recurrence_rule?: string | null
           start_datetime: string
           tag_id?: string | null
           title: string
         }
         Update: {
+          cover_photo_url?: string | null
           created_at?: string
           description?: string | null
           end_datetime?: string | null
           id?: string
           place_id?: string
           price?: string | null
+          qr_code_url?: string | null
           recurrence_rule?: string | null
           start_datetime?: string
           tag_id?: string | null
@@ -182,6 +188,9 @@ export type Database = {
           name: string
           owner_id: string
           phone: string | null
+          qr_code_url: string | null
+          urgent_message: string | null
+          urgent_message_expires_at: string | null
         }
         Insert: {
           address?: string | null
@@ -194,6 +203,9 @@ export type Database = {
           name: string
           owner_id: string
           phone?: string | null
+          qr_code_url?: string | null
+          urgent_message?: string | null
+          urgent_message_expires_at?: string | null
         }
         Update: {
           address?: string | null
@@ -206,6 +218,9 @@ export type Database = {
           name?: string
           owner_id?: string
           phone?: string | null
+          qr_code_url?: string | null
+          urgent_message?: string | null
+          urgent_message_expires_at?: string | null
         }
         Relationships: []
       }

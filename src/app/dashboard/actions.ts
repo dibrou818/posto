@@ -2,7 +2,19 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient, requireUser } from "@/lib/supabase/server";
+import { generateQrCodeDataUrl } from "@/lib/qrcode";
+
+/** Derives the current deployment's origin from the incoming request's own
+ * headers, so QR codes always point at wherever the app is actually running
+ * (localhost in dev, the real domain in prod) without a hardcoded env var. */
+async function getSiteOrigin() {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  return `${proto}://${host}`;
+}
 
 async function assertOwnsPlace(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -44,6 +56,14 @@ function parseCoverPhotoUrl(formData: FormData): string | null {
   return value;
 }
 
+function parseUrgentMessageExpiry(formData: FormData): string | null {
+  const value = textField(formData, "urgent_message_expires_at");
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error("Date d'expiration invalide.");
+  return date.toISOString();
+}
+
 function parsePlaceFields(formData: FormData) {
   const name = textField(formData, "name");
   const lat = Number(formData.get("lat"));
@@ -61,6 +81,8 @@ function parsePlaceFields(formData: FormData) {
     address: textField(formData, "address"),
     phone: textField(formData, "phone"),
     cover_photo_url: parseCoverPhotoUrl(formData),
+    urgent_message: textField(formData, "urgent_message"),
+    urgent_message_expires_at: parseUrgentMessageExpiry(formData),
   };
 }
 
@@ -90,6 +112,22 @@ export async function updatePlace(placeId: string, formData: FormData) {
 
   revalidatePath(`/dashboard/places/${placeId}`);
   revalidatePath("/dashboard");
+}
+
+export async function generatePlaceQrCode(placeId: string) {
+  const { supabase, user } = await requireUser();
+  await assertOwnsPlace(supabase, user.id, placeId);
+
+  // /places/<id> is keyed on the immutable id, never the name/address/etc,
+  // so this QR stays valid for the life of the place no matter what its
+  // owner edits afterwards — no need to ever regenerate it after this.
+  const origin = await getSiteOrigin();
+  const qr_code_url = await generateQrCodeDataUrl(`${origin}/places/${placeId}`);
+
+  const { error } = await supabase.from("places").update({ qr_code_url }).eq("id", placeId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dashboard/places/${placeId}`);
 }
 
 export async function deletePlace(placeId: string) {
@@ -202,6 +240,7 @@ export async function createEvent(placeId: string, formData: FormData) {
   const recurrence_rule = textField(formData, "recurrence_rule");
   const tag_id = textField(formData, "tag_id");
   const price = textField(formData, "price");
+  const cover_photo_url = parseCoverPhotoUrl(formData);
 
   if (!title || !start_datetime) {
     throw new Error("Titre et date de début sont requis.");
@@ -216,8 +255,29 @@ export async function createEvent(placeId: string, formData: FormData) {
     recurrence_rule,
     tag_id,
     price,
+    cover_photo_url,
   });
   if (error) throw new Error(error.message);
+
+  revalidatePath(`/dashboard/places/${placeId}`);
+}
+
+export async function generateEventQrCode(placeId: string, eventId: string) {
+  const { supabase, user } = await requireUser();
+  await assertOwnsPlace(supabase, user.id, placeId);
+
+  // Same reasoning as generatePlaceQrCode: /events/<id> never changes even
+  // if the event's title/date/description get edited later.
+  const origin = await getSiteOrigin();
+  const qr_code_url = await generateQrCodeDataUrl(`${origin}/events/${eventId}`);
+
+  const { error, count } = await supabase
+    .from("events")
+    .update({ qr_code_url }, { count: "exact" })
+    .eq("id", eventId)
+    .eq("place_id", placeId);
+  if (error) throw new Error(error.message);
+  if (!count) throw new Error("Cet événement n'appartient pas à ce lieu.");
 
   revalidatePath(`/dashboard/places/${placeId}`);
 }

@@ -22,6 +22,7 @@ export function EventCard({
   distanceKm?: number;
 }) {
   const start = new Date(event.start_datetime);
+  const coverPhotoUrl = event.cover_photo_url ?? event.place.cover_photo_url;
 
   return (
     <Link
@@ -29,9 +30,9 @@ export function EventCard({
       className={`flex gap-4 p-3 focus:outline-none focus:ring-2 focus:ring-gray-900/20 ${cardClass}`}
     >
       <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-        {event.place.cover_photo_url ? (
+        {coverPhotoUrl ? (
           <Image
-            src={event.place.cover_photo_url}
+            src={coverPhotoUrl}
             alt={event.title}
             fill
             sizes="128px"

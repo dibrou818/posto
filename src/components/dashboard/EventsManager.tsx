@@ -1,38 +1,99 @@
 "use client";
 
+import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import type { Event, Tag } from "@/lib/queries";
-import { compactInputClass } from "@/lib/ui";
+import { compactInputClass, labelClass } from "@/lib/ui";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { DeleteButton } from "@/components/ui/DeleteButton";
+import { QrCodeSection } from "@/components/dashboard/QrCodeSection";
 
 export function EventsManager({
   events,
   allTags,
   onCreate,
   onDelete,
+  onGenerateQr,
 }: {
   events: Event[];
   allTags: Tag[];
   onCreate: (formData: FormData) => Promise<void>;
   onDelete: (eventId: string) => Promise<void>;
+  onGenerateQr: (eventId: string) => Promise<void>;
 }) {
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+  const supabase = createClient();
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadError(null);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setUploadError("Vous devez être connecté.");
+      setUploading(false);
+      return;
+    }
+
+    const path = `${user.id}/${Date.now()}-${file.name}`;
+    const { error: uploadErr } = await supabase.storage
+      .from("place-photos")
+      .upload(path, file, { upsert: true });
+
+    if (uploadErr) {
+      setUploadError(uploadErr.message);
+      setUploading(false);
+      return;
+    }
+
+    const { data } = supabase.storage.from("place-photos").getPublicUrl(path);
+    setCoverPhotoUrl(data.publicUrl);
+    setUploading(false);
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <ul className="flex flex-col gap-2">
         {events.map((event) => (
-          <li
-            key={event.id}
-            className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm"
-          >
-            <div>
-              <p className="font-medium text-gray-900">{event.title}</p>
-              <p className="text-xs text-gray-500">
-                {new Date(event.start_datetime).toLocaleString("fr-FR")}
-                {event.recurrence_rule ? ` · ${event.recurrence_rule}` : ""}
-                {event.price ? ` · ${event.price}` : ""}
-              </p>
+          <li key={event.id} className="rounded-lg border border-gray-200 text-sm">
+            <div className="flex items-center justify-between gap-2 px-3 py-2">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-gray-900">{event.title}</p>
+                <p className="text-xs text-gray-500">
+                  {new Date(event.start_datetime).toLocaleString("fr-FR")}
+                  {event.recurrence_rule ? ` · ${event.recurrence_rule}` : ""}
+                  {event.price ? ` · ${event.price}` : ""}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setExpandedEventId((cur) => (cur === event.id ? null : event.id))}
+                  className="text-xs font-medium text-gray-600 transition-colors hover:text-gray-900 focus:outline-none focus-visible:underline"
+                >
+                  {expandedEventId === event.id ? "Fermer" : "Code QR"}
+                </button>
+                <DeleteButton action={onDelete.bind(null, event.id)} />
+              </div>
             </div>
-            <DeleteButton action={onDelete.bind(null, event.id)} />
+            {expandedEventId === event.id && (
+              <div className="border-t border-gray-100 px-3 py-3">
+                <QrCodeSection
+                  qrCodeUrl={event.qr_code_url}
+                  publicPath={`/events/${event.id}`}
+                  action={onGenerateQr.bind(null, event.id)}
+                />
+              </div>
+            )}
           </li>
         ))}
         {events.length === 0 && (
@@ -94,7 +155,28 @@ export function EventsManager({
             </option>
           ))}
         </select>
-        <SaveButton size="compact" className="self-start" savedLabel="Ajouté" pendingLabel="Ajout...">
+
+        <div>
+          <label className={labelClass}>
+            Photo de l&apos;événement (optionnel — sinon celle du lieu est utilisée)
+          </label>
+          <input type="file" accept="image/*" onChange={handleFileChange} className="text-sm" />
+          <input type="hidden" name="cover_photo_url" value={coverPhotoUrl} />
+          {uploading && <p className="mt-1 text-xs text-gray-500">Envoi en cours...</p>}
+          {coverPhotoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={coverPhotoUrl} alt="Aperçu" className="mt-2 h-20 w-32 rounded-lg object-cover" />
+          )}
+          {uploadError && <p className="mt-1 text-xs text-red-600">{uploadError}</p>}
+        </div>
+
+        <SaveButton
+          size="compact"
+          className="self-start"
+          disabled={uploading}
+          savedLabel="Ajouté"
+          pendingLabel="Ajout..."
+        >
           Ajouter
         </SaveButton>
       </form>

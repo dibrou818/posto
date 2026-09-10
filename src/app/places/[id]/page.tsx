@@ -42,9 +42,20 @@ export default async function PlacePage({
 
   const open = isOpenNow(place.opening_hours);
   const schedule = scheduleByDay(place.opening_hours);
+  const hasUrgentMessage =
+    !!place.urgent_message &&
+    (!place.urgent_message_expires_at || new Date(place.urgent_message_expires_at) > new Date());
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
+      {hasUrgentMessage && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span className="mt-0.5 shrink-0" aria-hidden="true">
+            ⚠️
+          </span>
+          <p className="whitespace-pre-line">{place.urgent_message}</p>
+        </div>
+      )}
       <div className="relative mb-4 h-64 w-full overflow-hidden rounded-xl bg-gray-100">
         {place.cover_photo_url && (
           <Image

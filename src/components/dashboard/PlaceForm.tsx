@@ -7,6 +7,16 @@ import { TextField, TextareaField } from "@/components/ui/TextField";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { labelClass } from "@/lib/ui";
 
+/** `2026-09-10T14:30:00+00:00` (DB) -> `2026-09-10T14:30` (datetime-local
+ * input value) in the browser's own timezone. */
+function toDatetimeLocalValue(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export function PlaceForm({
   place,
   action,
@@ -167,6 +177,33 @@ export function PlaceForm({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={coverPhotoUrl} alt="Aperçu" className="mt-2 h-32 w-48 rounded-lg object-cover" />
         )}
+      </div>
+
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <p className="mb-2 text-xs font-medium text-amber-800 uppercase tracking-wide">
+          Message urgent (optionnel)
+        </p>
+        <p className="mb-2 -mt-1 text-xs text-amber-700">
+          Affiché en priorité sur la fiche publique — ex. &quot;Fermeture exceptionnelle ce
+          soir&quot;. Se masque automatiquement après la date d&apos;expiration.
+        </p>
+        <TextareaField
+          label="Message urgent"
+          name="urgent_message"
+          rows={2}
+          placeholder="Fermeture exceptionnelle le 15 septembre..."
+          defaultValue={place?.urgent_message ?? ""}
+          className="border-amber-300"
+        />
+        <div className="mt-2">
+          <TextField
+            label="Expire le"
+            name="urgent_message_expires_at"
+            type="datetime-local"
+            defaultValue={toDatetimeLocalValue(place?.urgent_message_expires_at)}
+            className="border-amber-300"
+          />
+        </div>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
