@@ -6,9 +6,17 @@ import L from "leaflet";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet-rotate";
-import type { PlaceWithRelations } from "@/lib/queries";
+import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
 import { isOpenNow } from "@/lib/opening-hours";
 import { applyTouchRotateThreshold } from "@/lib/leafletRotateThreshold";
+
+const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 // Must run after "leaflet-rotate" has registered L.Map.TouchGestures, and
 // this module only ever loads client-side (dynamic import, ssr: false —
@@ -50,6 +58,47 @@ function clusterIcon(count: number) {
         <div style="
           width:${size - 10}px;height:${size - 10}px;border-radius:50%;
           background:#111827;border:2.5px solid #ffffff;
+          box-shadow:0 2px 8px rgba(0,0,0,0.35);
+          display:flex;align-items:center;justify-content:center;
+          color:#ffffff;font-weight:600;font-size:13px;font-family:inherit;
+        ">${count}</div>
+      </div>
+    `,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
+// Violet, distinct from the dark place dot, so a glance at the map tells
+// places and events apart even before opening a popup.
+const EVENT_COLOR = "#7c3aed";
+
+const eventIcon = L.divIcon({
+  className: "",
+  html: `<div style="
+    width:28px;height:28px;border-radius:50% 50% 50% 0;
+    transform:rotate(-45deg);
+    background:${EVENT_COLOR};border:3px solid #ffffff;
+    box-shadow:0 2px 6px rgba(0,0,0,0.35);
+  "></div>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 26],
+  popupAnchor: [0, -24],
+});
+
+function eventClusterIcon(count: number) {
+  const size = count < 10 ? 38 : count < 50 ? 46 : 56;
+  return L.divIcon({
+    className: "",
+    html: `
+      <div style="
+        width:${size}px;height:${size}px;border-radius:50%;
+        background:rgba(124,58,237,0.18);
+        display:flex;align-items:center;justify-content:center;
+      ">
+        <div style="
+          width:${size - 10}px;height:${size - 10}px;border-radius:50%;
+          background:${EVENT_COLOR};border:2.5px solid #ffffff;
           box-shadow:0 2px 8px rgba(0,0,0,0.35);
           display:flex;align-items:center;justify-content:center;
           color:#ffffff;font-weight:600;font-size:13px;font-family:inherit;
@@ -252,6 +301,21 @@ function popupHtml(place: PlaceWithRelations) {
   `;
 }
 
+function eventPopupHtml(event: EventWithPlace) {
+  return `
+    <div style="display:flex;flex-direction:column;gap:4px;">
+      <span style="font-weight:600;">${escapeHtml(event.title)}</span>
+      <span style="font-size:12px;color:#6b7280;">${escapeHtml(event.place.name)}</span>
+      <span style="font-size:12px;font-weight:500;color:${EVENT_COLOR};">
+        ${escapeHtml(eventDateFormatter.format(new Date(event.start_datetime)))}
+      </span>
+      <a href="/events/${event.id}" style="font-size:12px;color:#2563eb;text-decoration:underline;">
+        Voir l'événement
+      </a>
+    </div>
+  `;
+}
+
 export type MapFocusTarget = { id: string; lat: number; lng: number; zoom?: number };
 
 function ClusteredMarkers({
@@ -317,12 +381,65 @@ function ClusteredMarkers({
   return null;
 }
 
+function EventClusteredMarkers({
+  events,
+  focusTarget,
+}: {
+  events: EventWithPlace[];
+  focusTarget?: MapFocusTarget | null;
+}) {
+  const map = useMap();
+  const groupRef = useRef<L.MarkerClusterGroup | null>(null);
+  const markersByEventId = useRef<Record<string, L.Marker>>({});
+
+  useEffect(() => {
+    const group = L.markerClusterGroup({
+      iconCreateFunction: (cluster) => eventClusterIcon(cluster.getChildCount()),
+      showCoverageOnHover: false,
+      spiderfyOnMaxZoom: true,
+      maxClusterRadius: 50,
+    });
+
+    const markersById: Record<string, L.Marker> = {};
+    events.forEach((event) => {
+      const marker = L.marker([event.place.lat, event.place.lng], { icon: eventIcon });
+      marker.bindPopup(eventPopupHtml(event));
+      group.addLayer(marker);
+      markersById[event.id] = marker;
+    });
+
+    map.addLayer(group);
+    groupRef.current = group;
+    markersByEventId.current = markersById;
+
+    return () => {
+      map.removeLayer(group);
+      groupRef.current = null;
+    };
+  }, [events, map]);
+
+  useEffect(() => {
+    if (!focusTarget) return;
+    const marker = markersByEventId.current[focusTarget.id];
+    // Unlike ClusteredMarkers, no flyTo fallback here — the place layer
+    // already owns that for any id it doesn't recognize either, so this
+    // only ever needs to act when it actually has the matching marker.
+    if (marker && groupRef.current) {
+      groupRef.current.zoomToShowLayer(marker, () => marker.openPopup());
+    }
+  }, [focusTarget]);
+
+  return null;
+}
+
 export function Map({
   places,
+  events = [],
   focusTarget,
   onMapReady,
 }: {
   places: PlaceWithRelations[];
+  events?: EventWithPlace[];
   focusTarget?: MapFocusTarget | null;
   /** Called once the Leaflet map instance is ready, so a sibling component
    * (e.g. the compass overlaid outside the map) can read/set its bearing. */
@@ -362,6 +479,7 @@ export function Map({
           entirely (globals.css) since pinch-to-zoom already works there. */}
       <ZoomControl position="bottomright" />
       <ClusteredMarkers places={places} focusTarget={focusTarget} />
+      <EventClusteredMarkers events={events} focusTarget={focusTarget} />
       <UserLocationLayer />
       <MapReadyBridge onReady={onMapReady} />
     </MapContainer>

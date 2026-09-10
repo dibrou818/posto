@@ -195,6 +195,16 @@ export function SearchBar({
     else onSelectResult(row.result);
   }
 
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    // Enter jumps straight to the top suggestion — the same one a mouse
+    // click would pick first — instead of doing nothing until the user
+    // reaches for the dropdown.
+    if (e.key === "Enter" && open && rows.length > 0) {
+      e.preventDefault();
+      selectRow(rows[0]);
+    }
+  }
+
   return (
     <div ref={containerRef} className="relative w-full max-w-xl">
       <input
@@ -202,6 +212,7 @@ export function SearchBar({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => query.trim().length >= 2 && setOpen(true)}
+        onKeyDown={handleKeyDown}
         placeholder={placeholder}
         className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 transition-colors focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
       />

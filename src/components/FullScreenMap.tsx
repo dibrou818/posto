@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import type L from "leaflet";
-import type { PlaceWithRelations } from "@/lib/queries";
+import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
 import type { MapFocusTarget } from "@/components/Map";
 import { SearchBar, type SearchResult, type CityResult } from "@/components/SearchBar";
 import { MapCompass } from "@/components/MapCompass";
+import { KindFilter } from "@/components/KindFilter";
+import { EventDateFilter } from "@/components/EventDateFilter";
 import { usePlacesExplorer } from "@/lib/usePlacesExplorer";
+import type { ResultKindFilter } from "@/lib/resultFilter";
+import { matchesDateBucket, type EventDateBucket } from "@/lib/eventDateFilter";
 
 const CITY_ZOOM = 12;
 
@@ -54,16 +58,40 @@ function useInitialCityFocus(): MapFocusTarget | null {
   return { id: "city:initial", lat, lng, zoom: CITY_ZOOM };
 }
 
-export function FullScreenMap({ places }: { places: PlaceWithRelations[] }) {
+export function FullScreenMap({
+  places,
+  events,
+}: {
+  places: PlaceWithRelations[];
+  events: EventWithPlace[];
+}) {
   useLockBodyScroll();
   const { selectedTag, setSelectedTag, places: filteredPlaces } = usePlacesExplorer(places);
   const [focusTarget, setFocusTarget] = useState<MapFocusTarget | null>(useInitialCityFocus());
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
+  const [kindFilter, setKindFilter] = useState<ResultKindFilter>("all");
+  const [dateBucket, setDateBucket] = useState<EventDateBucket>("all");
+
+  const tagFilteredEvents = useMemo(
+    () => (selectedTag ? events.filter((e) => e.tag_id === selectedTag.id) : events),
+    [events, selectedTag],
+  );
+
+  // Which markers are actually shown follows the Lieux/Événements toggle —
+  // "place" hides events entirely and vice versa, "all" shows both.
+  const visiblePlaces = kindFilter === "event" ? [] : filteredPlaces;
+  const visibleEvents = useMemo(() => {
+    if (kindFilter === "place") return [];
+    return tagFilteredEvents.filter((e) => matchesDateBucket(e.start_datetime, dateBucket));
+  }, [tagFilteredEvents, kindFilter, dateBucket]);
 
   function handleSelectResult(result: SearchResult) {
+    // Events are keyed by their own id on the map (see EventClusteredMarkers),
+    // places by place_id — same field the search API already returns.
+    const id = result.result_type === "event" ? result.id : result.place_id;
     // Re-selecting the same place should still re-trigger the zoom/popup
     // even if it's already the focus target.
-    setFocusTarget({ id: result.place_id, lat: result.lat, lng: result.lng });
+    setFocusTarget({ id, lat: result.lat, lng: result.lng });
   }
 
   function handleSelectCity(city: CityResult) {
@@ -75,7 +103,12 @@ export function FullScreenMap({ places }: { places: PlaceWithRelations[] }) {
   return (
     <div className="relative min-h-0 flex-1">
       <div className="absolute inset-0">
-        <Map places={filteredPlaces} focusTarget={focusTarget} onMapReady={setMapInstance} />
+        <Map
+          places={visiblePlaces}
+          events={visibleEvents}
+          focusTarget={focusTarget}
+          onMapReady={setMapInstance}
+        />
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[1000] flex flex-col gap-2 p-3">
@@ -86,12 +119,22 @@ export function FullScreenMap({ places }: { places: PlaceWithRelations[] }) {
               onSelectResult={handleSelectResult}
               onSelectCity={handleSelectCity}
               placeholder="Rechercher un lieu, une ville, un événement..."
+              filter={kindFilter}
+              onFilterChange={setKindFilter}
             />
+          </div>
+          <div className="pointer-events-auto shrink-0">
+            <KindFilter value={kindFilter} onChange={setKindFilter} />
           </div>
           <div className="pointer-events-auto">
             <MapCompass map={mapInstance} />
           </div>
         </div>
+        {kindFilter !== "place" && (
+          <div className="pointer-events-auto">
+            <EventDateFilter value={dateBucket} onChange={setDateBucket} />
+          </div>
+        )}
         {selectedTag && (
           <button
             onClick={() => setSelectedTag(null)}
