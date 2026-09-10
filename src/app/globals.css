@@ -25,9 +25,12 @@
    scroll this app should ever have. This doesn't fix a component that
    overflows for real (that's still a bug to find and fix at the source,
    e.g. missing `truncate`/`min-w-0`) — it just stops that bug from letting
-   people scroll/pinch-zoom their way to content that fell off the edge. */
-html,
-body {
+   people scroll/pinch-zoom their way to content that fell off the edge.
+   Only on `html`, not `body` too: setting it on both makes body a second
+   scroll-container candidate, which breaks `position: sticky` on anything
+   inside it (e.g. the desktop header) since the browser can no longer tell
+   which ancestor a sticky child should stick relative to. */
+html {
   overflow-x: hidden;
 }
 

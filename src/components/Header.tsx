@@ -22,7 +22,7 @@ export function Header({ user }: { user: User | null }) {
 
   return (
     <header
-      className={`border-b border-gray-200 bg-white ${isFullScreenMap ? "hidden md:block" : ""}`}
+      className={`sticky top-0 z-40 border-b border-gray-200 bg-white ${isFullScreenMap ? "hidden md:block" : ""}`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link
