@@ -86,7 +86,11 @@ body {
    popups, or controls — those live in separate Leaflet panes) so pins and
    UI stay exactly as designed. */
 .leaflet-tile-pane {
-  filter: saturate(1.5) contrast(1.08) brightness(1.02);
+  /* hue-rotate(-8deg) nudges every hue a touch cooler/greener: water reads
+     a more definite blue, greenery a fresher green, and — the same shift,
+     one side effect — CARTO's road orange-yellow drifts slightly off pure
+     yellow too, which is also what was asked for. */
+  filter: saturate(1.7) contrast(1.12) hue-rotate(-8deg);
 }
 
 /* "You are here" pulsing dot for the map's live geolocation marker. */
