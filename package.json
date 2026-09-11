@@ -12,7 +12,6 @@
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
     "leaflet": "^1.9.4",
-    "leaflet-rotate": "^0.2.8",
     "leaflet.markercluster": "^1.5.3",
     "next": "16.3.3",
     "qrcode": "^1.5.4",

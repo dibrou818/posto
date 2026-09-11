@@ -5,10 +5,8 @@ import { MapContainer, TileLayer, ZoomControl, useMap, useMapEvent } from "react
 import L from "leaflet";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
-import "leaflet-rotate";
 import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
 import { isOpenNow } from "@/lib/opening-hours";
-import { applyTouchRotateThreshold } from "@/lib/leafletRotateThreshold";
 
 const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
   weekday: "short",
@@ -17,11 +15,6 @@ const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
   hour: "2-digit",
   minute: "2-digit",
 });
-
-// Must run after "leaflet-rotate" has registered L.Map.TouchGestures, and
-// this module only ever loads client-side (dynamic import, ssr: false —
-// see FullScreenMap), so it's safe to patch at module scope, once.
-applyTouchRotateThreshold();
 
 const LILLE_CENTER: [number, number] = [50.6292, 3.0573];
 const DEFAULT_ZOOM = 13;
@@ -32,27 +25,22 @@ const DEFAULT_ZOOM = 13;
 // ever showing bare background past the edge of the world.
 const WORLD_BOUNDS = L.latLngBounds([-85.0511, -180], [85.0511, 180]);
 
-// Remembers where the user left the map (center/zoom/bearing) across a full
-// page navigation — e.g. tapping a pin's "Voir la fiche" and hitting back —
-// so browsing several nearby spots doesn't mean re-zooming/re-panning from
+// Remembers where the user left the map (center/zoom) across a full page
+// navigation — e.g. tapping a pin's "Voir la fiche" and hitting back — so
+// browsing several nearby spots doesn't mean re-zooming/re-panning from
 // Lille every single time. sessionStorage, not localStorage: it should
 // survive back-and-forth within one visit, not resurface days later and
 // surprise a returning user with wherever they'd wandered off to last time.
 const MAP_VIEW_STORAGE_KEY = "posto:map-view";
 
-type StoredMapView = { lat: number; lng: number; zoom: number; bearing: number };
+type StoredMapView = { lat: number; lng: number; zoom: number };
 
 function readStoredView(): StoredMapView | null {
   try {
     const raw = sessionStorage.getItem(MAP_VIEW_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (
-      typeof parsed?.lat === "number" &&
-      typeof parsed?.lng === "number" &&
-      typeof parsed?.zoom === "number" &&
-      typeof parsed?.bearing === "number"
-    ) {
+    if (typeof parsed?.lat === "number" && typeof parsed?.lng === "number" && typeof parsed?.zoom === "number") {
       return parsed;
     }
     return null;
@@ -310,9 +298,10 @@ function UserLocationLayer() {
 }
 
 /** Notifies the parent (outside the react-leaflet tree) once the underlying
- * Leaflet map instance exists, so it can render UI — like the compass — that
- * needs to call map methods (setBearing, etc.) from ordinary React, outside
- * Leaflet's own control system. */
+ * Leaflet map instance exists, so it can render UI that needs to call map
+ * methods directly from ordinary React, outside Leaflet's own control
+ * system — not currently used by anything, kept as reusable plumbing for
+ * the next thing that needs it. */
 function MapReadyBridge({ onReady }: { onReady?: (map: L.Map) => void }) {
   const map = useMap();
   useEffect(() => {
@@ -378,11 +367,10 @@ function MinZoomGuard() {
 }
 
 /** Saves the current view (see readStoredView/writeStoredView above) every
- * time panning/zooming/rotating settles, so the next mount — typically the
- * user coming back from a place/event's full page — picks up right where
- * they left off instead of resetting to Lille. Debounced: "rotate" in
- * particular can fire many times a second mid-gesture, and there's no need
- * to persist anything but the final settled view. */
+ * time panning/zooming settles, so the next mount — typically the user
+ * coming back from a place/event's full page — picks up right where they
+ * left off instead of resetting to Lille. Debounced so a drag/pinch in
+ * progress doesn't write on every intermediate frame. */
 function ViewPersistenceBridge() {
   const map = useMap();
 
@@ -391,7 +379,7 @@ function ViewPersistenceBridge() {
 
     function persistNow() {
       const center = map.getCenter();
-      writeStoredView({ lat: center.lat, lng: center.lng, zoom: map.getZoom(), bearing: map.getBearing() });
+      writeStoredView({ lat: center.lat, lng: center.lng, zoom: map.getZoom() });
     }
 
     function schedulePersist() {
@@ -401,13 +389,11 @@ function ViewPersistenceBridge() {
 
     map.on("moveend", schedulePersist);
     map.on("zoomend", schedulePersist);
-    map.on("rotate", schedulePersist);
 
     return () => {
       if (timeoutId !== undefined) window.clearTimeout(timeoutId);
       map.off("moveend", schedulePersist);
       map.off("zoomend", schedulePersist);
-      map.off("rotate", schedulePersist);
       // Final flush on unmount (e.g. navigating to a place's page) — covers
       // the case where the debounce above hasn't fired yet.
       try {
@@ -792,15 +778,10 @@ export function Map({
       // Forcing it on keeps every marker locked to its real position the
       // entire time, on every device.
       markerZoomAnimation
-      // leaflet-rotate: lets the map be spun freely with a two-finger touch
-      // gesture (no device sensors/permissions involved, purely manual).
-      // rotateControl is off because the compass overlay (outside the map,
-      // see FullScreenMap) is our own UI for the same job.
-      rotate
-      touchRotate
-      shiftKeyRotate={false}
-      rotateControl={false}
-      bearing={initialView?.bearing ?? 0}
+      // Rotation (leaflet-rotate, a two-finger touch gesture) used to be
+      // available here but was pulled out entirely — fiddly to use
+      // accurately on a touchscreen and not worth the confusion it caused.
+      // The map is always north-up now; there's no bearing to track.
       // Hard-stops panning at the edge of the world (see WORLD_BOUNDS) —
       // viscosity 1 means the edge is a wall, not a rubber-band you can
       // drag past. Combined with MinZoomGuard's dynamic minZoom, this is

@@ -3,11 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
-import type L from "leaflet";
 import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
 import type { MapFocusTarget, MapSheetItem } from "@/components/Map";
 import { SearchBar, type SearchResult, type CityResult } from "@/components/SearchBar";
-import { MapCompass } from "@/components/MapCompass";
 import { KindFilter } from "@/components/KindFilter";
 import { EventDateFilter } from "@/components/EventDateFilter";
 import { MapBottomSheet } from "@/components/MapBottomSheet";
@@ -69,7 +67,6 @@ export function FullScreenMap({
   useLockBodyScroll();
   const { selectedTag, setSelectedTag, places: filteredPlaces } = usePlacesExplorer(places);
   const [focusTarget, setFocusTarget] = useState<MapFocusTarget | null>(useInitialCityFocus());
-  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
   const [kindFilter, setKindFilter] = useState<ResultKindFilter>("all");
   const [dateBucket, setDateBucket] = useState<EventDateBucket>("all");
   // Mobile-only: which pin's preview the bottom sheet is showing (see
@@ -112,7 +109,6 @@ export function FullScreenMap({
           places={visiblePlaces}
           events={visibleEvents}
           focusTarget={focusTarget}
-          onMapReady={setMapInstance}
           onSelectPlace={(place) => setSheetItem({ kind: "place", place })}
           onSelectEvent={(event) => setSheetItem({ kind: "event", event })}
           onDismissSelection={() => setSheetItem(null)}
@@ -135,9 +131,6 @@ export function FullScreenMap({
           </div>
           <div className="pointer-events-auto shrink-0">
             <KindFilter value={kindFilter} onChange={setKindFilter} />
-          </div>
-          <div className="pointer-events-auto">
-            <MapCompass map={mapInstance} />
           </div>
         </div>
         {kindFilter !== "place" && (
