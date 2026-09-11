@@ -32,6 +32,45 @@ const DEFAULT_ZOOM = 13;
 // ever showing bare background past the edge of the world.
 const WORLD_BOUNDS = L.latLngBounds([-85.0511, -180], [85.0511, 180]);
 
+// Remembers where the user left the map (center/zoom/bearing) across a full
+// page navigation — e.g. tapping a pin's "Voir la fiche" and hitting back —
+// so browsing several nearby spots doesn't mean re-zooming/re-panning from
+// Lille every single time. sessionStorage, not localStorage: it should
+// survive back-and-forth within one visit, not resurface days later and
+// surprise a returning user with wherever they'd wandered off to last time.
+const MAP_VIEW_STORAGE_KEY = "posto:map-view";
+
+type StoredMapView = { lat: number; lng: number; zoom: number; bearing: number };
+
+function readStoredView(): StoredMapView | null {
+  try {
+    const raw = sessionStorage.getItem(MAP_VIEW_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      typeof parsed?.lat === "number" &&
+      typeof parsed?.lng === "number" &&
+      typeof parsed?.zoom === "number" &&
+      typeof parsed?.bearing === "number"
+    ) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    // Private browsing, storage disabled, corrupted value, etc. — falling
+    // back to the default view is fine, this is a nicety, not a dependency.
+    return null;
+  }
+}
+
+function writeStoredView(view: StoredMapView) {
+  try {
+    sessionStorage.setItem(MAP_VIEW_STORAGE_KEY, JSON.stringify(view));
+  } catch {
+    // ignore — see readStoredView
+  }
+}
+
 // CARTO Voyager basemap. Anonymous usage is rate-limited; set
 // NEXT_PUBLIC_CARTO_API_KEY once you have a CARTO account to lift the limits.
 const CARTO_API_KEY = process.env.NEXT_PUBLIC_CARTO_API_KEY;
@@ -338,6 +377,50 @@ function MinZoomGuard() {
   return null;
 }
 
+/** Saves the current view (see readStoredView/writeStoredView above) every
+ * time panning/zooming/rotating settles, so the next mount — typically the
+ * user coming back from a place/event's full page — picks up right where
+ * they left off instead of resetting to Lille. Debounced: "rotate" in
+ * particular can fire many times a second mid-gesture, and there's no need
+ * to persist anything but the final settled view. */
+function ViewPersistenceBridge() {
+  const map = useMap();
+
+  useEffect(() => {
+    let timeoutId: number | undefined;
+
+    function persistNow() {
+      const center = map.getCenter();
+      writeStoredView({ lat: center.lat, lng: center.lng, zoom: map.getZoom(), bearing: map.getBearing() });
+    }
+
+    function schedulePersist() {
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(persistNow, 200);
+    }
+
+    map.on("moveend", schedulePersist);
+    map.on("zoomend", schedulePersist);
+    map.on("rotate", schedulePersist);
+
+    return () => {
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      map.off("moveend", schedulePersist);
+      map.off("zoomend", schedulePersist);
+      map.off("rotate", schedulePersist);
+      // Final flush on unmount (e.g. navigating to a place's page) — covers
+      // the case where the debounce above hasn't fired yet.
+      try {
+        persistNow();
+      } catch {
+        // Map may already be mid-teardown at this point; nothing to save.
+      }
+    };
+  }, [map]);
+
+  return null;
+}
+
 // Leaflet's bindPopup(string) injects the string as raw HTML with no
 // escaping of its own — place.name/place.address are free text any signed-up
 // user controls, so they must be entity-encoded before going anywhere near
@@ -455,17 +538,25 @@ function ClusteredMarkers({
   focusTarget,
   isMobile,
   onSelectPlace,
+  skipInitialFit,
 }: {
   places: PlaceWithRelations[];
   focusTarget?: MapFocusTarget | null;
   isMobile: boolean;
   onSelectPlace?: (place: PlaceWithRelations) => void;
+  /** True when the map mounted at a restored view (see readStoredView) —
+   * fitting bounds to every place right after would immediately zoom back
+   * out and defeat the whole point of restoring where the user left off.
+   * Only suppresses the very first fit; a later filter change etc. still
+   * fits normally, same as before. */
+  skipInitialFit?: boolean;
 }) {
   const map = useMap();
   const groupRef = useRef<L.MarkerClusterGroup | null>(null);
   // Plain object, not a JS `Map`, to avoid shadowing by this file's own
   // exported `Map` component.
   const markersByPlaceId = useRef<Record<string, L.Marker>>({});
+  const isFirstFitRef = useRef(true);
   // Ref so the marker-creation effect doesn't need `onSelectPlace` itself in
   // its dependency array — FullScreenMap may pass a new function identity on
   // every render, and that alone shouldn't tear down/rebuild every marker.
@@ -474,6 +565,18 @@ function ClusteredMarkers({
   const onSelectPlaceRef = useRef(onSelectPlace);
   useEffect(() => {
     onSelectPlaceRef.current = onSelectPlace;
+  });
+  // Same idea, and for the same reason `isMobile` can't be a dependency of
+  // the marker-creation effect below: `useIsMobileViewport` starts out
+  // `false` and flips shortly after mount once matchMedia resolves, and
+  // reacting to that flip by rebuilding every marker would also re-run
+  // fitBounds — silently overwriting a just-restored view (see
+  // readStoredView/skipInitialFit) with "zoomed out to fit everything"
+  // milliseconds after mount. The click handler below reads this ref live,
+  // at click time, so it's never actually stale despite not being a dep.
+  const isMobileRef = useRef(isMobile);
+  useEffect(() => {
+    isMobileRef.current = isMobile;
   });
 
   useEffect(() => {
@@ -487,14 +590,13 @@ function ClusteredMarkers({
     const markersById: Record<string, L.Marker> = {};
     places.forEach((place) => {
       const marker = L.marker([place.lat, place.lng], { icon: placeIcon });
-      // Mobile gets the bottom sheet instead of Leaflet's own popup card.
-      // `isMobile` IS a dependency of this effect (below) — unlike
-      // onSelectPlace, it has to be, since it decides whether bindPopup
-      // runs at all, not just what a click callback does afterwards.
+      // Always bound; the sync effect further down immediately unbinds it
+      // again if isMobile is (or becomes) true, without needing to recreate
+      // markers/re-run fitBounds just because that flag changed.
+      marker.bindPopup(popupHtml(place));
       marker.on("click", () => {
-        if (isMobile) onSelectPlaceRef.current?.(place);
+        if (isMobileRef.current) onSelectPlaceRef.current?.(place);
       });
-      if (!isMobile) marker.bindPopup(popupHtml(place));
       group.addLayer(marker);
       markersById[place.id] = marker;
     });
@@ -503,16 +605,46 @@ function ClusteredMarkers({
     groupRef.current = group;
     markersByPlaceId.current = markersById;
 
-    if (places.length > 0) {
+    const isFirstFit = isFirstFitRef.current;
+    if (places.length > 0 && !(isFirstFit && skipInitialFit)) {
       const bounds = L.latLngBounds(places.map((p) => [p.lat, p.lng] as [number, number]));
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
     }
+    // Only *commit* "no longer first" once this effect instance survives to
+    // the next tick uncancelled. Dev-mode Strict Mode runs every effect as
+    // mount → cleanup → mount, synchronously, before anything else gets a
+    // chance to run — flipping the ref immediately (inside the setup body)
+    // means that throwaway first pass "spends" the one skip, and the real,
+    // kept pass right after it sees isFirstFit as already false and fits
+    // bounds anyway, silently overwriting a just-restored view. Cancelling
+    // this in cleanup means only a pass that *isn't* immediately torn down
+    // — i.e. the real one — ever actually consumes it.
+    const commitFirstFitTimer = isFirstFit ? window.setTimeout(() => {
+      isFirstFitRef.current = false;
+    }, 0) : undefined;
 
     return () => {
+      if (commitFirstFitTimer !== undefined) window.clearTimeout(commitFirstFitTimer);
       map.removeLayer(group);
       groupRef.current = null;
     };
-  }, [places, map, isMobile]);
+  }, [places, map, skipInitialFit]);
+
+  // Keeps existing markers' popup binding in sync with isMobile without
+  // recreating them (and *without* touching bounds/fitBounds above) — this
+  // is what actually reacts to the viewport crossing the `md` breakpoint,
+  // whether that's the matchMedia hook resolving shortly after mount or an
+  // actual window resize later on.
+  useEffect(() => {
+    Object.entries(markersByPlaceId.current).forEach(([id, marker]) => {
+      if (isMobile) {
+        marker.unbindPopup();
+        return;
+      }
+      const place = places.find((p) => p.id === id);
+      if (place) marker.bindPopup(popupHtml(place));
+    });
+  }, [isMobile, places]);
 
   useEffect(() => {
     if (!focusTarget) return;
@@ -638,11 +770,19 @@ export function Map({
   onDismissSelection?: () => void;
 }) {
   const isMobile = useIsMobileViewport();
+  // Lazy initializer: reads sessionStorage exactly once, before first paint,
+  // so the map mounts already at the last place the user was looking at
+  // instead of flashing Lille first. A later focusTarget (e.g. a city
+  // picked from search) still flies in on top of this via its own effect,
+  // same as before — this only changes the *starting point*, not that
+  // behavior.
+  const [initialView] = useState(() => readStoredView());
+  const initialCenter: [number, number] = initialView ? [initialView.lat, initialView.lng] : LILLE_CENTER;
 
   return (
     <MapContainer
-      center={LILLE_CENTER}
-      zoom={DEFAULT_ZOOM}
+      center={initialCenter}
+      zoom={initialView?.zoom ?? DEFAULT_ZOOM}
       scrollWheelZoom
       zoomControl={false}
       // Leaflet disables this by default on some (mostly older Android)
@@ -660,7 +800,7 @@ export function Map({
       touchRotate
       shiftKeyRotate={false}
       rotateControl={false}
-      bearing={0}
+      bearing={initialView?.bearing ?? 0}
       // Hard-stops panning at the edge of the world (see WORLD_BOUNDS) —
       // viscosity 1 means the edge is a wall, not a rubber-band you can
       // drag past. Combined with MinZoomGuard's dynamic minZoom, this is
@@ -685,6 +825,7 @@ export function Map({
         focusTarget={focusTarget}
         isMobile={isMobile}
         onSelectPlace={onSelectPlace}
+        skipInitialFit={initialView !== null}
       />
       <EventClusteredMarkers
         events={events}
@@ -695,6 +836,7 @@ export function Map({
       <UserLocationLayer />
       <MapReadyBridge onReady={onMapReady} />
       <MinZoomGuard />
+      <ViewPersistenceBridge />
       {isMobile && <SheetDismissBridge onDismiss={onDismissSelection} />}
     </MapContainer>
   );
