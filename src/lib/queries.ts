@@ -35,7 +35,7 @@ export async function getAllPlaces(
     .select(PLACE_SELECT)
     .order("created_at", { ascending: false });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data as unknown as RawPlace[]).map(normalizePlace);
 }
 
@@ -49,7 +49,7 @@ export async function getPlaceById(
     .eq("id", id)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   if (!data) return null;
   return normalizePlace(data as unknown as RawPlace);
 }
@@ -63,7 +63,7 @@ export async function getActivitiesForPlace(
     .select("*")
     .eq("place_id", placeId)
     .order("name");
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data;
 }
 
@@ -77,7 +77,7 @@ export async function getUpcomingEventsForPlace(
     .eq("place_id", placeId)
     .gte("start_datetime", new Date().toISOString())
     .order("start_datetime");
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data;
 }
 
@@ -92,7 +92,7 @@ export async function getEventById(
     .select("*, place:places(*)")
     .eq("id", id)
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   if (!data) return null;
   return data as unknown as EventWithPlace;
 }
@@ -106,7 +106,7 @@ export async function getUpcomingEvents(
     .gte("start_datetime", new Date().toISOString())
     .order("start_datetime")
     .limit(60);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data as unknown as EventWithPlace[];
 }
 
@@ -119,7 +119,7 @@ export async function getAllEventsForPlace(
     .select("*")
     .eq("place_id", placeId)
     .order("start_datetime", { ascending: false });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data;
 }
 
@@ -132,7 +132,7 @@ export async function getPlacesByOwner(
     .select(PLACE_SELECT)
     .eq("owner_id", ownerId)
     .order("created_at", { ascending: false });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data as unknown as RawPlace[]).map(normalizePlace);
 }
 
@@ -140,6 +140,6 @@ export async function getAllTags(
   supabase: SupabaseClient<Database>,
 ): Promise<Tag[]> {
   const { data, error } = await supabase.from("tags").select("*").order("label");
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data;
 }
