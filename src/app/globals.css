@@ -93,6 +93,23 @@ body {
   filter: saturate(1.7) contrast(1.12) hue-rotate(-8deg);
 }
 
+/* Place/event marker popups (Map.tsx's popupCard()): by default Leaflet
+   wraps injected content in its own 13px/24px/13px/20px margin and leaves
+   the wrapper's padding at 1px, which is fine for plain text but fights a
+   proper card layout — a cover photo can't reach the wrapper's rounded
+   corners through that margin. Zeroing both, and clipping overflow on the
+   wrapper, hands full layout control to popupCard's own markup so the
+   photo sits flush and the rest of the card gets its own deliberate
+   padding instead of Leaflet's default. */
+.leaflet-popup-content-wrapper {
+  padding: 0;
+  overflow: hidden;
+}
+.leaflet-popup-content {
+  margin: 0;
+  width: auto !important;
+}
+
 /* "You are here" pulsing dot for the map's live geolocation marker. */
 @keyframes posto-locate-pulse {
   0% {

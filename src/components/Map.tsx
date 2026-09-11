@@ -324,33 +324,96 @@ function escapeHtml(value: string): string {
   return div.innerHTML;
 }
 
-function popupHtml(place: PlaceWithRelations) {
-  const open = isOpenNow(place.opening_hours);
+// escapeHtml is only safe inside a text node: the textContent→innerHTML
+// round-trip encodes &/</> but not quote characters, since quotes have no
+// special meaning there. Dropped into an attribute (the cover photo's
+// src="...") an unescaped `"` could close the attribute early and inject
+// markup — cover_photo_url is validated server-side against an allowlist,
+// but this doesn't rely on that holding to stay safe.
+function escapeAttr(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Small inline icons for the popup card — kept as plain SVG markup (not
+// React components) since this whole template is a string handed to
+// Leaflet's bindPopup, not JSX.
+const PIN_ICON_SVG =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.5-7-11.5a7 7 0 0 1 14 0C19 14.5 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.2"/></svg>';
+const CALENDAR_ICON_SVG =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>';
+
+// Shared "card" chrome for both popup types: an optional cover photo flush
+// with the (CSS-overridden, see globals.css) rounded corners, then a padded
+// body. Kept as one helper so a place popup and an event popup always read
+// as the same kind of object, just with different content inside.
+function popupCard(opts: {
+  coverPhotoUrl: string | null;
+  title: string;
+  subtitle: string;
+  badge: { label: string; bg: string; fg: string; dot?: string; icon?: string };
+  href: string;
+  cta: string;
+}) {
   return `
-    <div style="display:flex;flex-direction:column;gap:4px;">
-      <span style="font-weight:600;">${escapeHtml(place.name)}</span>
-      <span style="font-size:12px;color:#6b7280;">${escapeHtml(place.address ?? "")}</span>
-      <span style="font-size:12px;font-weight:500;">${open ? "🟢 Ouvert" : "🔴 Fermé"}</span>
-      <a href="/places/${place.id}" style="font-size:12px;color:#2563eb;text-decoration:underline;">
-        Voir la fiche
-      </a>
+    <div style="width:208px;">
+      ${
+        opts.coverPhotoUrl
+          ? `<div style="width:100%;height:92px;background:#e5e7eb;">
+               <img src="${escapeAttr(opts.coverPhotoUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />
+             </div>`
+          : ""
+      }
+      <div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;">
+        <span style="font-weight:600;font-size:14px;line-height:1.25;color:#111827;">${escapeHtml(opts.title)}</span>
+        ${
+          opts.subtitle
+            ? `<span style="display:flex;align-items:center;gap:4px;font-size:12px;color:#6b7280;overflow:hidden;">
+                 <span style="flex-shrink:0;display:flex;">${PIN_ICON_SVG}</span>
+                 <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(opts.subtitle)}</span>
+               </span>`
+            : ""
+        }
+        <span style="display:inline-flex;align-items:center;gap:5px;width:fit-content;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:600;background:${opts.badge.bg};color:${opts.badge.fg};">
+          ${opts.badge.dot ? `<span style="width:6px;height:6px;border-radius:50%;background:${opts.badge.dot};"></span>` : ""}
+          ${opts.badge.icon ? `<span style="display:flex;">${opts.badge.icon}</span>` : ""}
+          ${escapeHtml(opts.badge.label)}
+        </span>
+        <a href="${opts.href}" style="margin-top:2px;display:block;text-align:center;padding:7px 10px;border-radius:8px;background:#111827;color:#ffffff;font-size:12px;font-weight:600;text-decoration:none;">
+          ${escapeHtml(opts.cta)}
+        </a>
+      </div>
     </div>
   `;
 }
 
+function popupHtml(place: PlaceWithRelations) {
+  const open = isOpenNow(place.opening_hours);
+  return popupCard({
+    coverPhotoUrl: place.cover_photo_url,
+    title: place.name,
+    subtitle: place.address ?? "",
+    badge: open
+      ? { label: "Ouvert", bg: "#dcfce7", fg: "#166534", dot: "#22c55e" }
+      : { label: "Fermé", bg: "#fee2e2", fg: "#991b1b", dot: "#ef4444" },
+    href: `/places/${place.id}`,
+    cta: "Voir la fiche",
+  });
+}
+
 function eventPopupHtml(event: EventWithPlace) {
-  return `
-    <div style="display:flex;flex-direction:column;gap:4px;">
-      <span style="font-weight:600;">${escapeHtml(event.title)}</span>
-      <span style="font-size:12px;color:#6b7280;">${escapeHtml(event.place.name)}</span>
-      <span style="font-size:12px;font-weight:500;color:${EVENT_COLOR};">
-        ${escapeHtml(eventDateFormatter.format(new Date(event.start_datetime)))}
-      </span>
-      <a href="/events/${event.id}" style="font-size:12px;color:#2563eb;text-decoration:underline;">
-        Voir l'événement
-      </a>
-    </div>
-  `;
+  return popupCard({
+    coverPhotoUrl: event.cover_photo_url ?? event.place.cover_photo_url,
+    title: event.title,
+    subtitle: event.place.name,
+    badge: {
+      label: eventDateFormatter.format(new Date(event.start_datetime)),
+      bg: "#ede9fe",
+      fg: EVENT_COLOR,
+      icon: CALENDAR_ICON_SVG,
+    },
+    href: `/events/${event.id}`,
+    cta: "Voir l'événement",
+  });
 }
 
 export type MapFocusTarget = { id: string; lat: number; lng: number; zoom?: number };
