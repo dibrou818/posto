@@ -2,8 +2,12 @@
 
 import type { Activity, Tag } from "@/lib/queries";
 import { compactInputClass } from "@/lib/ui";
+import { TextField } from "@/components/ui/TextField";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { DeleteButton } from "@/components/ui/DeleteButton";
+
+const NAME_MAX_LENGTH = 80;
+const DESCRIPTION_MAX_LENGTH = 300;
 
 export function ActivitiesManager({
   activities,
@@ -30,7 +34,10 @@ export function ActivitiesManager({
                 <p className="text-xs text-gray-500">{activity.description}</p>
               )}
             </div>
-            <DeleteButton action={onDelete.bind(null, activity.id)} />
+            <DeleteButton
+              action={onDelete.bind(null, activity.id)}
+              confirmMessage={`Supprimer l'activité « ${activity.name} » ?`}
+            />
           </li>
         ))}
         {activities.length === 0 && (
@@ -42,16 +49,16 @@ export function ActivitiesManager({
         <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
           Ajouter une activité
         </p>
-        <input
+        <TextField
           name="name"
           placeholder="Nom de l'activité"
           required
-          className={compactInputClass}
+          maxLength={NAME_MAX_LENGTH}
         />
-        <input
+        <TextField
           name="description"
           placeholder="Description (optionnel)"
-          className={compactInputClass}
+          maxLength={DESCRIPTION_MAX_LENGTH}
         />
         <select name="tag_id" className={compactInputClass}>
           <option value="">Hérite des tags du lieu</option>

@@ -4,11 +4,17 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Event, Tag } from "@/lib/queries";
 import { compactInputClass, labelClass } from "@/lib/ui";
+import { TextField } from "@/components/ui/TextField";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { QrCodeSection } from "@/components/dashboard/QrCodeSection";
 import { PosterSection } from "@/components/dashboard/PosterSection";
 import { formatEventSchedule, formatRecurrence } from "@/lib/eventSchedule";
+
+const TITLE_MAX_LENGTH = 100;
+const DESCRIPTION_MAX_LENGTH = 500;
+const RECURRENCE_MAX_LENGTH = 60;
+const PRICE_MAX_LENGTH = 40;
 
 export function EventsManager({
   events,
@@ -92,7 +98,10 @@ export function EventsManager({
                 >
                   {expandedEventId === event.id ? "Fermer" : "QR & affiche"}
                 </button>
-                <DeleteButton action={onDelete.bind(null, event.id)} />
+                <DeleteButton
+                  action={onDelete.bind(null, event.id)}
+                  confirmMessage={`Supprimer l'événement « ${event.title} » ?`}
+                />
               </div>
             </div>
             {expandedEventId === event.id && (
@@ -123,16 +132,16 @@ export function EventsManager({
         <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
           Ajouter un événement
         </p>
-        <input
+        <TextField
           name="title"
           placeholder="Titre de l'événement"
           required
-          className={compactInputClass}
+          maxLength={TITLE_MAX_LENGTH}
         />
-        <input
+        <TextField
           name="description"
           placeholder="Description (optionnel)"
-          className={compactInputClass}
+          maxLength={DESCRIPTION_MAX_LENGTH}
         />
         <div className="grid grid-cols-2 gap-2">
           <div>
@@ -154,15 +163,15 @@ export function EventsManager({
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <input
+          <TextField
             name="recurrence_rule"
             placeholder="Récurrence, ex: weekly:thursday"
-            className={compactInputClass}
+            maxLength={RECURRENCE_MAX_LENGTH}
           />
-          <input
+          <TextField
             name="price"
             placeholder="Prix, ex: Gratuit / 10€"
-            className={compactInputClass}
+            maxLength={PRICE_MAX_LENGTH}
           />
         </div>
         <select name="tag_id" className={compactInputClass}>

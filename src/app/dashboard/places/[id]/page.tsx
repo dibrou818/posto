@@ -14,7 +14,7 @@ import { ActivitiesManager } from "@/components/dashboard/ActivitiesManager";
 import { EventsManager } from "@/components/dashboard/EventsManager";
 import { DashboardSection } from "@/components/dashboard/DashboardSection";
 import { QrCodeSection } from "@/components/dashboard/QrCodeSection";
-import { DeleteButton } from "@/components/ui/DeleteButton";
+import { DeletePlaceSection } from "@/components/dashboard/DeletePlaceSection";
 import { BackButton } from "@/components/ui/BackButton";
 import { buttonClass } from "@/lib/ui";
 import {
@@ -77,16 +77,9 @@ export default async function EditPlacePage({
 
       <div className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-gray-900">{place.name}</h1>
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard" className={buttonClass("compact")}>
-            Terminé
-          </Link>
-          <DeleteButton
-            action={deletePlace.bind(null, id)}
-            label="Supprimer le lieu"
-            className="text-sm"
-          />
-        </div>
+        <Link href="/dashboard" className={buttonClass("compact")}>
+          Terminé
+        </Link>
       </div>
 
       <DashboardSection title="Informations">
@@ -134,6 +127,8 @@ export default async function EditPlacePage({
           onDeletePoster={deleteEventPoster.bind(null, id)}
         />
       </DashboardSection>
+
+      <DeletePlaceSection placeName={place.name} action={deletePlace.bind(null, id)} />
     </div>
   );
 }

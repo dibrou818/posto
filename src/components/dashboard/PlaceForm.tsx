@@ -4,8 +4,13 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/types/database.types";
 import { TextField, TextareaField } from "@/components/ui/TextField";
+import { PhoneField } from "@/components/ui/PhoneField";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { labelClass } from "@/lib/ui";
+
+const NAME_MAX_LENGTH = 80;
+const DESCRIPTION_MAX_LENGTH = 500;
+const URGENT_MESSAGE_MAX_LENGTH = 200;
 
 /** `2026-09-10T14:30:00+00:00` (DB) -> `2026-09-10T14:30` (datetime-local
  * input value) in the browser's own timezone. */
@@ -97,22 +102,23 @@ export function PlaceForm({
 
   return (
     <form action={action} className="flex flex-col gap-4">
-      <TextField label="Nom du lieu" name="name" required defaultValue={place?.name} />
+      <TextField
+        label="Nom du lieu"
+        name="name"
+        required
+        maxLength={NAME_MAX_LENGTH}
+        defaultValue={place?.name}
+      />
 
       <TextareaField
         label="Description"
         name="description"
         rows={4}
+        maxLength={DESCRIPTION_MAX_LENGTH}
         defaultValue={place?.description ?? ""}
       />
 
-      <TextField
-        label="Téléphone"
-        name="phone"
-        type="tel"
-        placeholder="06 12 34 56 78"
-        defaultValue={place?.phone ?? ""}
-      />
+      <PhoneField name="phone" defaultValue={place?.phone} />
 
       <div>
         <TextField
@@ -191,6 +197,7 @@ export function PlaceForm({
           label="Message urgent"
           name="urgent_message"
           rows={2}
+          maxLength={URGENT_MESSAGE_MAX_LENGTH}
           placeholder="Fermeture exceptionnelle le 15 septembre..."
           defaultValue={place?.urgent_message ?? ""}
           className="border-amber-300"

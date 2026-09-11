@@ -137,7 +137,11 @@ export function PosterSection({
             >
               Télécharger l&apos;image
             </a>
-            <DeleteButton action={onDelete} label="Supprimer l'affiche" />
+            <DeleteButton
+              action={onDelete}
+              label="Supprimer l'affiche"
+              confirmMessage="Supprimer cette affiche ? Vous pourrez en régénérer une nouvelle à tout moment."
+            />
           </div>
         )}
       </div>
