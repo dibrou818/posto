@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MapContainer, TileLayer, ZoomControl, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, ZoomControl, useMap, useMapEvent } from "react-leaflet";
 import L from "leaflet";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -282,6 +282,31 @@ function MapReadyBridge({ onReady }: { onReady?: (map: L.Map) => void }) {
   return null;
 }
 
+// Same breakpoint as Tailwind's `md` (and the rest of the app's mobile/desktop
+// split, e.g. BottomNav) — below it, tapping a pin opens the bottom sheet
+// instead of Leaflet's own popup (see ClusteredMarkers/EventClusteredMarkers).
+const MOBILE_BREAKPOINT_QUERY = "(max-width: 767px)";
+
+function useIsMobileViewport(): boolean {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
+    const update = () => setIsMobile(mql.matches);
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
+  return isMobile;
+}
+
+/** Tapping the bare map (not a marker — Leaflet markers don't bubble their
+ * clicks up to the map by default) dismisses the mobile bottom sheet, same
+ * as tapping outside a Leaflet popup closes it on desktop. */
+function SheetDismissBridge({ onDismiss }: { onDismiss?: () => void }) {
+  useMapEvent("click", () => onDismiss?.());
+  return null;
+}
+
 /** Keeps the world basemap always filling the screen, at any viewport size
  * or zoom level. `maxBounds` alone (set on MapContainer) stops the user
  * panning past the edge of the world, but a fixed `minZoom` can still leave
@@ -418,18 +443,38 @@ function eventPopupHtml(event: EventWithPlace) {
 
 export type MapFocusTarget = { id: string; lat: number; lng: number; zoom?: number };
 
+// What the mobile bottom sheet (rendered by FullScreenMap, outside this
+// component entirely) needs to show a preview — a place or an event marker
+// was tapped. Exported so FullScreenMap/MapBottomSheet share the one shape.
+export type MapSheetItem =
+  | { kind: "place"; place: PlaceWithRelations }
+  | { kind: "event"; event: EventWithPlace };
+
 function ClusteredMarkers({
   places,
   focusTarget,
+  isMobile,
+  onSelectPlace,
 }: {
   places: PlaceWithRelations[];
   focusTarget?: MapFocusTarget | null;
+  isMobile: boolean;
+  onSelectPlace?: (place: PlaceWithRelations) => void;
 }) {
   const map = useMap();
   const groupRef = useRef<L.MarkerClusterGroup | null>(null);
   // Plain object, not a JS `Map`, to avoid shadowing by this file's own
   // exported `Map` component.
   const markersByPlaceId = useRef<Record<string, L.Marker>>({});
+  // Ref so the marker-creation effect doesn't need `onSelectPlace` itself in
+  // its dependency array — FullScreenMap may pass a new function identity on
+  // every render, and that alone shouldn't tear down/rebuild every marker.
+  // Synced in its own effect (not during render) since mutating a ref while
+  // rendering isn't safe under React's concurrent rendering.
+  const onSelectPlaceRef = useRef(onSelectPlace);
+  useEffect(() => {
+    onSelectPlaceRef.current = onSelectPlace;
+  });
 
   useEffect(() => {
     const group = L.markerClusterGroup({
@@ -442,7 +487,14 @@ function ClusteredMarkers({
     const markersById: Record<string, L.Marker> = {};
     places.forEach((place) => {
       const marker = L.marker([place.lat, place.lng], { icon: placeIcon });
-      marker.bindPopup(popupHtml(place));
+      // Mobile gets the bottom sheet instead of Leaflet's own popup card.
+      // `isMobile` IS a dependency of this effect (below) — unlike
+      // onSelectPlace, it has to be, since it decides whether bindPopup
+      // runs at all, not just what a click callback does afterwards.
+      marker.on("click", () => {
+        if (isMobile) onSelectPlaceRef.current?.(place);
+      });
+      if (!isMobile) marker.bindPopup(popupHtml(place));
       group.addLayer(marker);
       markersById[place.id] = marker;
     });
@@ -460,23 +512,31 @@ function ClusteredMarkers({
       map.removeLayer(group);
       groupRef.current = null;
     };
-  }, [places, map]);
+  }, [places, map, isMobile]);
 
   useEffect(() => {
     if (!focusTarget) return;
 
     const marker = markersByPlaceId.current[focusTarget.id];
     if (marker && groupRef.current) {
-      // Zooms/pans just enough to pull the marker out of its cluster (if any),
-      // then opens its popup once it's actually visible on screen.
-      groupRef.current.zoomToShowLayer(marker, () => marker.openPopup());
+      // Zooms/pans just enough to pull the marker out of its cluster (if
+      // any), then — mobile: opens the bottom sheet; desktop: its popup —
+      // once it's actually visible on screen.
+      groupRef.current.zoomToShowLayer(marker, () => {
+        if (isMobile) {
+          const place = places.find((p) => p.id === focusTarget.id);
+          if (place) onSelectPlace?.(place);
+        } else {
+          marker.openPopup();
+        }
+      });
     } else {
       // No matching marker — either it's outside the current (possibly
       // tag-filtered) set, or this target is a city/area rather than a
       // venue. Still take the user to the right spot.
       map.flyTo([focusTarget.lat, focusTarget.lng], focusTarget.zoom ?? 16);
     }
-  }, [focusTarget, map]);
+  }, [focusTarget, map, isMobile, places, onSelectPlace]);
 
   return null;
 }
@@ -484,13 +544,23 @@ function ClusteredMarkers({
 function EventClusteredMarkers({
   events,
   focusTarget,
+  isMobile,
+  onSelectEvent,
 }: {
   events: EventWithPlace[];
   focusTarget?: MapFocusTarget | null;
+  isMobile: boolean;
+  onSelectEvent?: (event: EventWithPlace) => void;
 }) {
   const map = useMap();
   const groupRef = useRef<L.MarkerClusterGroup | null>(null);
   const markersByEventId = useRef<Record<string, L.Marker>>({});
+  // See ClusteredMarkers' onSelectPlaceRef for why this is a ref but
+  // `isMobile` (below) is a plain effect dependency instead.
+  const onSelectEventRef = useRef(onSelectEvent);
+  useEffect(() => {
+    onSelectEventRef.current = onSelectEvent;
+  });
 
   useEffect(() => {
     const group = L.markerClusterGroup({
@@ -503,7 +573,10 @@ function EventClusteredMarkers({
     const markersById: Record<string, L.Marker> = {};
     events.forEach((event) => {
       const marker = L.marker([event.place.lat, event.place.lng], { icon: eventIcon });
-      marker.bindPopup(eventPopupHtml(event));
+      marker.on("click", () => {
+        if (isMobile) onSelectEventRef.current?.(event);
+      });
+      if (!isMobile) marker.bindPopup(eventPopupHtml(event));
       group.addLayer(marker);
       markersById[event.id] = marker;
     });
@@ -516,7 +589,7 @@ function EventClusteredMarkers({
       map.removeLayer(group);
       groupRef.current = null;
     };
-  }, [events, map]);
+  }, [events, map, isMobile]);
 
   useEffect(() => {
     if (!focusTarget) return;
@@ -525,9 +598,16 @@ function EventClusteredMarkers({
     // already owns that for any id it doesn't recognize either, so this
     // only ever needs to act when it actually has the matching marker.
     if (marker && groupRef.current) {
-      groupRef.current.zoomToShowLayer(marker, () => marker.openPopup());
+      groupRef.current.zoomToShowLayer(marker, () => {
+        if (isMobile) {
+          const event = events.find((e) => e.id === focusTarget.id);
+          if (event) onSelectEvent?.(event);
+        } else {
+          marker.openPopup();
+        }
+      });
     }
-  }, [focusTarget]);
+  }, [focusTarget, isMobile, events, onSelectEvent]);
 
   return null;
 }
@@ -537,6 +617,9 @@ export function Map({
   events = [],
   focusTarget,
   onMapReady,
+  onSelectPlace,
+  onSelectEvent,
+  onDismissSelection,
 }: {
   places: PlaceWithRelations[];
   events?: EventWithPlace[];
@@ -544,7 +627,18 @@ export function Map({
   /** Called once the Leaflet map instance is ready, so a sibling component
    * (e.g. the compass overlaid outside the map) can read/set its bearing. */
   onMapReady?: (map: L.Map) => void;
+  /** Below the `md` breakpoint, tapping a marker calls these instead of
+   * opening Leaflet's own popup — FullScreenMap uses them to drive a mobile
+   * bottom sheet. Above it, markers keep the regular popup and these are
+   * never called. */
+  onSelectPlace?: (place: PlaceWithRelations) => void;
+  onSelectEvent?: (event: EventWithPlace) => void;
+  /** Tapping the bare map dismisses the mobile bottom sheet, mirroring a
+   * desktop popup closing on an outside click. */
+  onDismissSelection?: () => void;
 }) {
+  const isMobile = useIsMobileViewport();
+
   return (
     <MapContainer
       center={LILLE_CENTER}
@@ -586,11 +680,22 @@ export function Map({
       {/* Bottom-right so it never overlaps the search bar; hidden on mobile
           entirely (globals.css) since pinch-to-zoom already works there. */}
       <ZoomControl position="bottomright" />
-      <ClusteredMarkers places={places} focusTarget={focusTarget} />
-      <EventClusteredMarkers events={events} focusTarget={focusTarget} />
+      <ClusteredMarkers
+        places={places}
+        focusTarget={focusTarget}
+        isMobile={isMobile}
+        onSelectPlace={onSelectPlace}
+      />
+      <EventClusteredMarkers
+        events={events}
+        focusTarget={focusTarget}
+        isMobile={isMobile}
+        onSelectEvent={onSelectEvent}
+      />
       <UserLocationLayer />
       <MapReadyBridge onReady={onMapReady} />
       <MinZoomGuard />
+      {isMobile && <SheetDismissBridge onDismiss={onDismissSelection} />}
     </MapContainer>
   );
 }

@@ -5,11 +5,12 @@ import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import type L from "leaflet";
 import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
-import type { MapFocusTarget } from "@/components/Map";
+import type { MapFocusTarget, MapSheetItem } from "@/components/Map";
 import { SearchBar, type SearchResult, type CityResult } from "@/components/SearchBar";
 import { MapCompass } from "@/components/MapCompass";
 import { KindFilter } from "@/components/KindFilter";
 import { EventDateFilter } from "@/components/EventDateFilter";
+import { MapBottomSheet } from "@/components/MapBottomSheet";
 import { usePlacesExplorer } from "@/lib/usePlacesExplorer";
 import type { ResultKindFilter } from "@/lib/resultFilter";
 import { matchesDateBucket, type EventDateBucket } from "@/lib/eventDateFilter";
@@ -71,6 +72,10 @@ export function FullScreenMap({
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
   const [kindFilter, setKindFilter] = useState<ResultKindFilter>("all");
   const [dateBucket, setDateBucket] = useState<EventDateBucket>("all");
+  // Mobile-only: which pin's preview the bottom sheet is showing (see
+  // Map.tsx's onSelectPlace/onSelectEvent — desktop never sets this, it
+  // keeps using Leaflet's own popup instead).
+  const [sheetItem, setSheetItem] = useState<MapSheetItem | null>(null);
 
   const tagFilteredEvents = useMemo(
     () => (selectedTag ? events.filter((e) => e.tag_id === selectedTag.id) : events),
@@ -108,8 +113,13 @@ export function FullScreenMap({
           events={visibleEvents}
           focusTarget={focusTarget}
           onMapReady={setMapInstance}
+          onSelectPlace={(place) => setSheetItem({ kind: "place", place })}
+          onSelectEvent={(event) => setSheetItem({ kind: "event", event })}
+          onDismissSelection={() => setSheetItem(null)}
         />
       </div>
+
+      <MapBottomSheet item={sheetItem} onClose={() => setSheetItem(null)} />
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[1000] flex flex-col gap-2 p-3">
         <div className="flex items-start gap-2">
