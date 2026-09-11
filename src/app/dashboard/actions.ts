@@ -56,6 +56,40 @@ function parseCoverPhotoUrl(formData: FormData): string | null {
   return value;
 }
 
+// A generated poster is always our own upload, never a third-party URL like
+// a cover photo can be — so unlike ALLOWED_PHOTO_HOSTS above, this is
+// scoped to exactly one bucket, not a general allowlist.
+const SUPABASE_STORAGE_HOST = "khvchawnkzamhfwrbhtz.supabase.co";
+const POSTER_BUCKET = "place-photos";
+const POSTER_PATH_PREFIX = `/storage/v1/object/public/${POSTER_BUCKET}/`;
+
+// The client posts back the public URL it just uploaded to (see
+// PosterSection) — re-validated here rather than trusted outright, same
+// reasoning as parseCoverPhotoUrl: nothing stops a signed-in owner from
+// calling this action directly with an arbitrary URL otherwise.
+function parsePosterUrl(rawUrl: string): string {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new Error("URL d'affiche invalide.");
+  }
+  if (url.protocol !== "https:" || url.hostname !== SUPABASE_STORAGE_HOST || !url.pathname.startsWith(POSTER_PATH_PREFIX)) {
+    throw new Error("URL d'affiche non autorisée.");
+  }
+  return rawUrl;
+}
+
+function storagePathFromPosterUrl(posterUrl: string): string | null {
+  try {
+    const url = new URL(posterUrl);
+    if (!url.pathname.startsWith(POSTER_PATH_PREFIX)) return null;
+    return decodeURIComponent(url.pathname.slice(POSTER_PATH_PREFIX.length));
+  } catch {
+    return null;
+  }
+}
+
 function parseUrgentMessageExpiry(formData: FormData): string | null {
   const value = textField(formData, "urgent_message_expires_at");
   if (!value) return null;
@@ -295,6 +329,69 @@ export async function deleteEvent(placeId: string, eventId: string) {
     .eq("place_id", placeId);
   if (error) throw new Error(error.message);
   if (!count) throw new Error("Cet événement n'appartient pas à ce lieu.");
+
+  revalidatePath(`/dashboard/places/${placeId}`);
+}
+
+// The poster image itself is composited client-side (canvas — see
+// src/lib/poster.ts, no browser-free way to do that in a server action) and
+// uploaded straight to Storage from there; this just validates and persists
+// the resulting URL, mirroring how PlaceForm's cover-photo upload hands a
+// URL back to createPlace/updatePlace rather than uploading itself.
+export async function saveEventPoster(placeId: string, eventId: string, posterUrl: string) {
+  const { supabase, user } = await requireUser();
+  await assertOwnsPlace(supabase, user.id, placeId);
+  const validatedUrl = parsePosterUrl(posterUrl);
+
+  const { data: existing } = await supabase
+    .from("events")
+    .select("poster_url")
+    .eq("id", eventId)
+    .eq("place_id", placeId)
+    .maybeSingle();
+
+  const { error, count } = await supabase
+    .from("events")
+    .update({ poster_url: validatedUrl }, { count: "exact" })
+    .eq("id", eventId)
+    .eq("place_id", placeId);
+  if (error) throw new Error(error.message);
+  if (!count) throw new Error("Cet événement n'appartient pas à ce lieu.");
+
+  // Regenerating replaces the file at a new path (see PosterSection) — the
+  // old upload is now orphaned in Storage unless cleaned up here.
+  const previousPath = existing?.poster_url ? storagePathFromPosterUrl(existing.poster_url) : null;
+  if (previousPath) {
+    await supabase.storage.from(POSTER_BUCKET).remove([previousPath]);
+  }
+
+  revalidatePath(`/dashboard/places/${placeId}`);
+}
+
+export async function deleteEventPoster(placeId: string, eventId: string) {
+  const { supabase, user } = await requireUser();
+  await assertOwnsPlace(supabase, user.id, placeId);
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("events")
+    .select("poster_url")
+    .eq("id", eventId)
+    .eq("place_id", placeId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+
+  const { error, count } = await supabase
+    .from("events")
+    .update({ poster_url: null }, { count: "exact" })
+    .eq("id", eventId)
+    .eq("place_id", placeId);
+  if (error) throw new Error(error.message);
+  if (!count) throw new Error("Cet événement n'appartient pas à ce lieu.");
+
+  const path = existing?.poster_url ? storagePathFromPosterUrl(existing.poster_url) : null;
+  if (path) {
+    await supabase.storage.from(POSTER_BUCKET).remove([path]);
+  }
 
   revalidatePath(`/dashboard/places/${placeId}`);
 }

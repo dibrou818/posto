@@ -28,6 +28,8 @@ import {
   deleteEvent,
   generatePlaceQrCode,
   generateEventQrCode,
+  saveEventPoster,
+  deleteEventPoster,
 } from "@/app/dashboard/actions";
 
 export default async function EditPlacePage({
@@ -124,9 +126,12 @@ export default async function EditPlacePage({
         <EventsManager
           events={events}
           allTags={allTags}
+          placeCoverPhotoUrl={place.cover_photo_url}
           onCreate={createEvent.bind(null, id)}
           onDelete={deleteEvent.bind(null, id)}
           onGenerateQr={generateEventQrCode.bind(null, id)}
+          onSavePoster={saveEventPoster.bind(null, id)}
+          onDeletePoster={deleteEventPoster.bind(null, id)}
         />
       </DashboardSection>
     </div>

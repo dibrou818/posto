@@ -7,20 +7,29 @@ import { compactInputClass, labelClass } from "@/lib/ui";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { QrCodeSection } from "@/components/dashboard/QrCodeSection";
+import { PosterSection } from "@/components/dashboard/PosterSection";
 import { formatEventSchedule, formatRecurrence } from "@/lib/eventSchedule";
 
 export function EventsManager({
   events,
   allTags,
+  placeCoverPhotoUrl,
   onCreate,
   onDelete,
   onGenerateQr,
+  onSavePoster,
+  onDeletePoster,
 }: {
   events: Event[];
   allTags: Tag[];
+  /** Fallback background for an event's poster when it has no cover photo
+   * of its own — same rule the create form below already documents. */
+  placeCoverPhotoUrl: string | null;
   onCreate: (formData: FormData) => Promise<void>;
   onDelete: (eventId: string) => Promise<void>;
   onGenerateQr: (eventId: string) => Promise<void>;
+  onSavePoster: (eventId: string, posterUrl: string) => Promise<void>;
+  onDeletePoster: (eventId: string) => Promise<void>;
 }) {
   const [coverPhotoUrl, setCoverPhotoUrl] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -81,18 +90,26 @@ export function EventsManager({
                   onClick={() => setExpandedEventId((cur) => (cur === event.id ? null : event.id))}
                   className="text-xs font-medium text-gray-600 transition-colors hover:text-gray-900 focus:outline-none focus-visible:underline"
                 >
-                  {expandedEventId === event.id ? "Fermer" : "Code QR"}
+                  {expandedEventId === event.id ? "Fermer" : "QR & affiche"}
                 </button>
                 <DeleteButton action={onDelete.bind(null, event.id)} />
               </div>
             </div>
             {expandedEventId === event.id && (
-              <div className="border-t border-gray-100 px-3 py-3">
+              <div className="flex flex-col gap-4 border-t border-gray-100 px-3 py-3">
                 <QrCodeSection
                   qrCodeUrl={event.qr_code_url}
                   publicPath={`/events/${event.id}`}
                   action={onGenerateQr.bind(null, event.id)}
                 />
+                <div className="border-t border-gray-100 pt-3">
+                  <PosterSection
+                    event={event}
+                    placeCoverPhotoUrl={placeCoverPhotoUrl}
+                    onSave={onSavePoster.bind(null, event.id)}
+                    onDelete={onDeletePoster.bind(null, event.id)}
+                  />
+                </div>
               </div>
             )}
           </li>
