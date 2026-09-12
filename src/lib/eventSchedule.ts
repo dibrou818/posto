@@ -55,3 +55,14 @@ export function formatRecurrence(rule: string | null): string | null {
   }
   return rule;
 }
+
+/** A typical/expected duration in minutes -> "20 min" or "1h30" — the same
+ * short format people actually use, not a raw minute count past the hour
+ * mark. Returns null for anything not worth showing (unset or non-positive). */
+export function formatDuration(minutes: number | null): string | null {
+  if (!minutes || minutes <= 0) return null;
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours}h` : `${hours}h${String(rest).padStart(2, "0")}`;
+}

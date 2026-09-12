@@ -7,8 +7,10 @@ import {
   getActivitiesForPlace,
   getUpcomingEventsForPlace,
 } from "@/lib/queries";
-import { isOpenNow, scheduleByDay } from "@/lib/opening-hours";
+import { isOpenNow, scheduleByDay, listZoneNames } from "@/lib/opening-hours";
+import { formatDuration } from "@/lib/eventSchedule";
 import { OpeningHoursAccordion } from "@/components/OpeningHoursAccordion";
+import { RestrictionsBadge } from "@/components/RestrictionsBadge";
 import { BackButton } from "@/components/ui/BackButton";
 import { ShareButton } from "@/components/ui/ShareButton";
 
@@ -42,6 +44,7 @@ export default async function PlacePage({
 
   const open = isOpenNow(place.opening_hours);
   const schedule = scheduleByDay(place.opening_hours);
+  const zoneNames = listZoneNames(place.opening_hours);
   const hasUrgentMessage =
     !!place.urgent_message &&
     (!place.urgent_message_expires_at || new Date(place.urgent_message_expires_at) > new Date());
@@ -71,6 +74,16 @@ export default async function PlacePage({
           <BackButton fallbackHref="/" />
         </div>
       </div>
+
+      {place.photo_urls.length > 0 && (
+        <div className="mb-4 -mt-2 flex gap-2 overflow-x-auto pb-1">
+          {place.photo_urls.map((url, i) => (
+            <div key={url} className="relative h-20 w-28 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+              <Image src={url} alt={`${place.name} — photo ${i + 2}`} fill sizes="112px" className="object-cover" />
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="flex items-start justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">{place.name}</h1>
@@ -108,6 +121,48 @@ export default async function PlacePage({
           </svg>
           Itinéraire
         </a>
+        {place.website_url && (
+          <a
+            href={place.website_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+          >
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
+              <circle cx="10" cy="10" r="7.5" />
+              <path d="M2.5 10h15M10 2.5a11 11 0 0 1 3 7.5 11 11 0 0 1-3 7.5 11 11 0 0 1-3-7.5 11 11 0 0 1 3-7.5Z" />
+            </svg>
+            Site web
+          </a>
+        )}
+        {place.instagram_url && (
+          <a
+            href={place.instagram_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Instagram"
+            className="inline-flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+          >
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
+              <rect x="2.5" y="2.5" width="15" height="15" rx="4" />
+              <circle cx="10" cy="10" r="3.6" />
+              <circle cx="14.2" cy="5.8" r="0.9" fill="currentColor" stroke="none" />
+            </svg>
+          </a>
+        )}
+        {place.facebook_url && (
+          <a
+            href={place.facebook_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Facebook"
+            className="inline-flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+          >
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
+              <path d="M12.5 6.5h-1.3c-.9 0-1.2.4-1.2 1.2v1.8h2.4l-.3 2.4h-2.1v6.1H7.4v-6.1H5.5V9.5h1.9V7.4c0-2 1.1-3.4 3.2-3.4h1.9v2.5Z" />
+            </svg>
+          </a>
+        )}
         <ShareButton title={place.name} text={`${place.name} sur Posto`} />
       </div>
 
@@ -129,23 +184,51 @@ export default async function PlacePage({
       <section className="mt-8">
         <h2 className="mb-2 text-lg font-semibold text-gray-900">Horaires</h2>
         <OpeningHoursAccordion schedule={schedule} todayIndex={new Date().getDay()} />
+        {zoneNames.length > 0 && (
+          <div className="mt-3 flex flex-col gap-3">
+            {zoneNames.map((zoneName) => (
+              <div key={zoneName}>
+                <p className="mb-1.5 text-sm font-medium text-gray-700">{zoneName}</p>
+                <OpeningHoursAccordion
+                  schedule={scheduleByDay(place.opening_hours, zoneName)}
+                  todayIndex={new Date().getDay()}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {activities.length > 0 && (
         <section className="mt-8">
           <h2 className="mb-2 text-lg font-semibold text-gray-900">Activités</h2>
           <ul className="space-y-2">
-            {activities.map((activity) => (
-              <li
-                key={activity.id}
-                className="rounded-xl border border-gray-200 bg-white p-3 text-sm"
-              >
-                <p className="font-medium text-gray-900">{activity.name}</p>
-                {activity.description && (
-                  <p className="mt-1 text-gray-600">{activity.description}</p>
-                )}
-              </li>
-            ))}
+            {activities.map((activity) => {
+              const duration = formatDuration(activity.duration_minutes);
+              return (
+                <li
+                  key={activity.id}
+                  className="rounded-xl border border-gray-200 bg-white p-3 text-sm"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium text-gray-900">{activity.name}</p>
+                    {duration && (
+                      <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                        {duration}
+                      </span>
+                    )}
+                  </div>
+                  {activity.description && (
+                    <p className="mt-1 text-gray-600">{activity.description}</p>
+                  )}
+                  {activity.restrictions && (
+                    <div className="mt-2">
+                      <RestrictionsBadge text={activity.restrictions} />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
@@ -184,6 +267,11 @@ export default async function PlacePage({
                       </div>
                       {event.description && (
                         <p className="mt-1 text-gray-600">{event.description}</p>
+                      )}
+                      {event.restrictions && (
+                        <div className="mt-1.5">
+                          <RestrictionsBadge text={event.restrictions} />
+                        </div>
                       )}
                       <p className="mt-1 text-xs text-gray-500">
                         {eventDateFormatter.format(start)}

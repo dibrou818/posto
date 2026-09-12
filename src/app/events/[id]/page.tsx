@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getEventById } from "@/lib/queries";
 import { BackButton } from "@/components/ui/BackButton";
 import { RecurrenceBadge } from "@/components/RecurrenceBadge";
-import { formatEventSchedule } from "@/lib/eventSchedule";
+import { RestrictionsBadge } from "@/components/RestrictionsBadge";
+import { formatEventSchedule, formatDuration } from "@/lib/eventSchedule";
 
 export default async function EventPage({
   params,
@@ -85,11 +86,16 @@ export default async function EventPage({
         </a>
       </div>
 
-      {(event.price || event.recurrence_rule) && (
+      {(event.price || event.recurrence_rule || event.duration_minutes) && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           {event.price && (
             <span className="rounded-full bg-gray-900 px-2.5 py-1 text-xs font-medium text-white">
               {event.price}
+            </span>
+          )}
+          {formatDuration(event.duration_minutes) && (
+            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+              Durée : {formatDuration(event.duration_minutes)}
             </span>
           )}
           <RecurrenceBadge rule={event.recurrence_rule} />
@@ -98,6 +104,12 @@ export default async function EventPage({
 
       {event.description && (
         <p className="mt-4 whitespace-pre-line text-sm text-gray-700">{event.description}</p>
+      )}
+
+      {event.restrictions && (
+        <div className="mt-3">
+          <RestrictionsBadge text={event.restrictions} />
+        </div>
       )}
 
       <section className="mt-8">

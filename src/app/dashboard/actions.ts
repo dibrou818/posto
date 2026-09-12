@@ -40,20 +40,56 @@ function textField(formData: FormData, key: string): string | null {
 // PlaceForm) with an arbitrary URL in the hidden cover_photo_url field.
 const ALLOWED_PHOTO_HOSTS = ["images.unsplash.com", "picsum.photos", "khvchawnkzamhfwrbhtz.supabase.co"];
 
-function parseCoverPhotoUrl(formData: FormData): string | null {
-  const value = textField(formData, "cover_photo_url");
-  if (!value) return null;
-
+function validatePhotoUrl(raw: string): string {
   let url: URL;
   try {
-    url = new URL(value);
+    url = new URL(raw);
   } catch {
     throw new Error("URL de photo invalide.");
   }
   if (url.protocol !== "https:" || !ALLOWED_PHOTO_HOSTS.includes(url.hostname)) {
     throw new Error("URL de photo non autorisée.");
   }
-  return value;
+  return raw;
+}
+
+function parseCoverPhotoUrl(formData: FormData): string | null {
+  const value = textField(formData, "cover_photo_url");
+  return value ? validatePhotoUrl(value) : null;
+}
+
+// The gallery form field (see PlaceForm) submits one "photo_urls" entry per
+// uploaded photo — same upload flow/bucket as the cover photo, so the same
+// host allowlist applies to each one individually.
+function parsePhotoUrls(formData: FormData): string[] {
+  return formData.getAll("photo_urls").map(String).filter(Boolean).map(validatePhotoUrl);
+}
+
+// Shared by activities and events — both got a "durée typique" field with
+// the same shape and the same validation needs.
+function parseDurationMinutes(formData: FormData, key: string): number | null {
+  const raw = textField(formData, key);
+  if (!raw) return null;
+  const minutes = Number(raw);
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    throw new Error("Durée invalide.");
+  }
+  return Math.round(minutes);
+}
+
+function parseUrlField(formData: FormData, key: string, label: string): string | null {
+  const raw = textField(formData, key);
+  if (!raw) return null;
+  // Owners will type "instagram.com/monbar" without a scheme far more often
+  // than they'll type the full "https://..." — filling it in rather than
+  // rejecting the field avoids a confusing validation error for the common
+  // case.
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    return new URL(withScheme).toString();
+  } catch {
+    throw new Error(`${label} invalide.`);
+  }
 }
 
 // A generated poster is always our own upload, never a third-party URL like
@@ -115,6 +151,10 @@ function parsePlaceFields(formData: FormData) {
     address: textField(formData, "address"),
     phone: textField(formData, "phone"),
     cover_photo_url: parseCoverPhotoUrl(formData),
+    photo_urls: parsePhotoUrls(formData),
+    website_url: parseUrlField(formData, "website_url", "URL du site web"),
+    instagram_url: parseUrlField(formData, "instagram_url", "URL Instagram"),
+    facebook_url: parseUrlField(formData, "facebook_url", "URL Facebook"),
     urgent_message: textField(formData, "urgent_message"),
     urgent_message_expires_at: parseUrgentMessageExpiry(formData),
   };
@@ -175,19 +215,29 @@ export async function deletePlace(placeId: string) {
   redirect("/dashboard");
 }
 
+// Zone 0 is always the place's general hours (zone_name null); each
+// "zone_names" entry submitted (see OpeningHoursForm) adds one more named
+// sub-schedule at zones[1], zones[2], etc — day-row field names carry that
+// same index as a suffix (open_<zoneIndex>_<day>) so one flat FormData can
+// carry an arbitrary number of zones without guessing at gaps.
 export async function saveOpeningHours(placeId: string, formData: FormData) {
   const { supabase, user } = await requireUser();
   await assertOwnsPlace(supabase, user.id, placeId);
 
-  const rows: { place_id: string; day_of_week: number; open_time: string; close_time: string }[] = [];
-  for (let day = 0; day < 7; day++) {
-    const isOpen = formData.get(`open_${day}`) === "on";
-    if (!isOpen) continue;
-    const open_time = String(formData.get(`open_time_${day}`) ?? "");
-    const close_time = String(formData.get(`close_time_${day}`) ?? "");
-    if (!open_time || !close_time) continue;
-    rows.push({ place_id: placeId, day_of_week: day, open_time, close_time });
-  }
+  const zoneNames = formData.getAll("zone_names").map(String);
+  const allZones: (string | null)[] = [null, ...zoneNames];
+
+  const rows: { place_id: string; day_of_week: number; open_time: string; close_time: string; zone_name: string | null }[] = [];
+  allZones.forEach((zoneName, zoneIndex) => {
+    for (let day = 0; day < 7; day++) {
+      const isOpen = formData.get(`open_${zoneIndex}_${day}`) === "on";
+      if (!isOpen) continue;
+      const open_time = String(formData.get(`open_time_${zoneIndex}_${day}`) ?? "");
+      const close_time = String(formData.get(`close_time_${zoneIndex}_${day}`) ?? "");
+      if (!open_time || !close_time) continue;
+      rows.push({ place_id: placeId, day_of_week: day, open_time, close_time, zone_name: zoneName });
+    }
+  });
 
   const { error: deleteError } = await supabase
     .from("opening_hours")
@@ -232,12 +282,14 @@ export async function createActivity(placeId: string, formData: FormData) {
   const name = textField(formData, "name");
   const description = textField(formData, "description");
   const tag_id = textField(formData, "tag_id");
+  const duration_minutes = parseDurationMinutes(formData, "duration_minutes");
+  const restrictions = textField(formData, "restrictions");
 
   if (!name) throw new Error("Le nom de l'activité est requis.");
 
   const { error } = await supabase
     .from("activities")
-    .insert({ place_id: placeId, name, description, tag_id });
+    .insert({ place_id: placeId, name, description, tag_id, duration_minutes, restrictions });
   if (error) throw new Error(error.message);
 
   revalidatePath(`/dashboard/places/${placeId}`);
@@ -275,6 +327,8 @@ export async function createEvent(placeId: string, formData: FormData) {
   const tag_id = textField(formData, "tag_id");
   const price = textField(formData, "price");
   const cover_photo_url = parseCoverPhotoUrl(formData);
+  const duration_minutes = parseDurationMinutes(formData, "duration_minutes");
+  const restrictions = textField(formData, "restrictions");
 
   if (!title || !start_datetime) {
     throw new Error("Titre et date de début sont requis.");
@@ -290,6 +344,8 @@ export async function createEvent(placeId: string, formData: FormData) {
     tag_id,
     price,
     cover_photo_url,
+    duration_minutes,
+    restrictions,
   });
   if (error) throw new Error(error.message);
 

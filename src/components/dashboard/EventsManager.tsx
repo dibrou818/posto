@@ -9,12 +9,14 @@ import { SaveButton } from "@/components/ui/SaveButton";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { QrCodeSection } from "@/components/dashboard/QrCodeSection";
 import { PosterSection } from "@/components/dashboard/PosterSection";
-import { formatEventSchedule, formatRecurrence } from "@/lib/eventSchedule";
+import { formatEventSchedule, formatRecurrence, formatDuration } from "@/lib/eventSchedule";
+import { RestrictionsBadge } from "@/components/RestrictionsBadge";
 
 const TITLE_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 500;
 const RECURRENCE_MAX_LENGTH = 60;
 const PRICE_MAX_LENGTH = 40;
+const RESTRICTIONS_MAX_LENGTH = 150;
 
 export function EventsManager({
   events,
@@ -88,7 +90,13 @@ export function EventsManager({
                   {formatEventSchedule(event.start_datetime, event.end_datetime)}
                   {event.recurrence_rule ? ` · ${formatRecurrence(event.recurrence_rule)}` : ""}
                   {event.price ? ` · ${event.price}` : ""}
+                  {formatDuration(event.duration_minutes) ? ` · ${formatDuration(event.duration_minutes)}` : ""}
                 </p>
+                {event.restrictions && (
+                  <div className="mt-1">
+                    <RestrictionsBadge text={event.restrictions} />
+                  </div>
+                )}
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <button
@@ -172,6 +180,21 @@ export function EventsManager({
             name="price"
             placeholder="Prix, ex: Gratuit / 10€"
             maxLength={PRICE_MAX_LENGTH}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <TextField
+            label="Durée typique (min)"
+            name="duration_minutes"
+            type="number"
+            min={1}
+            placeholder="120"
+          />
+          <TextField
+            label="Restriction"
+            name="restrictions"
+            placeholder="Ex: +18 ans"
+            maxLength={RESTRICTIONS_MAX_LENGTH}
           />
         </div>
         <select name="tag_id" className={compactInputClass}>

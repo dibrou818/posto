@@ -18,25 +18,31 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          duration_minutes: number | null
           id: string
           name: string
           place_id: string
+          restrictions: string | null
           tag_id: string | null
         }
         Insert: {
           created_at?: string
           description?: string | null
+          duration_minutes?: number | null
           id?: string
           name: string
           place_id: string
+          restrictions?: string | null
           tag_id?: string | null
         }
         Update: {
           created_at?: string
           description?: string | null
+          duration_minutes?: number | null
           id?: string
           name?: string
           place_id?: string
+          restrictions?: string | null
           tag_id?: string | null
         }
         Relationships: [
@@ -61,6 +67,7 @@ export type Database = {
           cover_photo_url: string | null
           created_at: string
           description: string | null
+          duration_minutes: number | null
           end_datetime: string | null
           id: string
           place_id: string
@@ -68,6 +75,7 @@ export type Database = {
           price: string | null
           qr_code_url: string | null
           recurrence_rule: string | null
+          restrictions: string | null
           start_datetime: string
           tag_id: string | null
           title: string
@@ -76,6 +84,7 @@ export type Database = {
           cover_photo_url?: string | null
           created_at?: string
           description?: string | null
+          duration_minutes?: number | null
           end_datetime?: string | null
           id?: string
           place_id: string
@@ -83,6 +92,7 @@ export type Database = {
           price?: string | null
           qr_code_url?: string | null
           recurrence_rule?: string | null
+          restrictions?: string | null
           start_datetime: string
           tag_id?: string | null
           title: string
@@ -91,6 +101,7 @@ export type Database = {
           cover_photo_url?: string | null
           created_at?: string
           description?: string | null
+          duration_minutes?: number | null
           end_datetime?: string | null
           id?: string
           place_id?: string
@@ -98,6 +109,7 @@ export type Database = {
           price?: string | null
           qr_code_url?: string | null
           recurrence_rule?: string | null
+          restrictions?: string | null
           start_datetime?: string
           tag_id?: string | null
           title?: string
@@ -126,6 +138,7 @@ export type Database = {
           id: string
           open_time: string
           place_id: string
+          zone_name: string | null
         }
         Insert: {
           close_time: string
@@ -133,6 +146,7 @@ export type Database = {
           id?: string
           open_time: string
           place_id: string
+          zone_name?: string | null
         }
         Update: {
           close_time?: string
@@ -140,6 +154,7 @@ export type Database = {
           id?: string
           open_time?: string
           place_id?: string
+          zone_name?: string | null
         }
         Relationships: [
           {
@@ -187,45 +202,57 @@ export type Database = {
           cover_photo_url: string | null
           created_at: string
           description: string | null
+          facebook_url: string | null
           id: string
+          instagram_url: string | null
           lat: number
           lng: number
           name: string
           owner_id: string
           phone: string | null
+          photo_urls: string[]
           qr_code_url: string | null
           urgent_message: string | null
           urgent_message_expires_at: string | null
+          website_url: string | null
         }
         Insert: {
           address?: string | null
           cover_photo_url?: string | null
           created_at?: string
           description?: string | null
+          facebook_url?: string | null
           id?: string
+          instagram_url?: string | null
           lat: number
           lng: number
           name: string
           owner_id: string
           phone?: string | null
+          photo_urls?: string[]
           qr_code_url?: string | null
           urgent_message?: string | null
           urgent_message_expires_at?: string | null
+          website_url?: string | null
         }
         Update: {
           address?: string | null
           cover_photo_url?: string | null
           created_at?: string
           description?: string | null
+          facebook_url?: string | null
           id?: string
+          instagram_url?: string | null
           lat?: number
           lng?: number
           name?: string
           owner_id?: string
           phone?: string | null
+          photo_urls?: string[]
           qr_code_url?: string | null
           urgent_message?: string | null
           urgent_message_expires_at?: string | null
+          website_url?: string | null
         }
         Relationships: []
       }

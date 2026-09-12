@@ -31,6 +31,8 @@ export function PlaceForm({
 }) {
   const [coverPhotoUrl, setCoverPhotoUrl] = useState(place?.cover_photo_url ?? "");
   const [uploading, setUploading] = useState(false);
+  const [photoUrls, setPhotoUrls] = useState<string[]>(place?.photo_urls ?? []);
+  const [galleryUploading, setGalleryUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [address, setAddress] = useState(place?.address ?? "");
   const [lat, setLat] = useState(place?.lat !== undefined ? String(place.lat) : "");
@@ -70,6 +72,44 @@ export function PlaceForm({
     const { data } = supabase.storage.from("place-photos").getPublicUrl(path);
     setCoverPhotoUrl(data.publicUrl);
     setUploading(false);
+  }
+
+  // Unlike the cover photo (one fixed slot), the gallery grows by one photo
+  // per upload rather than replacing a single value — each call appends.
+  async function handleGalleryFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setGalleryUploading(true);
+    setError(null);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setError("Vous devez être connecté.");
+      setGalleryUploading(false);
+      return;
+    }
+
+    const path = `${user.id}/gallery-${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage.from("place-photos").upload(path, file);
+
+    if (uploadError) {
+      setError(uploadError.message);
+      setGalleryUploading(false);
+      return;
+    }
+
+    const { data } = supabase.storage.from("place-photos").getPublicUrl(path);
+    setPhotoUrls((prev) => [...prev, data.publicUrl]);
+    setGalleryUploading(false);
+    e.target.value = ""; // lets the owner pick the same file again if needed
+  }
+
+  function removeGalleryPhoto(url: string) {
+    setPhotoUrls((prev) => prev.filter((u) => u !== url));
   }
 
   // Most place owners have no idea what their GPS coordinates are — this
@@ -185,6 +225,57 @@ export function PlaceForm({
         )}
       </div>
 
+      <div>
+        <label className={labelClass}>Galerie photo (optionnel)</label>
+        <p className="mb-2 -mt-0.5 text-xs text-gray-500">
+          Intérieur, ambiance, terrain... plusieurs photos aident bien plus à se décider qu&apos;une
+          seule.
+        </p>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleGalleryFileChange}
+          disabled={galleryUploading}
+          className="text-sm"
+        />
+        {galleryUploading && <p className="mt-1 text-xs text-gray-500">Envoi en cours...</p>}
+        {photoUrls.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {photoUrls.map((url) => (
+              <div key={url} className="relative h-20 w-28 overflow-hidden rounded-lg bg-gray-100">
+                <input type="hidden" name="photo_urls" value={url} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeGalleryPhoto(url)}
+                  aria-label="Supprimer cette photo"
+                  className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white transition-colors hover:bg-black/80"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <TextField label="Site web" name="website_url" placeholder="monsite.fr" defaultValue={place?.website_url ?? ""} />
+        <TextField
+          label="Instagram"
+          name="instagram_url"
+          placeholder="instagram.com/monlieu"
+          defaultValue={place?.instagram_url ?? ""}
+        />
+        <TextField
+          label="Facebook"
+          name="facebook_url"
+          placeholder="facebook.com/monlieu"
+          defaultValue={place?.facebook_url ?? ""}
+        />
+      </div>
+
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
         <p className="mb-2 text-xs font-medium text-amber-800 uppercase tracking-wide">
           Message urgent (optionnel)
@@ -215,7 +306,7 @@ export function PlaceForm({
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <SaveButton disabled={uploading} className="self-start">
+      <SaveButton disabled={uploading || galleryUploading} className="self-start">
         {place ? "Enregistrer les informations" : "Créer le lieu"}
       </SaveButton>
     </form>

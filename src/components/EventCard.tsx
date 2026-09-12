@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { EventWithPlace } from "@/lib/queries";
 import { formatDistance } from "@/lib/distance";
 import { cardClass } from "@/lib/ui";
+import { RestrictionsBadge } from "@/components/RestrictionsBadge";
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
   weekday: "short",
@@ -56,6 +57,7 @@ export function EventCard({
           <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
             {dateFormatter.format(start)}
           </span>
+          {event.restrictions && <RestrictionsBadge text={event.restrictions} />}
           {distanceKm !== undefined && (
             <span className="ml-auto text-xs text-gray-500">{formatDistance(distanceKm)}</span>
           )}
