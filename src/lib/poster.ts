@@ -10,6 +10,10 @@ const WIDTH = 1240;
 const HEIGHT = 1754; // A4 ratio at ~150dpi — sharp enough to print, not huge to upload
 const PADDING = 72;
 const FONT_STACK = "system-ui, -apple-system, 'Segoe UI', sans-serif";
+// Same violet used for event pins/markers elsewhere (Map.tsx's EVENT_COLOR)
+// — the poster should read as unmistakably "Posto" at a glance, not a
+// generic flyer.
+const ACCENT = "#7c3aed";
 
 export type PosterEventData = {
   title: string;
@@ -17,14 +21,22 @@ export type PosterEventData = {
   startDatetime: string;
   endDatetime: string | null;
   /** Free-text as stored (e.g. "Gratuit", "10€", "À partir de 5€") — drawn
-   * as-is if present, and simply omitted (never guessed) if not: an event
-   * with no price set doesn't necessarily mean free. */
+   * as a small secondary badge, never the poster's focal point: people come
+   * for the event, the price is a detail they check, not the headline. */
   price: string | null;
+  /** Same treatment as price — a small badge, only when actually set. */
+  restrictions: string | null;
   coverPhotoUrl: string | null;
   /** The event's public URL — the poster generates its own QR pointing here
    * rather than depending on one already being saved on the event (see
    * PosterSection), so it always works standalone. */
   qrTargetUrl: string;
+  /** Venue block, bottom-left next to the QR — who's hosting it and how to
+   * reach them. Address/phone are optional since not every place has them
+   * filled in. */
+  placeName: string;
+  placeAddress: string | null;
+  placePhone: string | null;
 };
 
 function loadImage(src: string, crossOrigin?: "anonymous"): Promise<HTMLImageElement> {
@@ -79,7 +91,9 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 }
 
 /** Greedy word-wrap into at most `maxLines`, truncating the last line with
- * "…" if the text doesn't fit — canvas has no built-in text wrapping. */
+ * "…" if the text doesn't fit — canvas has no built-in text wrapping.
+ * Works the same regardless of the text-align the caller draws with, since
+ * it only ever measures width, never draws. */
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines: number): string[] {
   const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
@@ -113,6 +127,39 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number,
   return lines;
 }
 
+/** Single-line version of wrapText for the small venue-block lines (name/
+ * address/phone) — those should stay compact, not wrap to a second line
+ * and start competing with the event's own info above them. */
+function truncateToWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let cut = text;
+  while (cut.length > 0 && ctx.measureText(`${cut}…`).width > maxWidth) {
+    cut = cut.slice(0, -1).trimEnd();
+  }
+  return `${cut}…`;
+}
+
+/** A small translucent pill for secondary info (price, restrictions) — same
+ * shape language as the date badge but visually quieter (outline instead of
+ * a solid fill) so it reads as a detail, not a second headline. */
+function measurePill(ctx: CanvasRenderingContext2D, text: string, padX: number): number {
+  return ctx.measureText(text).width + padX * 2;
+}
+
+function drawOutlinePill(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, width: number, height: number) {
+  ctx.fillStyle = "rgba(255,255,255,0.14)";
+  roundRect(ctx, x, y, width, height, height / 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.55)";
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, x, y, width, height, height / 2);
+  ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + width / 2, y + height / 2 + 1);
+}
+
 function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
@@ -122,10 +169,15 @@ function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
-/** Composites one A4-ish poster PNG from an event's info: cover photo as
- * background, a bottom gradient (+ a light text shadow as a second line of
- * defense) so the text stays legible no matter how bright/busy the photo
- * is, title/description/date/price, and a QR code linking to the event. */
+/** Composites one A4-ish poster PNG from an event's info, all directly on
+ * the photo (no big flat card eating space with nothing in it): the event
+ * name leads, biggest and centered; the date/time sits right under it as a
+ * violet badge; then the description; then price/restrictions as small
+ * quiet pills — visible but deliberately not competing with the title,
+ * since people come for the event, not its price. The QR keeps its own
+ * small white backing in the bottom-right corner (kept small — just enough
+ * to scan reliably, not a full-width band), mirrored by a compact
+ * name/address/phone block for the venue at bottom-left. */
 export async function generateEventPosterBlob(data: PosterEventData): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
@@ -146,45 +198,141 @@ export async function generateEventPosterBlob(data: PosterEventData): Promise<Bl
     drawFallbackBackground(ctx);
   }
 
-  // Bottom gradient overlay — the primary legibility fix, since it's the
-  // one guaranteed to work regardless of what's directly behind any given
-  // line of text (unlike a per-line shadow tuned for one particular photo).
-  const gradient = ctx.createLinearGradient(0, HEIGHT * 0.42, 0, HEIGHT);
-  gradient.addColorStop(0, "rgba(0,0,0,0)");
-  gradient.addColorStop(1, "rgba(0,0,0,0.88)");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, HEIGHT * 0.42, WIDTH, HEIGHT * 0.58);
-
-  // Belt-and-suspenders: a soft shadow behind the text itself, in case a
-  // very bright/high-contrast patch of the photo still peeks through.
-  ctx.shadowColor = "rgba(0,0,0,0.5)";
-  ctx.shadowBlur = 14;
-  ctx.shadowOffsetY = 2;
-  ctx.textBaseline = "top";
-
-  let cursorY = HEIGHT * 0.58;
   const textMaxWidth = WIDTH - PADDING * 2;
+  const centerX = WIDTH / 2;
+
+  // ---- Bottom row geometry (QR + venue block), decided up front so the
+  // main content above can be measured and bottom-anchored just above it.
+  const QR_SIZE = 168;
+  const QR_INNER_PAD = 16;
+  const qrBackingSize = QR_SIZE + QR_INNER_PAD * 2;
+  const qrBackingX = WIDTH - PADDING - qrBackingSize;
+  const qrBackingY = HEIGHT - PADDING - qrBackingSize;
+  const GAP_ABOVE_BOTTOM_ROW = 48;
+
+  // ---- Measure every text block before drawing anything on top of the
+  // photo, so the whole stack can be bottom-anchored just above the QR/venue
+  // row instead of hanging at a fixed offset regardless of length.
+  const TITLE_FONT = `800 64px ${FONT_STACK}`;
+  const TITLE_LINE_HEIGHT = 64 * 1.14;
+  const DATE_FONT = `700 25px ${FONT_STACK}`;
+  const DESC_FONT = `400 29px ${FONT_STACK}`;
+  const DESC_LINE_HEIGHT = 29 * 1.45;
+  const PILL_FONT = `600 22px ${FONT_STACK}`;
+
+  ctx.font = TITLE_FONT;
+  const titleLines = wrapText(ctx, data.title, textMaxWidth, 2);
 
   const scheduleLabel = formatEventSchedule(data.startDatetime, data.endDatetime).toUpperCase();
-  ctx.font = `700 30px ${FONT_STACK}`;
-  ctx.fillStyle = "rgba(255,255,255,0.92)";
-  ctx.fillText(scheduleLabel, PADDING, cursorY);
-  cursorY += 30 * 1.6;
+  ctx.font = DATE_FONT;
+  const dateBadgeHeight = 46;
+  const dateBadgeWidth = ctx.measureText(scheduleLabel).width + 20 * 2;
 
-  ctx.font = `800 60px ${FONT_STACK}`;
-  ctx.fillStyle = "#ffffff";
-  for (const line of wrapText(ctx, data.title, textMaxWidth, 2)) {
-    ctx.fillText(line, PADDING, cursorY);
-    cursorY += 60 * 1.18;
+  const descriptionLines = data.description
+    ? (() => {
+        ctx.font = DESC_FONT;
+        return wrapText(ctx, data.description!, textMaxWidth, 2);
+      })()
+    : [];
+
+  ctx.font = PILL_FONT;
+  const pillTexts = [data.price, data.restrictions].filter((v): v is string => Boolean(v));
+  const PILL_HEIGHT = 44;
+  const PILL_GAP = 14;
+  const pillWidths = pillTexts.map((t) => measurePill(ctx, t, 20));
+  const pillsRowWidth = pillWidths.reduce((sum, w) => sum + w, 0) + PILL_GAP * Math.max(0, pillTexts.length - 1);
+
+  const GAP_TITLE_DATE = 26;
+  const GAP_DATE_DESC = 28;
+  const GAP_DESC_PILLS = 24;
+
+  let contentHeight = titleLines.length * TITLE_LINE_HEIGHT + GAP_TITLE_DATE + dateBadgeHeight;
+  if (descriptionLines.length > 0) {
+    contentHeight += GAP_DATE_DESC + descriptionLines.length * DESC_LINE_HEIGHT;
   }
-  cursorY += 16;
+  if (pillTexts.length > 0) {
+    contentHeight += GAP_DESC_PILLS + PILL_HEIGHT;
+  }
 
-  if (data.description) {
-    ctx.font = `400 32px ${FONT_STACK}`;
+  const contentBottomY = qrBackingY - GAP_ABOVE_BOTTOM_ROW;
+  // Guards only the extreme case (title + description + both pills all at
+  // once, near the character limits) from creeping too close to the brand
+  // badge up top — ordinary posters never get near this floor.
+  const contentTopY = Math.max(contentBottomY - contentHeight, HEIGHT * 0.32);
+
+  // ---- Background gradient: sized to whatever was actually measured above
+  // instead of a fixed fraction, so it never comes up short under a long
+  // title/description and never overshoots (washing out more of the photo
+  // than necessary) under a short one. ----
+  const gradientStartY = Math.min(contentTopY - 110, HEIGHT * 0.56);
+  const gradient = ctx.createLinearGradient(0, gradientStartY, 0, HEIGHT);
+  gradient.addColorStop(0, "rgba(0,0,0,0)");
+  gradient.addColorStop(1, "rgba(0,0,0,0.9)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, gradientStartY, WIDTH, HEIGHT - gradientStartY);
+
+  // A soft top-down scrim too, just enough to keep the brand badge legible
+  // over a bright sky/wall without needing its own solid backing.
+  const topGradient = ctx.createLinearGradient(0, 0, 0, 220);
+  topGradient.addColorStop(0, "rgba(0,0,0,0.45)");
+  topGradient.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = topGradient;
+  ctx.fillRect(0, 0, WIDTH, 220);
+
+  // ---- Brand badge, top center — the full URL rather than just the name,
+  // so a printed/shared poster tells people exactly where to find more. ----
+  const badgeText = "goposto.com";
+  ctx.font = `700 24px ${FONT_STACK}`;
+  const badgePadX = 22;
+  const badgeHeight = 40;
+  const badgeWidth = ctx.measureText(badgeText).width + badgePadX * 2;
+  const badgeY = 56;
+  ctx.fillStyle = "rgba(255,255,255,0.95)";
+  roundRect(ctx, centerX - badgeWidth / 2, badgeY, badgeWidth, badgeHeight, badgeHeight / 2);
+  ctx.fill();
+  ctx.fillStyle = ACCENT;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(badgeText, centerX, badgeY + badgeHeight / 2 + 1);
+
+  // ---- Centered main content: title leads (biggest, first — it's what
+  // people actually come for), then when, then what it's about. ----
+  ctx.textAlign = "center";
+  let cursorY = contentTopY;
+
+  ctx.shadowColor = "rgba(0,0,0,0.45)";
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 2;
+  ctx.textBaseline = "top";
+  ctx.font = TITLE_FONT;
+  ctx.fillStyle = "#ffffff";
+  for (const line of titleLines) {
+    ctx.fillText(line, centerX, cursorY);
+    cursorY += TITLE_LINE_HEIGHT;
+  }
+  cursorY += GAP_TITLE_DATE;
+
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = ACCENT;
+  roundRect(ctx, centerX - dateBadgeWidth / 2, cursorY, dateBadgeWidth, dateBadgeHeight, dateBadgeHeight / 2);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = DATE_FONT;
+  ctx.textBaseline = "middle";
+  ctx.fillText(scheduleLabel, centerX, cursorY + dateBadgeHeight / 2 + 1);
+  cursorY += dateBadgeHeight;
+
+  if (descriptionLines.length > 0) {
+    cursorY += GAP_DATE_DESC;
+    ctx.font = DESC_FONT;
     ctx.fillStyle = "rgba(255,255,255,0.88)";
-    for (const line of wrapText(ctx, data.description, textMaxWidth, 3)) {
-      ctx.fillText(line, PADDING, cursorY);
-      cursorY += 32 * 1.35;
+    ctx.textBaseline = "top";
+    ctx.shadowColor = "rgba(0,0,0,0.45)";
+    ctx.shadowBlur = 12;
+    for (const line of descriptionLines) {
+      ctx.fillText(line, centerX, cursorY);
+      cursorY += DESC_LINE_HEIGHT;
     }
   }
 
@@ -192,37 +340,60 @@ export async function generateEventPosterBlob(data: PosterEventData): Promise<Bl
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;
 
-  // Bottom row: price pill (left) + QR code (right), side by side so
-  // neither needs to know how tall the text block above ended up being.
-  const QR_BOX = 220;
-  const qrX = WIDTH - PADDING - QR_BOX;
-  const qrY = HEIGHT - PADDING - QR_BOX;
+  if (pillTexts.length > 0) {
+    cursorY += GAP_DESC_PILLS;
+    ctx.font = PILL_FONT;
+    let pillX = centerX - pillsRowWidth / 2;
+    pillTexts.forEach((text, i) => {
+      drawOutlinePill(ctx, text, pillX, cursorY, pillWidths[i], PILL_HEIGHT);
+      pillX += pillWidths[i] + PILL_GAP;
+    });
+  }
 
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+
+  // ---- Bottom-left: venue block (who's hosting, how to reach them) —
+  // mirrors the QR on the other corner so the row reads as one deliberate
+  // footer instead of the title block just trailing off. ----
+  const venueMaxWidth = qrBackingX - PADDING - 32;
+  const venueLines: { text: string; font: string; color: string }[] = [
+    { text: data.placeName, font: `700 27px ${FONT_STACK}`, color: "#ffffff" },
+  ];
+  if (data.placeAddress) {
+    venueLines.push({ text: data.placeAddress, font: `400 21px ${FONT_STACK}`, color: "rgba(255,255,255,0.78)" });
+  }
+  if (data.placePhone) {
+    venueLines.push({ text: `Tél. ${data.placePhone}`, font: `400 21px ${FONT_STACK}`, color: "rgba(255,255,255,0.78)" });
+  }
+
+  ctx.shadowColor = "rgba(0,0,0,0.5)";
+  ctx.shadowBlur = 10;
+  let venueY = qrBackingY + QR_INNER_PAD + 4;
+  for (const line of venueLines) {
+    ctx.font = line.font;
+    ctx.fillStyle = line.color;
+    ctx.fillText(truncateToWidth(ctx, line.text, venueMaxWidth), PADDING, venueY);
+    venueY += line.font.includes("700") ? 34 : 28;
+  }
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+
+  // ---- Bottom-right: QR code, small white backing just around it — not a
+  // band spanning the poster, just enough to stay reliably scannable. ----
+  ctx.shadowColor = "rgba(0,0,0,0.3)";
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 8;
   ctx.fillStyle = "#ffffff";
-  roundRect(ctx, qrX, qrY, QR_BOX, QR_BOX, 20);
+  roundRect(ctx, qrBackingX, qrBackingY, qrBackingSize, qrBackingSize, 20);
   ctx.fill();
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
 
   const qrDataUrl = await QRCode.toDataURL(data.qrTargetUrl, { width: 512, margin: 1 });
   const qrImg = await loadImage(qrDataUrl); // data: URL — never taints the canvas
-  const qrInnerPad = 18;
-  ctx.drawImage(qrImg, qrX + qrInnerPad, qrY + qrInnerPad, QR_BOX - qrInnerPad * 2, QR_BOX - qrInnerPad * 2);
-
-  if (data.price) {
-    ctx.font = `700 28px ${FONT_STACK}`;
-    const textWidth = ctx.measureText(data.price).width;
-    const pillPadX = 22;
-    const pillHeight = 52;
-    const pillWidth = textWidth + pillPadX * 2;
-    const pillY = qrY + QR_BOX / 2 - pillHeight / 2;
-
-    ctx.fillStyle = "rgba(255,255,255,0.95)";
-    roundRect(ctx, PADDING, pillY, pillWidth, pillHeight, pillHeight / 2);
-    ctx.fill();
-
-    ctx.fillStyle = "#111827";
-    ctx.textBaseline = "middle";
-    ctx.fillText(data.price, PADDING + pillPadX, pillY + pillHeight / 2);
-  }
+  ctx.drawImage(qrImg, qrBackingX + QR_INNER_PAD, qrBackingY + QR_INNER_PAD, QR_SIZE, QR_SIZE);
 
   return canvasToPngBlob(canvas);
 }

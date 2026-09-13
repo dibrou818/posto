@@ -62,6 +62,9 @@ export default async function EditEventPage({
         <PosterSection
           event={event}
           placeCoverPhotoUrl={event.place.cover_photo_url}
+          placeName={event.place.name}
+          placeAddress={event.place.address}
+          placePhone={event.place.phone}
           onSave={saveEventPoster.bind(null, id, eventId)}
           onDelete={deleteEventPoster.bind(null, id, eventId)}
         />

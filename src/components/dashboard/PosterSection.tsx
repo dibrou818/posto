@@ -25,6 +25,9 @@ function CheckIcon() {
 export function PosterSection({
   event,
   placeCoverPhotoUrl,
+  placeName,
+  placeAddress,
+  placePhone,
   onSave,
   onDelete,
 }: {
@@ -32,6 +35,12 @@ export function PosterSection({
   /** Falls back to the place's own cover photo when the event has none of
    * its own — same rule EventsManager's create form already documents. */
   placeCoverPhotoUrl: string | null;
+  /** Shown in the poster's small bottom-left venue block, next to the QR —
+   * who's hosting it and how to reach them, kept secondary to the event
+   * itself (see generateEventPosterBlob). */
+  placeName: string;
+  placeAddress: string | null;
+  placePhone: string | null;
   onSave: (posterUrl: string) => Promise<void>;
   onDelete: () => Promise<void>;
 }) {
@@ -56,8 +65,12 @@ export function PosterSection({
         startDatetime: event.start_datetime,
         endDatetime: event.end_datetime,
         price: event.price,
+        restrictions: event.restrictions,
         coverPhotoUrl: event.cover_photo_url ?? placeCoverPhotoUrl,
         qrTargetUrl: `${window.location.origin}/events/${event.id}`,
+        placeName,
+        placeAddress,
+        placePhone,
       });
 
       const supabase = createClient();
