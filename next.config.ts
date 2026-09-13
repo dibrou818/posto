@@ -11,14 +11,25 @@ import type { NextConfig } from "next";
 //   glyph PBFs — all fetched via fetch()/XHR (connect-src), not plain <img>
 //   tags, but it's also listed in img-src as a safety net for the style's
 //   sprite image.
+// - images.unsplash.com / picsum.photos: a place/event's cover_photo_url can
+//   legitimately point straight at either (see ALLOWED_PHOTO_HOSTS in
+//   dashboard/actions.ts and images.remotePatterns below) instead of an
+//   uploaded Supabase file. next/image's own proxy covers that everywhere
+//   it renders one — except lib/poster.ts, which loads the cover photo into
+//   a plain `new Image()` to composite it onto a canvas, bypassing that
+//   proxy entirely. Without these two here, that raw load is silently
+//   blocked by CSP and the poster falls back to its plain gradient
+//   background, with no visible error besides a CSP console warning.
 // next/font self-hosts Geist at build time (served from our own origin), so
 // no fonts.googleapis.com/fonts.gstatic.com needed.
 const SUPABASE_ORIGIN = "https://khvchawnkzamhfwrbhtz.supabase.co";
 const OPENFREEMAP_ORIGIN = "https://tiles.openfreemap.org";
+const UNSPLASH_ORIGIN = "https://images.unsplash.com";
+const PICSUM_ORIGIN = "https://picsum.photos";
 
 const csp = [
   "default-src 'self'",
-  `img-src 'self' data: ${SUPABASE_ORIGIN} ${OPENFREEMAP_ORIGIN}`,
+  `img-src 'self' data: ${SUPABASE_ORIGIN} ${OPENFREEMAP_ORIGIN} ${UNSPLASH_ORIGIN} ${PICSUM_ORIGIN}`,
   `connect-src 'self' ${SUPABASE_ORIGIN} ${OPENFREEMAP_ORIGIN}`,
   // Next.js App Router streams RSC payloads through inline <script> tags on
   // every page load, so script-src can't be 'self'-only without a per-request

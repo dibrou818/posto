@@ -230,20 +230,51 @@ function eventPopupHtml(event: EventWithPlace) {
   });
 }
 
+// Blends `hex` toward white by `amount` (0-1) — used for the pins' gradient
+// highlight, computed rather than hand-picked so it always stays a lighter
+// shade of each marker's own color instead of a second color to keep in
+// sync.
+function lightenColor(hex: string, amount: number): string {
+  const num = parseInt(hex.replace("#", ""), 16);
+  const r = (num >> 16) & 0xff;
+  const g = (num >> 8) & 0xff;
+  const b = num & 0xff;
+  const mix = (c: number) => Math.round(c + (255 - c) * amount);
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+}
+
 // Symbol-layer icons for unclustered markers. Drawn once onto an offscreen
 // canvas and registered via addImage — vector styles have no "just drop a
 // colored <div>" shortcut like Leaflet's divIcon, this is the GL equivalent.
 // pixelRatio 2 keeps them crisp on retina screens without a second draw.
+// Both shapes get a soft drop shadow and a subtle top-left highlight
+// (radial gradient, lighter than the flat base color) instead of a flat
+// fill, so they read as a raised marker rather than a plain colored sticker.
 function createDotIconImage(color: string): ImageData {
-  const size = 56;
+  const size = 72;
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext("2d")!;
+  const cx = size / 2;
+  const cy = size / 2;
+  // Extra inset (vs. the old flat version) leaves room for the shadow blur
+  // to sit fully inside the canvas instead of clipping at its edge.
+  const r = size / 2 - 14;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.35)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 3;
   ctx.beginPath();
-  ctx.arc(size / 2, size / 2, size / 2 - 6, 0, Math.PI * 2);
-  ctx.fillStyle = color;
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  const gradient = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.15, cx, cy, r);
+  gradient.addColorStop(0, lightenColor(color, 0.35));
+  gradient.addColorStop(1, color);
+  ctx.fillStyle = gradient;
   ctx.fill();
+  ctx.restore(); // drops the shadow before the stroke, which shouldn't cast one
+
   ctx.lineWidth = 6;
   ctx.strokeStyle = "#ffffff";
   ctx.stroke();
@@ -252,26 +283,45 @@ function createDotIconImage(color: string): ImageData {
 
 // A teardrop/pin shape (flat top-circle, pointed bottom) so events keep a
 // visually distinct silhouette from places' plain dot, not just a color
-// difference — anchored at its point (see icon-anchor: "bottom" below).
+// difference — anchored at its point (see icon-anchor: "bottom" below). The
+// small punched-out white circle near the top is the classic map-pin motif
+// (Google/Apple Maps both use it) — a second, shape-level cue that this is
+// an event marker, readable even before color registers.
 function createPinIconImage(color: string): ImageData {
-  const width = 56;
-  const height = 72;
+  const width = 64;
+  const height = 84;
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d")!;
   const cx = width / 2;
-  const r = width / 2 - 6;
-  const cy = r + 6;
+  const r = width / 2 - 12;
+  const cy = r + 12;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.35)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 3;
   ctx.beginPath();
   ctx.arc(cx, cy, r, Math.PI * 0.15, Math.PI * 0.85, true);
-  ctx.lineTo(cx, height - 6);
+  ctx.lineTo(cx, height - 10);
   ctx.closePath();
-  ctx.fillStyle = color;
+  const gradient = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.15, cx, cy, r * 1.3);
+  gradient.addColorStop(0, lightenColor(color, 0.3));
+  gradient.addColorStop(1, color);
+  ctx.fillStyle = gradient;
   ctx.fill();
+  ctx.restore();
+
   ctx.lineWidth = 6;
   ctx.strokeStyle = "#ffffff";
   ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.36, 0, Math.PI * 2);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+
   return ctx.getImageData(0, 0, width, height);
 }
 
@@ -309,8 +359,8 @@ function eventsToFeatureCollection(events: EventWithPlace[]): GeoJSON.FeatureCol
 // Cast to `any` for these two step expressions: MapLibre's exact expression
 // type isn't re-exported from the top-level package, and the literal array
 // shape is already validated at runtime by the style spec.
-const CLUSTER_RADIUS_STEPS = ["step", ["get", "point_count"], 19, 10, 23, 50, 28] as unknown as number;
-const CLUSTER_CORE_RADIUS_STEPS = ["step", ["get", "point_count"], 14, 10, 18, 50, 23] as unknown as number;
+const CLUSTER_RADIUS_STEPS = ["step", ["get", "point_count"], 23, 10, 27, 50, 33] as unknown as number;
+const CLUSTER_CORE_RADIUS_STEPS = ["step", ["get", "point_count"], 17, 10, 21, 50, 27] as unknown as number;
 
 function addClusteredLayer(
   map: maplibregl.Map,
@@ -324,8 +374,9 @@ function addClusteredLayer(
     clusterMaxZoom: 16,
   });
 
-  // Outer translucent ring, sized by count tier — mirrors the previous
-  // divIcon cluster's "ring around a solid dot" look.
+  // Soft outer glow, sized by count tier — a wide, low-opacity halo instead
+  // of a hard-edged ring reads as depth/glow rather than a second outline
+  // competing with the core's own white stroke.
   map.addLayer({
     id: `${opts.id}-cluster-ring`,
     type: "circle",
@@ -334,7 +385,8 @@ function addClusteredLayer(
     paint: {
       "circle-radius": CLUSTER_RADIUS_STEPS,
       "circle-color": opts.color,
-      "circle-opacity": 0.18,
+      "circle-opacity": 0.16,
+      "circle-blur": 0.65,
     },
   });
   map.addLayer({
@@ -345,7 +397,7 @@ function addClusteredLayer(
     paint: {
       "circle-radius": CLUSTER_CORE_RADIUS_STEPS,
       "circle-color": opts.color,
-      "circle-stroke-width": 2.5,
+      "circle-stroke-width": 3,
       "circle-stroke-color": "#ffffff",
     },
   });
@@ -357,10 +409,18 @@ function addClusteredLayer(
     layout: {
       "text-field": ["get", "point_count_abbreviated"],
       "text-font": ["Noto Sans Bold"],
-      "text-size": 13,
+      "text-size": 14,
+      // Without these, the basemap's own street/place labels can win the
+      // collision check against the count and silently hide it — the count
+      // is essential info on a cluster, not a nice-to-have, so it must
+      // always win (same reasoning as icon-allow-overlap below).
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
     },
     paint: {
       "text-color": "#ffffff",
+      "text-halo-color": "rgba(0,0,0,0.2)",
+      "text-halo-width": 0.6,
     },
   });
   map.addLayer({
@@ -370,7 +430,7 @@ function addClusteredLayer(
     filter: ["!", ["has", "point_count"]],
     layout: {
       "icon-image": opts.icon,
-      "icon-size": 0.5,
+      "icon-size": 0.62,
       "icon-anchor": opts.iconAnchor,
       "icon-allow-overlap": true,
     },
