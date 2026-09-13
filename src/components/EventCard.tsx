@@ -2,16 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import type { EventWithPlace } from "@/lib/queries";
 import { formatDistance } from "@/lib/distance";
+import { formatEventDateBadge } from "@/lib/eventSchedule";
 import { cardClass } from "@/lib/ui";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
-
-const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-});
 
 /** Grid card for an upcoming event — same visual language as PlaceCard
  * (horizontal, image left) so the two interleave cleanly on the home page. */
@@ -22,7 +15,6 @@ export function EventCard({
   event: EventWithPlace;
   distanceKm?: number;
 }) {
-  const start = new Date(event.start_datetime);
   const coverPhotoUrl = event.cover_photo_url ?? event.place.cover_photo_url;
 
   return (
@@ -55,7 +47,7 @@ export function EventCard({
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-            {dateFormatter.format(start)}
+            {formatEventDateBadge(event.start_datetime)}
           </span>
           {event.restrictions && <RestrictionsBadge text={event.restrictions} />}
           {distanceKm !== undefined && (

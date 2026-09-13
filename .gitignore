@@ -2,6 +2,11 @@
 
 # dependencies
 /node_modules
+
+# maplibre-gl's worker files, copied from node_modules by
+# scripts/copy-maplibre-worker.mjs (postinstall) — see Map.tsx's
+# setWorkerUrl() call for why. Regenerated on every install, not source.
+/public/maplibre
 /.pnp
 .pnp.*
 .yarn/*

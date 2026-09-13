@@ -1,36 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
-
-type NominatimAddress = {
-  city?: string;
-  town?: string;
-  village?: string;
-  municipality?: string;
-};
+import { nominatimReverse, addressPlaceName } from "@/lib/nominatim";
 
 /** Resolves a lat/lng to a city name via OpenStreetMap's free Nominatim
  * reverse geocoder. Never throws — a hiccup here shouldn't break the rest. */
 async function reverseGeocodeCity(lat: number, lng: number): Promise<string | null> {
-  const url =
-    "https://nominatim.openstreetmap.org/reverse?" +
-    new URLSearchParams({
-      format: "json",
-      lat: String(lat),
-      lon: String(lng),
-      addressdetails: "1",
-      zoom: "10",
-    });
-
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Posto/1.0 (+https://github.com/dibrou818/posto)" },
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { address?: NominatimAddress };
-    const address = data.address ?? {};
-    return address.city ?? address.town ?? address.village ?? address.municipality ?? null;
-  } catch {
-    return null;
-  }
+  const data = await nominatimReverse({
+    format: "json",
+    lat: String(lat),
+    lon: String(lng),
+    addressdetails: "1",
+    zoom: "10",
+  });
+  return addressPlaceName(data?.address);
 }
 
 /** Current temperature via Open-Meteo — free, no API key required. */

@@ -12,11 +12,18 @@ export function DeleteButton({
   label = "Supprimer",
   className = "text-xs",
   confirmMessage,
+  onDeleted,
 }: {
   action: () => Promise<void>;
   label?: string;
   className?: string;
   confirmMessage?: string;
+  /** Runs after `action` resolves — for a delete button on the deleted
+   * thing's own page (an event's edit page, say), where revalidatePath
+   * alone can't help: that route has nothing left to show, so it needs to
+   * navigate away itself. Rows in a list (the common case) don't need
+   * this — the row just disappears once the list re-renders. */
+  onDeleted?: () => void;
 }) {
   function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
     if (confirmMessage && !window.confirm(confirmMessage)) {
@@ -24,8 +31,13 @@ export function DeleteButton({
     }
   }
 
+  async function handleAction() {
+    await action();
+    onDeleted?.();
+  }
+
   return (
-    <form action={action}>
+    <form action={handleAction}>
       <button
         type="submit"
         onClick={handleClick}

@@ -1,29 +1,54 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MapContainer, TileLayer, ZoomControl, useMap, useMapEvent } from "react-leaflet";
-import L from "leaflet";
-import "leaflet.markercluster";
-import "leaflet.markercluster/dist/MarkerCluster.css";
+import * as maplibregl from "maplibre-gl";
 import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
 import { isOpenNow } from "@/lib/opening-hours";
+import { formatEventDateBadge } from "@/lib/eventSchedule";
 
-const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+// MapLibre computes its tile-parsing Web Worker's URL as
+// `new URL('./maplibre-gl-worker.mjs', import.meta.url)` — Webpack/Vite
+// rewrite that to the real bundled path, but Turbopack (next dev's bundler)
+// doesn't yet, so it resolves to a URL that 404s. The failure is silent:
+// the Worker object still gets created, it just never runs any code, so
+// every tile request sent to it sits in "loading" forever with no error —
+// the map renders its bare background and nothing else. Pointing
+// setWorkerUrl at our own copy (kept in sync with the installed version by
+// scripts/copy-maplibre-worker.mjs, run on every `npm install`) sidesteps
+// it. Module scope, not inside the component: it only needs to run once,
+// before the first Map() is ever constructed, and this file is already
+// client-only (dynamic-imported with ssr:false).
+maplibregl.setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
 
-const LILLE_CENTER: [number, number] = [50.6292, 3.0573];
+// MapLibre/GeoJSON convention is [lng, lat] — the opposite order from
+// Leaflet's [lat, lng]. Every coordinate pair in this file follows that.
+const LILLE_CENTER: [number, number] = [3.0573, 50.6292];
 const DEFAULT_ZOOM = 13;
 
-// 85.0511° is the standard Web Mercator latitude limit (where the
-// projection would otherwise reach infinity) — capping the map here, and
-// clamping panning to it below, is what stops a corner of the screen from
-// ever showing bare background past the edge of the world.
-const WORLD_BOUNDS = L.latLngBounds([-85.0511, -180], [85.0511, 180]);
+// 85.0511° is the standard Web Mercator latitude limit — the projection
+// itself breaks down past it (tends to infinity at the poles). Longitude
+// needs no clamp: `renderWorldCopies` (on by default) already repeats the
+// world horizontally forever, so there's no "edge" to fall off east/west.
+//
+// This deliberately isn't done via the map's own `maxBounds`/setMaxBounds —
+// every input shape (a plain array, a nested [[w,s],[e,n]] array, a real
+// LngLatBounds instance) reproducibly threw deep inside MapLibre 6.9.0's
+// own constrain-to-bounds math the moment it was set. Clamping latitude by
+// hand on "move" (below) gets the same "can't pan past the pole" result
+// with zero calls into that code path.
+const MAX_LATITUDE = 85.0511;
+
+// OpenFreeMap's "Liberty" style: OpenStreetMap data via OpenMapTiles, free
+// and unmetered, no API key. Chosen over Positron/Bright for its closer
+// resemblance to the previous CARTO Voyager look (colorful roads/water/
+// parks) while still being a full vector style — see the memory file
+// mapbox-migration-plan.md for the reasoning behind leaving raster tiles.
+const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+
+const PLACE_COLOR = "#111827";
+// Violet, distinct from the dark place dot, so a glance at the map tells
+// places and events apart even before opening anything.
+const EVENT_COLOR = "#7c3aed";
 
 // Remembers where the user left the map (center/zoom) across a full page
 // navigation — e.g. tapping a pin's "Voir la fiche" and hitting back — so
@@ -59,260 +84,9 @@ function writeStoredView(view: StoredMapView) {
   }
 }
 
-// CARTO Voyager basemap. Anonymous usage is rate-limited; set
-// NEXT_PUBLIC_CARTO_API_KEY once you have a CARTO account to lift the limits.
-const CARTO_API_KEY = process.env.NEXT_PUBLIC_CARTO_API_KEY;
-const CARTO_VOYAGER_URL = CARTO_API_KEY
-  ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${CARTO_API_KEY}`
-  : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
-
-const placeIcon = L.divIcon({
-  className: "",
-  html: `<div style="
-    width:28px;height:28px;border-radius:50%;
-    background:#111827;border:3px solid #ffffff;
-    box-shadow:0 2px 6px rgba(0,0,0,0.35);
-  "></div>`,
-  iconSize: [28, 28],
-  iconAnchor: [14, 14],
-  popupAnchor: [0, -14],
-});
-
-function clusterIcon(count: number) {
-  const size = count < 10 ? 38 : count < 50 ? 46 : 56;
-  return L.divIcon({
-    className: "",
-    html: `
-      <div style="
-        width:${size}px;height:${size}px;border-radius:50%;
-        background:rgba(17,24,39,0.18);
-        display:flex;align-items:center;justify-content:center;
-      ">
-        <div style="
-          width:${size - 10}px;height:${size - 10}px;border-radius:50%;
-          background:#111827;border:2.5px solid #ffffff;
-          box-shadow:0 2px 8px rgba(0,0,0,0.35);
-          display:flex;align-items:center;justify-content:center;
-          color:#ffffff;font-weight:600;font-size:13px;font-family:inherit;
-        ">${count}</div>
-      </div>
-    `,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-  });
-}
-
-// Violet, distinct from the dark place dot, so a glance at the map tells
-// places and events apart even before opening a popup.
-const EVENT_COLOR = "#7c3aed";
-
-const eventIcon = L.divIcon({
-  className: "",
-  html: `<div style="
-    width:28px;height:28px;border-radius:50% 50% 50% 0;
-    transform:rotate(-45deg);
-    background:${EVENT_COLOR};border:3px solid #ffffff;
-    box-shadow:0 2px 6px rgba(0,0,0,0.35);
-  "></div>`,
-  iconSize: [28, 28],
-  iconAnchor: [14, 26],
-  popupAnchor: [0, -24],
-});
-
-function eventClusterIcon(count: number) {
-  const size = count < 10 ? 38 : count < 50 ? 46 : 56;
-  return L.divIcon({
-    className: "",
-    html: `
-      <div style="
-        width:${size}px;height:${size}px;border-radius:50%;
-        background:rgba(124,58,237,0.18);
-        display:flex;align-items:center;justify-content:center;
-      ">
-        <div style="
-          width:${size - 10}px;height:${size - 10}px;border-radius:50%;
-          background:${EVENT_COLOR};border:2.5px solid #ffffff;
-          box-shadow:0 2px 8px rgba(0,0,0,0.35);
-          display:flex;align-items:center;justify-content:center;
-          color:#ffffff;font-weight:600;font-size:13px;font-family:inherit;
-        ">${count}</div>
-      </div>
-    `,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-  });
-}
-
-type LocateStatus = "idle" | "locating" | "active" | "denied";
-
-/** Plain pulsing "you are here" blue dot — no heading/direction indicator,
- * just the position itself. */
-function userLocationIcon() {
-  return L.divIcon({
-    className: "",
-    html: `
-      <div style="position:relative;width:18px;height:18px;">
-        <div class="posto-locate-pulse" style="
-          position:absolute;inset:0;border-radius:50%;background:#2563eb;
-        "></div>
-        <div style="
-          position:absolute;inset:0;border-radius:50%;
-          background:#2563eb;border:3px solid #ffffff;
-          box-shadow:0 0 0 1px rgba(37,99,235,0.4),0 1px 4px rgba(0,0,0,0.35);
-        "></div>
-      </div>
-    `,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
-  });
-}
-
-function locateButtonIcon(status: LocateStatus) {
-  const color = status === "active" ? "#2563eb" : status === "denied" ? "#dc2626" : "#374151";
-  return `
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="3"></circle>
-      <path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path>
-    </svg>
-  `;
-}
-
-/** Custom Leaflet control (bottom-right, next to the zoom control) that lets
- * the user request their live position on the map — a plain button rather
- * than a React node, since Leaflet's control container isn't part of the
- * React tree. */
-function LocateControl({ status, onClick }: { status: LocateStatus; onClick: () => void }) {
-  const map = useMap();
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const onClickRef = useRef(onClick);
-
-  useEffect(() => {
-    onClickRef.current = onClick;
-  }, [onClick]);
-
-  useEffect(() => {
-    const control = new L.Control({ position: "bottomright" });
-    control.onAdd = () => {
-      const button = L.DomUtil.create("button") as HTMLButtonElement;
-      button.type = "button";
-      button.setAttribute("aria-label", "Me localiser");
-      button.style.cssText =
-        "width:34px;height:34px;display:flex;align-items:center;justify-content:center;" +
-        "background:#fff;border-radius:8px;cursor:pointer;border:none;" +
-        "box-shadow:0 1px 4px rgba(0,0,0,0.3);";
-      L.DomEvent.disableClickPropagation(button);
-      L.DomEvent.on(button, "click", () => onClickRef.current());
-      buttonRef.current = button;
-      return button;
-    };
-    control.addTo(map);
-    return () => {
-      control.remove();
-      buttonRef.current = null;
-    };
-  }, [map]);
-
-  useEffect(() => {
-    if (buttonRef.current) buttonRef.current.innerHTML = locateButtonIcon(status);
-  }, [status]);
-
-  return null;
-}
-
-/** Live "you are here" pin: a locate button that requests geolocation (kept
- * live via watchPosition) and draws a marker + accuracy circle that follow
- * the user as they move. Purely position — no device orientation/compass
- * heading involved. */
-function UserLocationLayer() {
-  const map = useMap();
-  const [status, setStatus] = useState<LocateStatus>("idle");
-  const markerRef = useRef<L.Marker | null>(null);
-  const accuracyCircleRef = useRef<L.Circle | null>(null);
-  const watchIdRef = useRef<number | null>(null);
-  const hasCenteredRef = useRef(false);
-
-  useEffect(() => {
-    return () => {
-      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-      markerRef.current?.remove();
-      accuracyCircleRef.current?.remove();
-    };
-  }, []);
-
-  function updatePosition(lat: number, lng: number, accuracy: number) {
-    const latlng = L.latLng(lat, lng);
-    if (!markerRef.current) {
-      markerRef.current = L.marker(latlng, {
-        icon: userLocationIcon(),
-        zIndexOffset: 1000,
-        interactive: false,
-      }).addTo(map);
-    } else {
-      markerRef.current.setLatLng(latlng);
-    }
-    if (!accuracyCircleRef.current) {
-      accuracyCircleRef.current = L.circle(latlng, {
-        radius: accuracy,
-        color: "#2563eb",
-        weight: 1,
-        fillColor: "#2563eb",
-        fillOpacity: 0.1,
-        interactive: false,
-      }).addTo(map);
-    } else {
-      accuracyCircleRef.current.setLatLng(latlng);
-      accuracyCircleRef.current.setRadius(accuracy);
-    }
-  }
-
-  function startWatching() {
-    setStatus("locating");
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        setStatus("active");
-        updatePosition(latitude, longitude, accuracy);
-        if (!hasCenteredRef.current) {
-          hasCenteredRef.current = true;
-          map.flyTo([latitude, longitude], Math.max(map.getZoom(), 15));
-        }
-      },
-      () => setStatus("denied"),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
-    );
-  }
-
-  function handleClick() {
-    if (!navigator.geolocation) {
-      setStatus("denied");
-      return;
-    }
-    if (status === "active" && markerRef.current) {
-      map.flyTo(markerRef.current.getLatLng(), Math.max(map.getZoom(), 15));
-      return;
-    }
-    startWatching();
-  }
-
-  return <LocateControl status={status} onClick={handleClick} />;
-}
-
-/** Notifies the parent (outside the react-leaflet tree) once the underlying
- * Leaflet map instance exists, so it can render UI that needs to call map
- * methods directly from ordinary React, outside Leaflet's own control
- * system — not currently used by anything, kept as reusable plumbing for
- * the next thing that needs it. */
-function MapReadyBridge({ onReady }: { onReady?: (map: L.Map) => void }) {
-  const map = useMap();
-  useEffect(() => {
-    onReady?.(map);
-  }, [map, onReady]);
-  return null;
-}
-
-// Same breakpoint as Tailwind's `md` (and the rest of the app's mobile/desktop
-// split, e.g. BottomNav) — below it, tapping a pin opens the bottom sheet
-// instead of Leaflet's own popup (see ClusteredMarkers/EventClusteredMarkers).
+// Same breakpoint as Tailwind's `md` (and the rest of the app's mobile/
+// desktop split, e.g. BottomNav) — below it, tapping a pin opens the bottom
+// sheet instead of a popup.
 const MOBILE_BREAKPOINT_QUERY = "(max-width: 767px)";
 
 function useIsMobileViewport(): boolean {
@@ -327,91 +101,37 @@ function useIsMobileViewport(): boolean {
   return isMobile;
 }
 
-/** Tapping the bare map (not a marker — Leaflet markers don't bubble their
- * clicks up to the map by default) dismisses the mobile bottom sheet, same
- * as tapping outside a Leaflet popup closes it on desktop. */
-function SheetDismissBridge({ onDismiss }: { onDismiss?: () => void }) {
-  useMapEvent("click", () => onDismiss?.());
-  return null;
+// OpenFreeMap/OpenMapTiles labels are usually a single `["get","name"]`
+// (or a coalesce over name:latin/name:nonlatin for non-Latin scripts) — none
+// of that is configurable client-side the way CARTO's raster tiles weren't
+// at all. Vector labels are just style-layer properties, so this walks every
+// symbol layer whose text-field already renders a place name (roads'
+// numbered shields use "ref", not "name", and are left untouched) and points
+// it at the French name first, falling back to the generic one.
+function applyFrenchLabels(map: maplibregl.Map) {
+  const style = map.getStyle();
+  if (!style?.layers) return;
+  for (const layer of style.layers) {
+    if (layer.type !== "symbol") continue;
+    const textField = map.getLayoutProperty(layer.id, "text-field");
+    if (textField === undefined) continue;
+    let referencesName = false;
+    try {
+      referencesName = JSON.stringify(textField).includes('"name');
+    } catch {
+      continue;
+    }
+    if (!referencesName) continue;
+    map.setLayoutProperty(layer.id, "text-field", ["coalesce", ["get", "name:fr"], ["get", "name"]]);
+  }
 }
 
-/** Keeps the world basemap always filling the screen, at any viewport size
- * or zoom level. `maxBounds` alone (set on MapContainer) stops the user
- * panning past the edge of the world, but a fixed `minZoom` can still leave
- * the *zoomed-out* world smaller than a big/ultrawide viewport — showing
- * blank background in a corner or strip regardless of panning. So this
- * recomputes, on every container resize, the lowest zoom at which the
- * world's rendered pixel size (256 * 2^zoom) still covers the container in
- * both dimensions, and pushes it up via setMinZoom (which also snaps the
- * current view up if it's now below that floor). */
-function MinZoomGuard() {
-  const map = useMap();
-
-  useEffect(() => {
-    function updateMinZoom() {
-      map.invalidateSize();
-      const { x, y } = map.getSize();
-      const largestDimension = Math.max(x, y);
-      if (largestDimension <= 0) return;
-      const requiredZoom = Math.ceil(Math.log2(largestDimension / 256));
-      map.setMinZoom(Math.max(requiredZoom, 0));
-    }
-
-    updateMinZoom();
-    const observer = new ResizeObserver(updateMinZoom);
-    observer.observe(map.getContainer());
-    return () => observer.disconnect();
-  }, [map]);
-
-  return null;
-}
-
-/** Saves the current view (see readStoredView/writeStoredView above) every
- * time panning/zooming settles, so the next mount — typically the user
- * coming back from a place/event's full page — picks up right where they
- * left off instead of resetting to Lille. Debounced so a drag/pinch in
- * progress doesn't write on every intermediate frame. */
-function ViewPersistenceBridge() {
-  const map = useMap();
-
-  useEffect(() => {
-    let timeoutId: number | undefined;
-
-    function persistNow() {
-      const center = map.getCenter();
-      writeStoredView({ lat: center.lat, lng: center.lng, zoom: map.getZoom() });
-    }
-
-    function schedulePersist() {
-      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(persistNow, 200);
-    }
-
-    map.on("moveend", schedulePersist);
-    map.on("zoomend", schedulePersist);
-
-    return () => {
-      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
-      map.off("moveend", schedulePersist);
-      map.off("zoomend", schedulePersist);
-      // Final flush on unmount (e.g. navigating to a place's page) — covers
-      // the case where the debounce above hasn't fired yet.
-      try {
-        persistNow();
-      } catch {
-        // Map may already be mid-teardown at this point; nothing to save.
-      }
-    };
-  }, [map]);
-
-  return null;
-}
-
-// Leaflet's bindPopup(string) injects the string as raw HTML with no
-// escaping of its own — place.name/place.address are free text any signed-up
-// user controls, so they must be entity-encoded before going anywhere near
-// this template, or a malicious place name becomes stored XSS for every
-// visitor who opens its popup on the public map.
+// Leaflet's bindPopup(string)/MapLibre's Popup#setHTML(string) both inject
+// the string as raw HTML with no escaping of their own — place.name/
+// place.address are free text any signed-up user controls, so they must be
+// entity-encoded before going anywhere near this template, or a malicious
+// place name becomes stored XSS for every visitor who opens its popup on the
+// public map.
 function escapeHtml(value: string): string {
   const div = document.createElement("div");
   div.textContent = value;
@@ -430,7 +150,7 @@ function escapeAttr(value: string): string {
 
 // Small inline icons for the popup card — kept as plain SVG markup (not
 // React components) since this whole template is a string handed to
-// Leaflet's bindPopup, not JSX.
+// Popup#setHTML, not JSX.
 const PIN_ICON_SVG =
   '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.5-7-11.5a7 7 0 0 1 14 0C19 14.5 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.2"/></svg>';
 const CALENDAR_ICON_SVG =
@@ -500,13 +220,160 @@ function eventPopupHtml(event: EventWithPlace) {
     title: event.title,
     subtitle: event.place.name,
     badge: {
-      label: eventDateFormatter.format(new Date(event.start_datetime)),
+      label: formatEventDateBadge(event.start_datetime),
       bg: "#ede9fe",
       fg: EVENT_COLOR,
       icon: CALENDAR_ICON_SVG,
     },
     href: `/events/${event.id}`,
     cta: "Voir l'événement",
+  });
+}
+
+// Symbol-layer icons for unclustered markers. Drawn once onto an offscreen
+// canvas and registered via addImage — vector styles have no "just drop a
+// colored <div>" shortcut like Leaflet's divIcon, this is the GL equivalent.
+// pixelRatio 2 keeps them crisp on retina screens without a second draw.
+function createDotIconImage(color: string): ImageData {
+  const size = 56;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2 - 6, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = "#ffffff";
+  ctx.stroke();
+  return ctx.getImageData(0, 0, size, size);
+}
+
+// A teardrop/pin shape (flat top-circle, pointed bottom) so events keep a
+// visually distinct silhouette from places' plain dot, not just a color
+// difference — anchored at its point (see icon-anchor: "bottom" below).
+function createPinIconImage(color: string): ImageData {
+  const width = 56;
+  const height = 72;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+  const cx = width / 2;
+  const r = width / 2 - 6;
+  const cy = r + 6;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, Math.PI * 0.15, Math.PI * 0.85, true);
+  ctx.lineTo(cx, height - 6);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = "#ffffff";
+  ctx.stroke();
+  return ctx.getImageData(0, 0, width, height);
+}
+
+function ensureIconsLoaded(map: maplibregl.Map) {
+  if (!map.hasImage("place-dot")) {
+    map.addImage("place-dot", createDotIconImage(PLACE_COLOR), { pixelRatio: 2 });
+  }
+  if (!map.hasImage("event-pin")) {
+    map.addImage("event-pin", createPinIconImage(EVENT_COLOR), { pixelRatio: 2 });
+  }
+}
+
+function placesToFeatureCollection(places: PlaceWithRelations[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
+  return {
+    type: "FeatureCollection",
+    features: places.map((place) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [place.lng, place.lat] },
+      properties: { id: place.id },
+    })),
+  };
+}
+
+function eventsToFeatureCollection(events: EventWithPlace[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
+  return {
+    type: "FeatureCollection",
+    features: events.map((event) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [event.place.lng, event.place.lat] },
+      properties: { id: event.id },
+    })),
+  };
+}
+
+// Cast to `any` for these two step expressions: MapLibre's exact expression
+// type isn't re-exported from the top-level package, and the literal array
+// shape is already validated at runtime by the style spec.
+const CLUSTER_RADIUS_STEPS = ["step", ["get", "point_count"], 19, 10, 23, 50, 28] as unknown as number;
+const CLUSTER_CORE_RADIUS_STEPS = ["step", ["get", "point_count"], 14, 10, 18, 50, 23] as unknown as number;
+
+function addClusteredLayer(
+  map: maplibregl.Map,
+  opts: { id: string; data: GeoJSON.FeatureCollection<GeoJSON.Point>; color: string; icon: string; iconAnchor: "center" | "bottom" },
+) {
+  map.addSource(opts.id, {
+    type: "geojson",
+    data: opts.data,
+    cluster: true,
+    clusterRadius: 50,
+    clusterMaxZoom: 16,
+  });
+
+  // Outer translucent ring, sized by count tier — mirrors the previous
+  // divIcon cluster's "ring around a solid dot" look.
+  map.addLayer({
+    id: `${opts.id}-cluster-ring`,
+    type: "circle",
+    source: opts.id,
+    filter: ["has", "point_count"],
+    paint: {
+      "circle-radius": CLUSTER_RADIUS_STEPS,
+      "circle-color": opts.color,
+      "circle-opacity": 0.18,
+    },
+  });
+  map.addLayer({
+    id: `${opts.id}-cluster-core`,
+    type: "circle",
+    source: opts.id,
+    filter: ["has", "point_count"],
+    paint: {
+      "circle-radius": CLUSTER_CORE_RADIUS_STEPS,
+      "circle-color": opts.color,
+      "circle-stroke-width": 2.5,
+      "circle-stroke-color": "#ffffff",
+    },
+  });
+  map.addLayer({
+    id: `${opts.id}-cluster-count`,
+    type: "symbol",
+    source: opts.id,
+    filter: ["has", "point_count"],
+    layout: {
+      "text-field": ["get", "point_count_abbreviated"],
+      "text-font": ["Noto Sans Bold"],
+      "text-size": 13,
+    },
+    paint: {
+      "text-color": "#ffffff",
+    },
+  });
+  map.addLayer({
+    id: `${opts.id}-unclustered`,
+    type: "symbol",
+    source: opts.id,
+    filter: ["!", ["has", "point_count"]],
+    layout: {
+      "icon-image": opts.icon,
+      "icon-size": 0.5,
+      "icon-anchor": opts.iconAnchor,
+      "icon-allow-overlap": true,
+    },
   });
 }
 
@@ -518,217 +385,6 @@ export type MapFocusTarget = { id: string; lat: number; lng: number; zoom?: numb
 export type MapSheetItem =
   | { kind: "place"; place: PlaceWithRelations }
   | { kind: "event"; event: EventWithPlace };
-
-function ClusteredMarkers({
-  places,
-  focusTarget,
-  isMobile,
-  onSelectPlace,
-  skipInitialFit,
-}: {
-  places: PlaceWithRelations[];
-  focusTarget?: MapFocusTarget | null;
-  isMobile: boolean;
-  onSelectPlace?: (place: PlaceWithRelations) => void;
-  /** True when the map mounted at a restored view (see readStoredView) —
-   * fitting bounds to every place right after would immediately zoom back
-   * out and defeat the whole point of restoring where the user left off.
-   * Only suppresses the very first fit; a later filter change etc. still
-   * fits normally, same as before. */
-  skipInitialFit?: boolean;
-}) {
-  const map = useMap();
-  const groupRef = useRef<L.MarkerClusterGroup | null>(null);
-  // Plain object, not a JS `Map`, to avoid shadowing by this file's own
-  // exported `Map` component.
-  const markersByPlaceId = useRef<Record<string, L.Marker>>({});
-  const isFirstFitRef = useRef(true);
-  // Ref so the marker-creation effect doesn't need `onSelectPlace` itself in
-  // its dependency array — FullScreenMap may pass a new function identity on
-  // every render, and that alone shouldn't tear down/rebuild every marker.
-  // Synced in its own effect (not during render) since mutating a ref while
-  // rendering isn't safe under React's concurrent rendering.
-  const onSelectPlaceRef = useRef(onSelectPlace);
-  useEffect(() => {
-    onSelectPlaceRef.current = onSelectPlace;
-  });
-  // Same idea, and for the same reason `isMobile` can't be a dependency of
-  // the marker-creation effect below: `useIsMobileViewport` starts out
-  // `false` and flips shortly after mount once matchMedia resolves, and
-  // reacting to that flip by rebuilding every marker would also re-run
-  // fitBounds — silently overwriting a just-restored view (see
-  // readStoredView/skipInitialFit) with "zoomed out to fit everything"
-  // milliseconds after mount. The click handler below reads this ref live,
-  // at click time, so it's never actually stale despite not being a dep.
-  const isMobileRef = useRef(isMobile);
-  useEffect(() => {
-    isMobileRef.current = isMobile;
-  });
-
-  useEffect(() => {
-    const group = L.markerClusterGroup({
-      iconCreateFunction: (cluster) => clusterIcon(cluster.getChildCount()),
-      showCoverageOnHover: false,
-      spiderfyOnMaxZoom: true,
-      maxClusterRadius: 50,
-    });
-
-    const markersById: Record<string, L.Marker> = {};
-    places.forEach((place) => {
-      const marker = L.marker([place.lat, place.lng], { icon: placeIcon });
-      // Always bound; the sync effect further down immediately unbinds it
-      // again if isMobile is (or becomes) true, without needing to recreate
-      // markers/re-run fitBounds just because that flag changed.
-      marker.bindPopup(popupHtml(place));
-      marker.on("click", () => {
-        if (isMobileRef.current) onSelectPlaceRef.current?.(place);
-      });
-      group.addLayer(marker);
-      markersById[place.id] = marker;
-    });
-
-    map.addLayer(group);
-    groupRef.current = group;
-    markersByPlaceId.current = markersById;
-
-    const isFirstFit = isFirstFitRef.current;
-    if (places.length > 0 && !(isFirstFit && skipInitialFit)) {
-      const bounds = L.latLngBounds(places.map((p) => [p.lat, p.lng] as [number, number]));
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-    }
-    // Only *commit* "no longer first" once this effect instance survives to
-    // the next tick uncancelled. Dev-mode Strict Mode runs every effect as
-    // mount → cleanup → mount, synchronously, before anything else gets a
-    // chance to run — flipping the ref immediately (inside the setup body)
-    // means that throwaway first pass "spends" the one skip, and the real,
-    // kept pass right after it sees isFirstFit as already false and fits
-    // bounds anyway, silently overwriting a just-restored view. Cancelling
-    // this in cleanup means only a pass that *isn't* immediately torn down
-    // — i.e. the real one — ever actually consumes it.
-    const commitFirstFitTimer = isFirstFit ? window.setTimeout(() => {
-      isFirstFitRef.current = false;
-    }, 0) : undefined;
-
-    return () => {
-      if (commitFirstFitTimer !== undefined) window.clearTimeout(commitFirstFitTimer);
-      map.removeLayer(group);
-      groupRef.current = null;
-    };
-  }, [places, map, skipInitialFit]);
-
-  // Keeps existing markers' popup binding in sync with isMobile without
-  // recreating them (and *without* touching bounds/fitBounds above) — this
-  // is what actually reacts to the viewport crossing the `md` breakpoint,
-  // whether that's the matchMedia hook resolving shortly after mount or an
-  // actual window resize later on.
-  useEffect(() => {
-    Object.entries(markersByPlaceId.current).forEach(([id, marker]) => {
-      if (isMobile) {
-        marker.unbindPopup();
-        return;
-      }
-      const place = places.find((p) => p.id === id);
-      if (place) marker.bindPopup(popupHtml(place));
-    });
-  }, [isMobile, places]);
-
-  useEffect(() => {
-    if (!focusTarget) return;
-
-    const marker = markersByPlaceId.current[focusTarget.id];
-    if (marker && groupRef.current) {
-      // Zooms/pans just enough to pull the marker out of its cluster (if
-      // any), then — mobile: opens the bottom sheet; desktop: its popup —
-      // once it's actually visible on screen.
-      groupRef.current.zoomToShowLayer(marker, () => {
-        if (isMobile) {
-          const place = places.find((p) => p.id === focusTarget.id);
-          if (place) onSelectPlace?.(place);
-        } else {
-          marker.openPopup();
-        }
-      });
-    } else {
-      // No matching marker — either it's outside the current (possibly
-      // tag-filtered) set, or this target is a city/area rather than a
-      // venue. Still take the user to the right spot.
-      map.flyTo([focusTarget.lat, focusTarget.lng], focusTarget.zoom ?? 16);
-    }
-  }, [focusTarget, map, isMobile, places, onSelectPlace]);
-
-  return null;
-}
-
-function EventClusteredMarkers({
-  events,
-  focusTarget,
-  isMobile,
-  onSelectEvent,
-}: {
-  events: EventWithPlace[];
-  focusTarget?: MapFocusTarget | null;
-  isMobile: boolean;
-  onSelectEvent?: (event: EventWithPlace) => void;
-}) {
-  const map = useMap();
-  const groupRef = useRef<L.MarkerClusterGroup | null>(null);
-  const markersByEventId = useRef<Record<string, L.Marker>>({});
-  // See ClusteredMarkers' onSelectPlaceRef for why this is a ref but
-  // `isMobile` (below) is a plain effect dependency instead.
-  const onSelectEventRef = useRef(onSelectEvent);
-  useEffect(() => {
-    onSelectEventRef.current = onSelectEvent;
-  });
-
-  useEffect(() => {
-    const group = L.markerClusterGroup({
-      iconCreateFunction: (cluster) => eventClusterIcon(cluster.getChildCount()),
-      showCoverageOnHover: false,
-      spiderfyOnMaxZoom: true,
-      maxClusterRadius: 50,
-    });
-
-    const markersById: Record<string, L.Marker> = {};
-    events.forEach((event) => {
-      const marker = L.marker([event.place.lat, event.place.lng], { icon: eventIcon });
-      marker.on("click", () => {
-        if (isMobile) onSelectEventRef.current?.(event);
-      });
-      if (!isMobile) marker.bindPopup(eventPopupHtml(event));
-      group.addLayer(marker);
-      markersById[event.id] = marker;
-    });
-
-    map.addLayer(group);
-    groupRef.current = group;
-    markersByEventId.current = markersById;
-
-    return () => {
-      map.removeLayer(group);
-      groupRef.current = null;
-    };
-  }, [events, map, isMobile]);
-
-  useEffect(() => {
-    if (!focusTarget) return;
-    const marker = markersByEventId.current[focusTarget.id];
-    // Unlike ClusteredMarkers, no flyTo fallback here — the place layer
-    // already owns that for any id it doesn't recognize either, so this
-    // only ever needs to act when it actually has the matching marker.
-    if (marker && groupRef.current) {
-      groupRef.current.zoomToShowLayer(marker, () => {
-        if (isMobile) {
-          const event = events.find((e) => e.id === focusTarget.id);
-          if (event) onSelectEvent?.(event);
-        } else {
-          marker.openPopup();
-        }
-      });
-    }
-  }, [focusTarget, isMobile, events, onSelectEvent]);
-
-  return null;
-}
 
 export function Map({
   places,
@@ -742,13 +398,14 @@ export function Map({
   places: PlaceWithRelations[];
   events?: EventWithPlace[];
   focusTarget?: MapFocusTarget | null;
-  /** Called once the Leaflet map instance is ready, so a sibling component
-   * (e.g. the compass overlaid outside the map) can read/set its bearing. */
-  onMapReady?: (map: L.Map) => void;
+  /** Called once the MapLibre map instance is ready, so a sibling component
+   * can read/set its state directly — not currently used by anything, kept
+   * as reusable plumbing for the next thing that needs it. */
+  onMapReady?: (map: maplibregl.Map) => void;
   /** Below the `md` breakpoint, tapping a marker calls these instead of
-   * opening Leaflet's own popup — FullScreenMap uses them to drive a mobile
-   * bottom sheet. Above it, markers keep the regular popup and these are
-   * never called. */
+   * opening a popup — FullScreenMap uses them to drive a mobile bottom
+   * sheet. Above it, markers keep the regular popup and these are never
+   * called. */
   onSelectPlace?: (place: PlaceWithRelations) => void;
   onSelectEvent?: (event: EventWithPlace) => void;
   /** Tapping the bare map dismisses the mobile bottom sheet, mirroring a
@@ -756,69 +413,557 @@ export function Map({
   onDismissSelection?: () => void;
 }) {
   const isMobile = useIsMobileViewport();
-  // Lazy initializer: reads sessionStorage exactly once, before first paint,
-  // so the map mounts already at the last place the user was looking at
-  // instead of flashing Lille first. A later focusTarget (e.g. a city
-  // picked from search) still flies in on top of this via its own effect,
-  // same as before — this only changes the *starting point*, not that
-  // behavior.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const navControlRef = useRef<maplibregl.NavigationControl | null>(null);
+  const focusPopupRef = useRef<maplibregl.Popup | null>(null);
+
+  const placesByIdRef = useRef<Record<string, PlaceWithRelations>>({});
+  const eventsByIdRef = useRef<Record<string, EventWithPlace>>({});
+
+  // Refs so click handlers registered once at map-creation time never go
+  // stale, without needing to be re-registered (and re-diffed by MapLibre)
+  // every time a prop's identity changes.
+  const isMobileRef = useRef(isMobile);
+  const onSelectPlaceRef = useRef(onSelectPlace);
+  const onSelectEventRef = useRef(onSelectEvent);
+  const onDismissSelectionRef = useRef(onDismissSelection);
+  useEffect(() => {
+    isMobileRef.current = isMobile;
+    onSelectPlaceRef.current = onSelectPlace;
+    onSelectEventRef.current = onSelectEvent;
+    onDismissSelectionRef.current = onDismissSelection;
+  });
+
   const [initialView] = useState(() => readStoredView());
-  const initialCenter: [number, number] = initialView ? [initialView.lat, initialView.lng] : LILLE_CENTER;
+
+  // Mount the map exactly once. Every prop below is read through refs or
+  // handled by its own effect further down — none of this re-runs on every
+  // render, unlike react-leaflet's per-child-component model.
+  useEffect(() => {
+    const initialCenter: [number, number] = initialView ? [initialView.lng, initialView.lat] : LILLE_CENTER;
+    const map = new maplibregl.Map({
+      container: containerRef.current!,
+      style: STYLE_URL,
+      center: initialCenter,
+      zoom: initialView?.zoom ?? DEFAULT_ZOOM,
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
+      attributionControl: false,
+    });
+    mapRef.current = map;
+
+    // Fades the canvas in once the first real frame is actually ready
+    // ("idle" — style parsed *and* every tile currently on screen loaded —
+    // not just "load", which can fire while the view is still a wash of
+    // background color) instead of it popping in mid-render. Toggled via
+    // direct style manipulation, not React state, since it's purely
+    // presentational and doesn't need a re-render.
+    map.once("idle", () => {
+      if (mapRef.current !== map) return;
+      map.getContainer().style.opacity = "1";
+    });
+
+    // The map is always north-up — see the removed leaflet-rotate feature
+    // this replaces: raster labels couldn't rotate independently of the
+    // tile image, so rotating flipped every place name upside-down. Vector
+    // labels could stay upright via text-rotation-alignment, but rotation
+    // stays off for now by choice; touchZoomRotate still needs its rotation
+    // half explicitly disabled (pinch-zoom itself stays on).
+    map.touchZoomRotate.disableRotation();
+
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
+
+    // The actual "locate me" button is added by setupUserLocationLayer
+    // below, which is also where its click handler and status get wired up
+    // — a second one used to get added here too, inert (no click handler),
+    // which is why the button appeared to render twice.
+
+    map.on("load", () => {
+      // React Strict Mode's dev-mode mount→cleanup→mount double-invoke can
+      // tear this exact instance down (cleanup below calls map.remove() and
+      // nulls mapRef.current) before its style has actually finished
+      // loading over the network — that's genuinely asynchronous, unlike
+      // the synchronous double-invoke itself. Without this check, this
+      // handler still fires on the by-then-removed instance and crashes
+      // deep inside MapLibre's internals reading properties of now-null
+      // internal state.
+      if (mapRef.current !== map) return;
+
+      applyFrenchLabels(map);
+      ensureIconsLoaded(map);
+
+      addClusteredLayer(map, {
+        id: "places",
+        data: placesToFeatureCollection(places),
+        color: PLACE_COLOR,
+        icon: "place-dot",
+        iconAnchor: "center",
+      });
+      addClusteredLayer(map, {
+        id: "events",
+        data: eventsToFeatureCollection(events),
+        color: EVENT_COLOR,
+        icon: "event-pin",
+        iconAnchor: "bottom",
+      });
+
+      // Now safe to run — see updateMinZoom's own isStyleLoaded guard below
+      // for why it can't run any earlier than this.
+      updateMinZoom();
+
+      onMapReady?.(map);
+    });
+
+    // Single delegated click handler for every interactive layer — clicking
+    // a cluster expands it, clicking a marker opens its popup (desktop) or
+    // the mobile sheet, and clicking bare map dismisses the sheet.
+    const interactiveLayers = ["places-cluster-ring", "places-cluster-core", "places-unclustered", "events-cluster-ring", "events-cluster-core", "events-unclustered"];
+
+    map.on("click", (e: maplibregl.MapMouseEvent) => {
+      const style = map.getStyle();
+      const layerIds = new Set((style?.layers ?? []).map((l) => l.id));
+      const existingLayers = interactiveLayers.filter((id) => layerIds.has(id));
+      const features = existingLayers.length > 0 ? map.queryRenderedFeatures(e.point, { layers: existingLayers }) : [];
+
+      if (features.length === 0) {
+        onDismissSelectionRef.current?.();
+        return;
+      }
+
+      const feature = features[0];
+      const layerId = feature.layer.id;
+      const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+
+      if (layerId === "places-cluster-ring" || layerId === "places-cluster-core") {
+        expandCluster(map, "places", feature);
+        return;
+      }
+      if (layerId === "events-cluster-ring" || layerId === "events-cluster-core") {
+        expandCluster(map, "events", feature);
+        return;
+      }
+      if (layerId === "places-unclustered") {
+        const place = placesByIdRef.current[String(feature.properties?.id)];
+        if (!place) return;
+        if (isMobileRef.current) {
+          onSelectPlaceRef.current?.(place);
+        } else {
+          showPopup(map, focusPopupRef, coordinates, popupHtml(place));
+        }
+        return;
+      }
+      if (layerId === "events-unclustered") {
+        const event = eventsByIdRef.current[String(feature.properties?.id)];
+        if (!event) return;
+        if (isMobileRef.current) {
+          onSelectEventRef.current?.(event);
+        } else {
+          showPopup(map, focusPopupRef, coordinates, eventPopupHtml(event));
+        }
+      }
+    });
+
+    map.on("mousemove", (e: maplibregl.MapMouseEvent) => {
+      const style = map.getStyle();
+      const layerIds = new Set((style?.layers ?? []).map((l) => l.id));
+      const existingLayers = interactiveLayers.filter((id) => layerIds.has(id));
+      const hovering = existingLayers.length > 0 && map.queryRenderedFeatures(e.point, { layers: existingLayers }).length > 0;
+      map.getCanvas().style.cursor = hovering ? "pointer" : "";
+    });
+
+    // Keeps the world basemap always filling the screen, at any viewport
+    // size or zoom level. The latitude clamp above alone stops the user
+    // panning past the top/bottom of the world, but a fixed minZoom can
+    // still leave the *zoomed-out* world smaller than a big/ultrawide
+    // viewport — showing blank background in a corner or strip regardless
+    // of panning. So this recomputes, on every container resize, the
+    // lowest zoom at which the world's rendered pixel size (256 * 2^zoom)
+    // still covers the container in both dimensions.
+    function updateMinZoom() {
+      if (mapRef.current !== map || !map.isStyleLoaded()) return;
+      map.resize();
+      const container = map.getContainer();
+      const largestDimension = Math.max(container.clientWidth, container.clientHeight);
+      if (largestDimension <= 0) return;
+      const requiredZoom = Math.ceil(Math.log2(largestDimension / 256));
+      map.setMinZoom(Math.max(requiredZoom, 0));
+    }
+    updateMinZoom();
+    // Coalesced to one call per animation frame: a ResizeObserver can fire
+    // several times in quick succession for one continuous resize (e.g.
+    // dragging a window edge, or a mobile browser's address bar sliding
+    // away), and each call to updateMinZoom does a real resize() — running
+    // every single one is wasted work that just makes that resize feel
+    // less smooth.
+    let resizeFrameId: number | undefined;
+    const scheduleUpdateMinZoom = () => {
+      if (resizeFrameId !== undefined) return;
+      resizeFrameId = requestAnimationFrame(() => {
+        resizeFrameId = undefined;
+        updateMinZoom();
+      });
+    };
+    const resizeObserver = new ResizeObserver(scheduleUpdateMinZoom);
+    resizeObserver.observe(map.getContainer());
+
+    // Hard-stops panning at the Mercator latitude limit (see MAX_LATITUDE)
+    // — the manual equivalent of `maxBounds`'s vertical half, see its
+    // comment for why. Checked on every "move" tick (not just at the end of
+    // a drag) so it reads as an invisible wall you bump into, the same feel
+    // maxBoundsViscosity gave the old Leaflet map, not a snap-back after the
+    // fact. Only ever calls setCenter when actually out of range, so the
+    // "move" event this itself triggers doesn't recurse.
+    map.on("move", () => {
+      const center = map.getCenter();
+      const clampedLat = Math.min(Math.max(center.lat, -MAX_LATITUDE), MAX_LATITUDE);
+      if (clampedLat !== center.lat) {
+        map.setCenter([center.lng, clampedLat]);
+      }
+    });
+
+    // Saves the current view every time panning/zooming settles, so the
+    // next mount — typically the user coming back from a place/event's full
+    // page — picks up right where they left off instead of resetting to
+    // Lille. Debounced so a drag/pinch in progress doesn't write on every
+    // intermediate frame.
+    let persistTimeoutId: number | undefined;
+    function persistViewNow() {
+      const center = map.getCenter();
+      writeStoredView({ lat: center.lat, lng: center.lng, zoom: map.getZoom() });
+    }
+    function schedulePersist() {
+      if (persistTimeoutId !== undefined) window.clearTimeout(persistTimeoutId);
+      persistTimeoutId = window.setTimeout(persistViewNow, 200);
+    }
+    map.on("moveend", schedulePersist);
+    map.on("zoomend", schedulePersist);
+
+    const removeUserLocationLayer = setupUserLocationLayer(map);
+
+    return () => {
+      if (persistTimeoutId !== undefined) window.clearTimeout(persistTimeoutId);
+      try {
+        persistViewNow();
+      } catch {
+        // Map may already be mid-teardown at this point; nothing to save.
+      }
+      resizeObserver.disconnect();
+      if (resizeFrameId !== undefined) cancelAnimationFrame(resizeFrameId);
+      removeUserLocationLayer();
+      map.remove();
+      mapRef.current = null;
+    };
+    // Mount-only: every prop this closure reads is captured through a ref
+    // (see the sync effect above) or handled by its own effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Updates marker data without recreating the map or its layers — much
+  // cheaper than react-leaflet's per-change marker-group rebuild. Deliberately
+  // doesn't fitBounds to the new data: the map stays centered on Lille (or
+  // wherever the visitor left it/asked to fly to) regardless of how the
+  // filtered place set happens to be scattered — a single distant outlier
+  // (bad geocoding, a typo) would otherwise be able to zoom the whole map
+  // out to the point of uselessness.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    placesByIdRef.current = Object.fromEntries(places.map((p) => [p.id, p]));
+
+    function applyData() {
+      // Guards against this exact `map` instance having been torn down
+      // (Strict Mode double-invoke, or a real unmount) by the time a
+      // deferred "load" callback below actually fires.
+      if (mapRef.current !== map) return;
+      const source = map!.getSource("places") as maplibregl.GeoJSONSource | undefined;
+      if (!source) return;
+      source.setData(placesToFeatureCollection(places));
+    }
+
+    if (map.isStyleLoaded() && map.getSource("places")) {
+      applyData();
+    } else {
+      map.once("load", applyData);
+    }
+  }, [places]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    eventsByIdRef.current = Object.fromEntries(events.map((e) => [e.id, e]));
+
+    function applyData() {
+      if (mapRef.current !== map) return;
+      const source = map!.getSource("events") as maplibregl.GeoJSONSource | undefined;
+      source?.setData(eventsToFeatureCollection(events));
+    }
+
+    if (map.isStyleLoaded() && map.getSource("events")) {
+      applyData();
+    } else {
+      map.once("load", applyData);
+    }
+  }, [events]);
+
+  // The zoom/+- control isn't needed on mobile (pinch-to-zoom already
+  // works), so it's added/removed entirely there instead of fighting for
+  // space with the search bar overlay — unlike the locate control (added
+  // once in the mount effect), which stays on both.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    function syncNavControl() {
+      if (mapRef.current !== map) return;
+      if (isMobile) {
+        if (navControlRef.current) {
+          try {
+            map!.removeControl(navControlRef.current);
+          } catch {
+            // Already detached (e.g. the map tore down mid-toggle) —
+            // nothing left to remove.
+          }
+          navControlRef.current = null;
+        }
+      } else if (!navControlRef.current) {
+        const control = new maplibregl.NavigationControl({ showCompass: false });
+        navControlRef.current = control;
+        map!.addControl(control, "bottom-right");
+      }
+    }
+
+    // Adding/removing a control before the map has finished its own initial
+    // setup is what was crashing here (removeControl reading a property off
+    // a control whose internal _map wiring wasn't fully established yet).
+    if (map.isStyleLoaded()) syncNavControl();
+    else map.once("load", syncNavControl);
+  }, [isMobile]);
+
+  // Search result / city selection: MapFocusTarget always already carries
+  // the exact coordinates (the search API and city list return them
+  // directly), so this can just fly there — no Leaflet-style "find the
+  // marker, expand its cluster to reveal it" dance needed.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focusTarget) return;
+
+    function fly() {
+      if (mapRef.current !== map) return;
+      map!.flyTo({ center: [focusTarget!.lng, focusTarget!.lat], zoom: Math.max(map!.getZoom(), focusTarget!.zoom ?? 16) });
+
+      const place = placesByIdRef.current[focusTarget!.id];
+      const event = eventsByIdRef.current[focusTarget!.id];
+      if (!place && !event) return;
+
+      map!.once("moveend", () => {
+        if (mapRef.current !== map) return;
+        if (isMobileRef.current) {
+          if (place) onSelectPlaceRef.current?.(place);
+          else if (event) onSelectEventRef.current?.(event);
+        } else {
+          const html = place ? popupHtml(place) : eventPopupHtml(event!);
+          showPopup(map!, focusPopupRef, [focusTarget!.lng, focusTarget!.lat], html);
+        }
+      });
+    }
+
+    if (map.isStyleLoaded()) fly();
+    else map.once("load", fly);
+  }, [focusTarget]);
 
   return (
-    <MapContainer
-      center={initialCenter}
-      zoom={initialView?.zoom ?? DEFAULT_ZOOM}
-      scrollWheelZoom
-      zoomControl={false}
-      // Leaflet disables this by default on some (mostly older Android)
-      // browsers as a legacy perf safeguard — there, markers freeze in place
-      // for the whole pinch-zoom animation and only snap to their real spot
-      // once it ends, which reads as the pins "detaching" mid-gesture.
-      // Forcing it on keeps every marker locked to its real position the
-      // entire time, on every device.
-      markerZoomAnimation
-      // Rotation (leaflet-rotate, a two-finger touch gesture) used to be
-      // available here but was pulled out entirely — fiddly to use
-      // accurately on a touchscreen and not worth the confusion it caused.
-      // The map is always north-up now; there's no bearing to track.
-      // Hard-stops panning at the edge of the world (see WORLD_BOUNDS) —
-      // viscosity 1 means the edge is a wall, not a rubber-band you can
-      // drag past. Combined with MinZoomGuard's dynamic minZoom, this is
-      // what makes it impossible to ever pan/zoom into blank background,
-      // and impossible to circle the globe and lose track of a pin that
-      // only ever exists at its one real coordinate.
-      maxBounds={WORLD_BOUNDS}
-      maxBoundsViscosity={1.0}
-      className="h-full w-full"
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url={CARTO_VOYAGER_URL}
-        subdomains="abcd"
-        maxZoom={20}
-      />
-      {/* Bottom-right so it never overlaps the search bar; hidden on mobile
-          entirely (globals.css) since pinch-to-zoom already works there. */}
-      <ZoomControl position="bottomright" />
-      <ClusteredMarkers
-        places={places}
-        focusTarget={focusTarget}
-        isMobile={isMobile}
-        onSelectPlace={onSelectPlace}
-        skipInitialFit={initialView !== null}
-      />
-      <EventClusteredMarkers
-        events={events}
-        focusTarget={focusTarget}
-        isMobile={isMobile}
-        onSelectEvent={onSelectEvent}
-      />
-      <UserLocationLayer />
-      <MapReadyBridge onReady={onMapReady} />
-      <MinZoomGuard />
-      <ViewPersistenceBridge />
-      {isMobile && <SheetDismissBridge onDismiss={onDismissSelection} />}
-    </MapContainer>
+    <div
+      ref={containerRef}
+      className="h-full w-full transition-opacity duration-500 ease-out"
+      style={{ opacity: 0 }}
+    />
   );
+}
+
+function showPopup(map: maplibregl.Map, popupRef: { current: maplibregl.Popup | null }, lngLat: [number, number], html: string) {
+  popupRef.current?.remove();
+  popupRef.current = new maplibregl.Popup({ offset: 14, closeButton: true, closeOnClick: false, maxWidth: "none" })
+    .setLngLat(lngLat)
+    .setHTML(html)
+    .addTo(map);
+}
+
+function expandCluster(map: maplibregl.Map, sourceId: string, feature: maplibregl.MapGeoJSONFeature) {
+  const clusterId = feature.properties?.cluster_id;
+  const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+  if (!source || clusterId === undefined) return;
+  const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+  source
+    .getClusterExpansionZoom(clusterId)
+    .then((zoom) => map.easeTo({ center: coordinates, zoom }))
+    .catch(() => {
+      // No matching cluster (e.g. the source data just changed) — nothing
+      // to zoom to.
+    });
+}
+
+type LocateStatus = "idle" | "locating" | "active" | "denied";
+
+// The classic "recenter on me" navigation arrow used by most map apps
+// (Google Maps, Apple Maps, etc.) — a simple filled arrowhead pointing
+// up-right, rather than a crosshair.
+function locateButtonIcon(status: LocateStatus) {
+  const color = status === "active" ? "#2563eb" : status === "denied" ? "#dc2626" : "#374151";
+  return `
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="${color}" stroke="${color}" stroke-width="1" stroke-linejoin="round">
+      <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+    </svg>
+  `;
+}
+
+/** Custom MapLibre control (bottom-right, next to the zoom control) that
+ * lets the user request their live position on the map. */
+class LocateControl implements maplibregl.IControl {
+  private button: HTMLButtonElement | null = null;
+  private onClickHandler: (() => void) | null = null;
+
+  onAdd(): HTMLElement {
+    const container = document.createElement("div");
+    container.className = "maplibregl-ctrl maplibregl-ctrl-group";
+    // Round, not the library's own default square-ish group shape — the
+    // classic "recenter on me" button shape shared by most map apps, and
+    // this control is always alone in its group so there's no shared-edge
+    // styling with a neighbor to preserve.
+    container.style.cssText = "border-radius:9999px;overflow:hidden;";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("aria-label", "Me localiser");
+    button.style.cssText =
+      "width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:#fff;border:none;border-radius:9999px;cursor:pointer;";
+    button.innerHTML = locateButtonIcon("idle");
+    button.addEventListener("click", () => this.onClickHandler?.());
+    this.button = button;
+    container.appendChild(button);
+    return container;
+  }
+
+  onRemove(): void {
+    this.button = null;
+  }
+
+  setStatus(status: LocateStatus) {
+    if (this.button) this.button.innerHTML = locateButtonIcon(status);
+  }
+
+  setOnClick(handler: () => void) {
+    this.onClickHandler = handler;
+  }
+}
+
+/** Plain pulsing "you are here" blue dot — no heading/direction indicator,
+ * just the position itself — plus an accuracy circle. Live via
+ * watchPosition; first fix auto-centers, later updates just follow. Returns
+ * a cleanup function. */
+function setupUserLocationLayer(map: maplibregl.Map): () => void {
+  let marker: maplibregl.Marker | null = null;
+  let watchId: number | null = null;
+  let hasCentered = false;
+  let latestLat = 0;
+  let latestAccuracy = 0;
+
+  const el = document.createElement("div");
+  el.style.cssText = "position:relative;width:18px;height:18px;";
+  el.innerHTML = `
+    <div class="posto-locate-pulse" style="position:absolute;inset:0;border-radius:50%;background:#2563eb;"></div>
+    <div style="position:absolute;inset:0;border-radius:50%;background:#2563eb;border:3px solid #ffffff;box-shadow:0 0 0 1px rgba(37,99,235,0.4),0 1px 4px rgba(0,0,0,0.35);"></div>
+  `;
+
+  function updateAccuracyCircleRadius() {
+    const source = map.getSource("user-accuracy") as maplibregl.GeoJSONSource | undefined;
+    if (!source || latestAccuracy === 0) return;
+    // Standard Web Mercator ground-resolution formula: meters per pixel at a
+    // given zoom and latitude, for the usual 256px tile scheme.
+    const metersPerPixel = (156543.03392 * Math.cos((latestLat * Math.PI) / 180)) / Math.pow(2, map.getZoom());
+    const pixelRadius = latestAccuracy / metersPerPixel;
+    if (map.getLayer("user-accuracy-fill")) {
+      map.setPaintProperty("user-accuracy-fill", "circle-radius", pixelRadius);
+    }
+  }
+
+  function ensureAccuracyLayer() {
+    if (map.getSource("user-accuracy")) return;
+    map.addSource("user-accuracy", {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+    map.addLayer({
+      id: "user-accuracy-fill",
+      type: "circle",
+      source: "user-accuracy",
+      paint: {
+        "circle-radius": 0,
+        "circle-color": "#2563eb",
+        "circle-opacity": 0.1,
+        "circle-stroke-width": 1,
+        "circle-stroke-color": "#2563eb",
+      },
+    });
+  }
+
+  function updatePosition(lat: number, lng: number, accuracy: number) {
+    latestLat = lat;
+    latestAccuracy = accuracy;
+    if (map.isStyleLoaded()) ensureAccuracyLayer();
+    else map.once("load", ensureAccuracyLayer);
+
+    const source = map.getSource("user-accuracy") as maplibregl.GeoJSONSource | undefined;
+    source?.setData({
+      type: "FeatureCollection",
+      features: [{ type: "Feature", geometry: { type: "Point", coordinates: [lng, lat] }, properties: {} }],
+    });
+    updateAccuracyCircleRadius();
+
+    if (!marker) {
+      marker = new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([lng, lat]).addTo(map);
+    } else {
+      marker.setLngLat([lng, lat]);
+    }
+  }
+
+  const control = new LocateControl();
+  map.addControl(control, "bottom-right");
+
+  function startWatching() {
+    control.setStatus("locating");
+    watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        control.setStatus("active");
+        updatePosition(latitude, longitude, accuracy);
+        if (!hasCentered) {
+          hasCentered = true;
+          map.flyTo({ center: [longitude, latitude], zoom: Math.max(map.getZoom(), 15) });
+        }
+      },
+      () => control.setStatus("denied"),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
+    );
+  }
+
+  control.setOnClick(() => {
+    if (!navigator.geolocation) {
+      control.setStatus("denied");
+      return;
+    }
+    if (marker) {
+      map.flyTo({ center: marker.getLngLat(), zoom: Math.max(map.getZoom(), 15) });
+      return;
+    }
+    startWatching();
+  });
+
+  map.on("zoom", updateAccuracyCircleRadius);
+
+  return () => {
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    marker?.remove();
+    map.off("zoom", updateAccuracyCircleRadius);
+  };
 }

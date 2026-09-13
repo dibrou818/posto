@@ -35,9 +35,13 @@ interface Props {
   placeholder?: string;
   /** Controls the Lieux/Événements filter from outside (e.g. a persistent
    * button next to the search bar) instead of the internal pills row below.
-   * Omit both to keep the bar fully self-contained (used on /map). */
+   * Omit both to keep the bar fully self-contained. */
   filter?: ResultKindFilter;
   onFilterChange?: (filter: ResultKindFilter) => void;
+  /** Overrides the input's own rounding — e.g. a fully round pill on the
+   * map, where it sits directly next to an equally round filter button.
+   * Defaults to the same moderate rounding used everywhere else. */
+  inputRoundingClassName?: string;
 }
 
 // Small, minimal icons so a result's kind is obvious at a glance without
@@ -106,6 +110,7 @@ export function SearchBar({
   placeholder = "Rechercher un lieu, une activité, un tag...",
   filter: controlledFilter,
   onFilterChange,
+  inputRoundingClassName = "rounded-lg",
 }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -214,7 +219,7 @@ export function SearchBar({
         onFocus={() => query.trim().length >= 2 && setOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 transition-colors focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+        className={`w-full border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 transition-colors focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10 ${inputRoundingClassName}`}
       />
       {open && (loading || rows.length > 0 || query.trim().length >= 2) && (
         <div className="absolute z-20 mt-1 max-h-96 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">

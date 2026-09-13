@@ -1,13 +1,23 @@
-// Shared "when" filter for events — used by the map's Événements filter
-// (and anywhere else a quick date bucket makes sense) so "Aujourd'hui / Ce
-// week-end / Cette semaine" means the same thing everywhere.
-export type EventDateBucket = "all" | "today" | "weekend" | "week";
+// Shared "when" filter for events, used by the map's filter panel. A tagged
+// union rather than a flat string enum specifically to carry the exact date
+// someone picks — "today"/"weekend"/"week" need no extra data, but "date"
+// does, and this keeps that data attached to the value itself instead of a
+// second piece of state the caller has to keep in sync.
+export type EventDateFilterValue =
+  | { kind: "all" }
+  | { kind: "today" }
+  | { kind: "weekend" }
+  | { kind: "week" }
+  | { kind: "date"; date: string }; // "YYYY-MM-DD", a <input type="date"> value
 
-export const EVENT_DATE_BUCKET_OPTIONS: { value: EventDateBucket; label: string }[] = [
-  { value: "all", label: "Toutes les dates" },
-  { value: "today", label: "Aujourd'hui" },
-  { value: "weekend", label: "Ce week-end" },
-  { value: "week", label: "Cette semaine" },
+export const ALL_EVENT_DATES: EventDateFilterValue = { kind: "all" };
+
+// The one-tap reflex options — a real date/period picker (see "date" above)
+// covers the rest without needing a fourth/fifth quick chip for every case.
+export const EVENT_DATE_QUICK_OPTIONS: { kind: "today" | "weekend" | "week"; label: string }[] = [
+  { kind: "today", label: "Aujourd'hui" },
+  { kind: "weekend", label: "Ce week-end" },
+  { kind: "week", label: "Cette semaine" },
 ];
 
 function isSameLocalDay(a: Date, b: Date): boolean {
@@ -24,13 +34,22 @@ function startOfLocalDay(d: Date): Date {
   return copy;
 }
 
-export function matchesDateBucket(startDatetime: string, bucket: EventDateBucket, now = new Date()): boolean {
-  if (bucket === "all") return true;
+export function matchesEventDateFilter(startDatetime: string, filter: EventDateFilterValue, now = new Date()): boolean {
+  if (filter.kind === "all") return true;
 
   const start = new Date(startDatetime);
-  if (bucket === "today") return isSameLocalDay(start, now);
+  if (filter.kind === "today") return isSameLocalDay(start, now);
 
-  if (bucket === "week") {
+  if (filter.kind === "date") {
+    // Compared as a local calendar date, the same way the <input
+    // type="date"> that produced this value is itself local — not a UTC
+    // timestamp comparison, which could shift the matched day near
+    // midnight depending on the visitor's timezone.
+    const [year, month, day] = filter.date.split("-").map(Number);
+    return start.getFullYear() === year && start.getMonth() + 1 === month && start.getDate() === day;
+  }
+
+  if (filter.kind === "week") {
     const todayStart = startOfLocalDay(now);
     const weekEnd = new Date(todayStart);
     weekEnd.setDate(weekEnd.getDate() + 7);

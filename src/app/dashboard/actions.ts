@@ -5,6 +5,19 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { createClient, requireUser } from "@/lib/supabase/server";
 import { generateQrCodeDataUrl } from "@/lib/qrcode";
+import { PLACE_PHOTOS_BUCKET } from "@/lib/storage";
+import {
+  PLACE_NAME_MAX_LENGTH,
+  PLACE_DESCRIPTION_MAX_LENGTH,
+  URGENT_MESSAGE_MAX_LENGTH,
+  ACTIVITY_NAME_MAX_LENGTH,
+  ACTIVITY_DESCRIPTION_MAX_LENGTH,
+  EVENT_TITLE_MAX_LENGTH,
+  EVENT_DESCRIPTION_MAX_LENGTH,
+  EVENT_RECURRENCE_MAX_LENGTH,
+  EVENT_PRICE_MAX_LENGTH,
+  RESTRICTIONS_MAX_LENGTH,
+} from "@/lib/fieldLimits";
 
 /** Derives the current deployment's origin from the incoming request's own
  * headers, so QR codes always point at wherever the app is actually running
@@ -33,6 +46,19 @@ async function assertOwnsPlace(
 
 function textField(formData: FormData, key: string): string | null {
   return String(formData.get(key) ?? "").trim() || null;
+}
+
+// The dashboard forms already cap each field's length client-side (see
+// each form's own MAX_LENGTH constants, sourced from lib/fieldLimits so the
+// two can't drift apart) — that's a UX nicety (stops typing at the limit),
+// not a guarantee: nothing stops a request built directly against these
+// actions, bypassing the form entirely. This is the actual enforcement.
+function textFieldLimited(formData: FormData, key: string, maxLength: number, label: string): string | null {
+  const value = textField(formData, key);
+  if (value && value.length > maxLength) {
+    throw new Error(`${label} : ${maxLength} caractères maximum.`);
+  }
+  return value;
 }
 
 // Keep in sync with images.remotePatterns in next.config.ts — a place owner
@@ -96,8 +122,7 @@ function parseUrlField(formData: FormData, key: string, label: string): string |
 // a cover photo can be — so unlike ALLOWED_PHOTO_HOSTS above, this is
 // scoped to exactly one bucket, not a general allowlist.
 const SUPABASE_STORAGE_HOST = "khvchawnkzamhfwrbhtz.supabase.co";
-const POSTER_BUCKET = "place-photos";
-const POSTER_PATH_PREFIX = `/storage/v1/object/public/${POSTER_BUCKET}/`;
+const POSTER_PATH_PREFIX = `/storage/v1/object/public/${PLACE_PHOTOS_BUCKET}/`;
 
 // The client posts back the public URL it just uploaded to (see
 // PosterSection) — re-validated here rather than trusted outright, same
@@ -135,7 +160,7 @@ function parseUrgentMessageExpiry(formData: FormData): string | null {
 }
 
 function parsePlaceFields(formData: FormData) {
-  const name = textField(formData, "name");
+  const name = textFieldLimited(formData, "name", PLACE_NAME_MAX_LENGTH, "Nom du lieu");
   const lat = Number(formData.get("lat"));
   const lng = Number(formData.get("lng"));
 
@@ -147,7 +172,7 @@ function parsePlaceFields(formData: FormData) {
     name,
     lat,
     lng,
-    description: textField(formData, "description"),
+    description: textFieldLimited(formData, "description", PLACE_DESCRIPTION_MAX_LENGTH, "Description"),
     address: textField(formData, "address"),
     phone: textField(formData, "phone"),
     cover_photo_url: parseCoverPhotoUrl(formData),
@@ -155,7 +180,7 @@ function parsePlaceFields(formData: FormData) {
     website_url: parseUrlField(formData, "website_url", "URL du site web"),
     instagram_url: parseUrlField(formData, "instagram_url", "URL Instagram"),
     facebook_url: parseUrlField(formData, "facebook_url", "URL Facebook"),
-    urgent_message: textField(formData, "urgent_message"),
+    urgent_message: textFieldLimited(formData, "urgent_message", URGENT_MESSAGE_MAX_LENGTH, "Message urgent"),
     urgent_message_expires_at: parseUrgentMessageExpiry(formData),
   };
 }
@@ -173,7 +198,7 @@ export async function createPlace(formData: FormData) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/dashboard");
-  redirect(`/dashboard/places/${data.id}?created=1`);
+  redirect(`/dashboard/places/${data.id}/informations?created=1`);
 }
 
 export async function updatePlace(placeId: string, formData: FormData) {
@@ -184,7 +209,7 @@ export async function updatePlace(placeId: string, formData: FormData) {
   const { error } = await supabase.from("places").update(fields).eq("id", placeId);
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/dashboard/places/${placeId}`);
+  revalidatePath(`/dashboard/places/${placeId}/informations`);
   revalidatePath("/dashboard");
 }
 
@@ -201,7 +226,7 @@ export async function generatePlaceQrCode(placeId: string) {
   const { error } = await supabase.from("places").update({ qr_code_url }).eq("id", placeId);
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/dashboard/places/${placeId}`);
+  revalidatePath(`/dashboard/places/${placeId}/informations`);
 }
 
 export async function deletePlace(placeId: string) {
@@ -250,7 +275,7 @@ export async function saveOpeningHours(placeId: string, formData: FormData) {
     if (insertError) throw new Error(insertError.message);
   }
 
-  revalidatePath(`/dashboard/places/${placeId}`);
+  revalidatePath(`/dashboard/places/${placeId}/horaires`);
 }
 
 export async function savePlaceTags(placeId: string, formData: FormData) {
@@ -272,18 +297,18 @@ export async function savePlaceTags(placeId: string, formData: FormData) {
     if (insertError) throw new Error(insertError.message);
   }
 
-  revalidatePath(`/dashboard/places/${placeId}`);
+  revalidatePath(`/dashboard/places/${placeId}/informations`);
 }
 
 export async function createActivity(placeId: string, formData: FormData) {
   const { supabase, user } = await requireUser();
   await assertOwnsPlace(supabase, user.id, placeId);
 
-  const name = textField(formData, "name");
-  const description = textField(formData, "description");
+  const name = textFieldLimited(formData, "name", ACTIVITY_NAME_MAX_LENGTH, "Nom de l'activité");
+  const description = textFieldLimited(formData, "description", ACTIVITY_DESCRIPTION_MAX_LENGTH, "Description");
   const tag_id = textField(formData, "tag_id");
   const duration_minutes = parseDurationMinutes(formData, "duration_minutes");
-  const restrictions = textField(formData, "restrictions");
+  const restrictions = textFieldLimited(formData, "restrictions", RESTRICTIONS_MAX_LENGTH, "Restriction");
 
   if (!name) throw new Error("Le nom de l'activité est requis.");
 
@@ -292,7 +317,31 @@ export async function createActivity(placeId: string, formData: FormData) {
     .insert({ place_id: placeId, name, description, tag_id, duration_minutes, restrictions });
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/dashboard/places/${placeId}`);
+  revalidatePath(`/dashboard/places/${placeId}/activites`);
+}
+
+export async function updateActivity(placeId: string, activityId: string, formData: FormData) {
+  const { supabase, user } = await requireUser();
+  await assertOwnsPlace(supabase, user.id, placeId);
+
+  const name = textFieldLimited(formData, "name", ACTIVITY_NAME_MAX_LENGTH, "Nom de l'activité");
+  const description = textFieldLimited(formData, "description", ACTIVITY_DESCRIPTION_MAX_LENGTH, "Description");
+  const tag_id = textField(formData, "tag_id");
+  const duration_minutes = parseDurationMinutes(formData, "duration_minutes");
+  const restrictions = textFieldLimited(formData, "restrictions", RESTRICTIONS_MAX_LENGTH, "Restriction");
+
+  if (!name) throw new Error("Le nom de l'activité est requis.");
+
+  // Re-scope by place_id, not just id — see deleteActivity below for why.
+  const { error, count } = await supabase
+    .from("activities")
+    .update({ name, description, tag_id, duration_minutes, restrictions }, { count: "exact" })
+    .eq("id", activityId)
+    .eq("place_id", placeId);
+  if (error) throw new Error(error.message);
+  if (!count) throw new Error("Cette activité n'appartient pas à ce lieu.");
+
+  revalidatePath(`/dashboard/places/${placeId}/activites`);
 }
 
 export async function deleteActivity(placeId: string, activityId: string) {
@@ -312,23 +361,23 @@ export async function deleteActivity(placeId: string, activityId: string) {
   if (error) throw new Error(error.message);
   if (!count) throw new Error("Cette activité n'appartient pas à ce lieu.");
 
-  revalidatePath(`/dashboard/places/${placeId}`);
+  revalidatePath(`/dashboard/places/${placeId}/activites`);
 }
 
 export async function createEvent(placeId: string, formData: FormData) {
   const { supabase, user } = await requireUser();
   await assertOwnsPlace(supabase, user.id, placeId);
 
-  const title = textField(formData, "title");
-  const description = textField(formData, "description");
+  const title = textFieldLimited(formData, "title", EVENT_TITLE_MAX_LENGTH, "Titre");
+  const description = textFieldLimited(formData, "description", EVENT_DESCRIPTION_MAX_LENGTH, "Description");
   const start_datetime = textField(formData, "start_datetime");
   const end_datetime = textField(formData, "end_datetime");
-  const recurrence_rule = textField(formData, "recurrence_rule");
+  const recurrence_rule = textFieldLimited(formData, "recurrence_rule", EVENT_RECURRENCE_MAX_LENGTH, "Récurrence");
   const tag_id = textField(formData, "tag_id");
-  const price = textField(formData, "price");
+  const price = textFieldLimited(formData, "price", EVENT_PRICE_MAX_LENGTH, "Prix");
   const cover_photo_url = parseCoverPhotoUrl(formData);
   const duration_minutes = parseDurationMinutes(formData, "duration_minutes");
-  const restrictions = textField(formData, "restrictions");
+  const restrictions = textFieldLimited(formData, "restrictions", RESTRICTIONS_MAX_LENGTH, "Restriction");
 
   if (!title || !start_datetime) {
     throw new Error("Titre et date de début sont requis.");
@@ -349,7 +398,56 @@ export async function createEvent(placeId: string, formData: FormData) {
   });
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/dashboard/places/${placeId}`);
+  revalidatePath(`/dashboard/places/${placeId}/evenements`);
+}
+
+// Same field set/validation as createEvent above — kept as two separate
+// functions rather than one with an optional eventId because their DB calls
+// genuinely differ (insert vs. re-scoped update), not just a detail worth
+// branching on internally.
+export async function updateEvent(placeId: string, eventId: string, formData: FormData) {
+  const { supabase, user } = await requireUser();
+  await assertOwnsPlace(supabase, user.id, placeId);
+
+  const title = textFieldLimited(formData, "title", EVENT_TITLE_MAX_LENGTH, "Titre");
+  const description = textFieldLimited(formData, "description", EVENT_DESCRIPTION_MAX_LENGTH, "Description");
+  const start_datetime = textField(formData, "start_datetime");
+  const end_datetime = textField(formData, "end_datetime");
+  const recurrence_rule = textFieldLimited(formData, "recurrence_rule", EVENT_RECURRENCE_MAX_LENGTH, "Récurrence");
+  const tag_id = textField(formData, "tag_id");
+  const price = textFieldLimited(formData, "price", EVENT_PRICE_MAX_LENGTH, "Prix");
+  const cover_photo_url = parseCoverPhotoUrl(formData);
+  const duration_minutes = parseDurationMinutes(formData, "duration_minutes");
+  const restrictions = textFieldLimited(formData, "restrictions", RESTRICTIONS_MAX_LENGTH, "Restriction");
+
+  if (!title || !start_datetime) {
+    throw new Error("Titre et date de début sont requis.");
+  }
+
+  const { error, count } = await supabase
+    .from("events")
+    .update(
+      {
+        title,
+        description,
+        start_datetime: new Date(start_datetime).toISOString(),
+        end_datetime: end_datetime ? new Date(end_datetime).toISOString() : null,
+        recurrence_rule,
+        tag_id,
+        price,
+        cover_photo_url,
+        duration_minutes,
+        restrictions,
+      },
+      { count: "exact" },
+    )
+    .eq("id", eventId)
+    .eq("place_id", placeId);
+  if (error) throw new Error(error.message);
+  if (!count) throw new Error("Cet événement n'appartient pas à ce lieu.");
+
+  revalidatePath(`/dashboard/places/${placeId}/evenements`);
+  revalidatePath(`/dashboard/places/${placeId}/evenements/${eventId}`);
 }
 
 export async function generateEventQrCode(placeId: string, eventId: string) {
@@ -369,7 +467,7 @@ export async function generateEventQrCode(placeId: string, eventId: string) {
   if (error) throw new Error(error.message);
   if (!count) throw new Error("Cet événement n'appartient pas à ce lieu.");
 
-  revalidatePath(`/dashboard/places/${placeId}`);
+  revalidatePath(`/dashboard/places/${placeId}/evenements/${eventId}`);
 }
 
 export async function deleteEvent(placeId: string, eventId: string) {
@@ -386,7 +484,12 @@ export async function deleteEvent(placeId: string, eventId: string) {
   if (error) throw new Error(error.message);
   if (!count) throw new Error("Cet événement n'appartient pas à ce lieu.");
 
-  revalidatePath(`/dashboard/places/${placeId}`);
+  // No redirect here on purpose: this same action is bound both from the
+  // events list (deleting a row there — the list itself is still valid,
+  // just needs a refresh) and from that event's own page (where the page
+  // being edited just stopped existing) — the latter navigates itself
+  // after this resolves (see the "onDeleted" callback on its DeleteButton).
+  revalidatePath(`/dashboard/places/${placeId}/evenements`);
 }
 
 // The poster image itself is composited client-side (canvas — see
@@ -418,10 +521,10 @@ export async function saveEventPoster(placeId: string, eventId: string, posterUr
   // old upload is now orphaned in Storage unless cleaned up here.
   const previousPath = existing?.poster_url ? storagePathFromPosterUrl(existing.poster_url) : null;
   if (previousPath) {
-    await supabase.storage.from(POSTER_BUCKET).remove([previousPath]);
+    await supabase.storage.from(PLACE_PHOTOS_BUCKET).remove([previousPath]);
   }
 
-  revalidatePath(`/dashboard/places/${placeId}`);
+  revalidatePath(`/dashboard/places/${placeId}/evenements/${eventId}`);
 }
 
 export async function deleteEventPoster(placeId: string, eventId: string) {
@@ -446,8 +549,8 @@ export async function deleteEventPoster(placeId: string, eventId: string) {
 
   const path = existing?.poster_url ? storagePathFromPosterUrl(existing.poster_url) : null;
   if (path) {
-    await supabase.storage.from(POSTER_BUCKET).remove([path]);
+    await supabase.storage.from(PLACE_PHOTOS_BUCKET).remove([path]);
   }
 
-  revalidatePath(`/dashboard/places/${placeId}`);
+  revalidatePath(`/dashboard/places/${placeId}/evenements/${eventId}`);
 }

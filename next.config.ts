@@ -7,25 +7,33 @@ import type { NextConfig } from "next";
 //   the raw <img> upload preview in PlaceForm (next/image itself proxies
 //   through our own origin, so it doesn't need this in img-src, but the
 //   plain <img> preview does).
-// - *.basemaps.cartocdn.com: Leaflet map tile images.
+// - tiles.openfreemap.org: MapLibre's vector tiles, style JSON, sprite and
+//   glyph PBFs — all fetched via fetch()/XHR (connect-src), not plain <img>
+//   tags, but it's also listed in img-src as a safety net for the style's
+//   sprite image.
 // next/font self-hosts Geist at build time (served from our own origin), so
 // no fonts.googleapis.com/fonts.gstatic.com needed.
 const SUPABASE_ORIGIN = "https://khvchawnkzamhfwrbhtz.supabase.co";
-const CARTO_TILES = "https://*.basemaps.cartocdn.com";
+const OPENFREEMAP_ORIGIN = "https://tiles.openfreemap.org";
 
 const csp = [
   "default-src 'self'",
-  `img-src 'self' data: ${SUPABASE_ORIGIN} ${CARTO_TILES}`,
-  `connect-src 'self' ${SUPABASE_ORIGIN}`,
+  `img-src 'self' data: ${SUPABASE_ORIGIN} ${OPENFREEMAP_ORIGIN}`,
+  `connect-src 'self' ${SUPABASE_ORIGIN} ${OPENFREEMAP_ORIGIN}`,
   // Next.js App Router streams RSC payloads through inline <script> tags on
   // every page load, so script-src can't be 'self'-only without a per-request
   // nonce (a bigger change, not done in this pass — flagged as a follow-up).
   // 'unsafe-eval' is dev-only: React's Fast Refresh/HMR uses eval() for
   // debugging, but (per React itself) never does in a production build.
   `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'"}`,
-  // Leaflet markers/popups are built with inline style="..." attributes.
+  // Map markers/popups are built with inline style="..." attributes.
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
+  // MapLibre GL JS parses/renders vector tiles in a Web Worker spun up from
+  // a blob: URL (its own bundled code, not a remote origin) — without this,
+  // default-src 'self' blocks that worker outright since 'self' doesn't
+  // implicitly cover blob:.
+  "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",
   "frame-ancestors 'none'",

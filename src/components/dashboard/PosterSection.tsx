@@ -6,6 +6,7 @@ import type { Event } from "@/lib/queries";
 import { generateEventPosterBlob } from "@/lib/poster";
 import { buttonClass } from "@/lib/ui";
 import { DeleteButton } from "@/components/ui/DeleteButton";
+import { PLACE_PHOTOS_BUCKET } from "@/lib/storage";
 
 function CheckIcon() {
   return (
@@ -70,11 +71,11 @@ export function PosterSection({
       // upsert-in-place would race with anyone still viewing the old one.
       const path = `${user.id}/posters/${event.id}-${Date.now()}.png`;
       const { error: uploadError } = await supabase.storage
-        .from("place-photos")
+        .from(PLACE_PHOTOS_BUCKET)
         .upload(path, blob, { contentType: "image/png" });
       if (uploadError) throw new Error(uploadError.message);
 
-      const { data } = supabase.storage.from("place-photos").getPublicUrl(path);
+      const { data } = supabase.storage.from(PLACE_PHOTOS_BUCKET).getPublicUrl(path);
       await onSave(data.publicUrl);
 
       if (localDownloadUrlRef.current) URL.revokeObjectURL(localDownloadUrlRef.current);

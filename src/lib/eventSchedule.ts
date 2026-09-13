@@ -1,9 +1,28 @@
 const fullDate = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 const shortDate = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" });
 const time = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" });
+const badgeDateTime = new Intl.DateTimeFormat("fr-FR", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/** `2026-09-10T14:30:00+00:00` (DB) -> `2026-09-10T14:30` (the value a
+ * `datetime-local` input needs) in the browser's own timezone. Shared by
+ * every edit form with a date+time field (a place's urgent-message expiry,
+ * an event's start/end). */
+export function toDatetimeLocalValue(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 // Most events here are one evening that happens to run past midnight (bar
@@ -54,6 +73,13 @@ export function formatRecurrence(rule: string | null): string | null {
     return `Tous les ${WEEKDAY_FR[day.toLowerCase()]}s`;
   }
   return rule;
+}
+
+/** Compact "ven. 11 sept., 22:58"-style date+time for a small badge/pill —
+ * shared by the map popups, the mobile bottom sheet, and the home page's
+ * event cards, which all show the same compact stamp. */
+export function formatEventDateBadge(iso: string): string {
+  return badgeDateTime.format(new Date(iso));
 }
 
 /** A typical/expected duration in minutes -> "20 min" or "1h30" — the same

@@ -17,8 +17,8 @@ function DayRows({ zoneIndex, hoursByDay }: { zoneIndex: number; hoursByDay: (Op
   return (
     <>
       {Array.from({ length: 7 }, (_, day) => day).map((day) => (
-        <div key={day} className="flex items-center gap-3 rounded-md border border-gray-200 px-3 py-2">
-          <label className="flex w-32 items-center gap-2 text-sm text-gray-700">
+        <div key={day} className="flex flex-wrap items-center gap-2 rounded-md border border-gray-200 px-3 py-2">
+          <label className="flex w-24 shrink-0 items-center gap-2 text-sm text-gray-700">
             <input
               type="checkbox"
               name={`open_${zoneIndex}_${day}`}
@@ -29,21 +29,30 @@ function DayRows({ zoneIndex, hoursByDay }: { zoneIndex: number; hoursByDay: (Op
             />
             {dayLabel(day)}
           </label>
-          <input
-            type="time"
-            name={`open_time_${zoneIndex}_${day}`}
-            defaultValue={hoursByDay[day]?.open_time.slice(0, 5) ?? "10:00"}
-            disabled={!openDays[day]}
-            className="rounded-md border border-gray-300 px-2 py-1 text-sm disabled:opacity-40"
-          />
-          <span className="text-gray-500">à</span>
-          <input
-            type="time"
-            name={`close_time_${zoneIndex}_${day}`}
-            defaultValue={hoursByDay[day]?.close_time.slice(0, 5) ?? "19:00"}
-            disabled={!openDays[day]}
-            className="rounded-md border border-gray-300 px-2 py-1 text-sm disabled:opacity-40"
-          />
+          {/* Grouped as one flex item, with a real minimum width (not
+              min-w-0), so the *whole* time range wraps onto its own line
+              below the day label on a narrow screen once it can no longer
+              fit comfortably — rather than every input just compressing
+              indefinitely to stay on the same line as the label, which is
+              what a min-w-0 group here would do and is what was cramming
+              two native time pickers into a sliver too narrow to read. */}
+          <div className="flex min-w-[13rem] flex-1 items-center gap-2">
+            <input
+              type="time"
+              name={`open_time_${zoneIndex}_${day}`}
+              defaultValue={hoursByDay[day]?.open_time.slice(0, 5) ?? "10:00"}
+              disabled={!openDays[day]}
+              className="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm disabled:opacity-40"
+            />
+            <span className="shrink-0 text-gray-500">à</span>
+            <input
+              type="time"
+              name={`close_time_${zoneIndex}_${day}`}
+              defaultValue={hoursByDay[day]?.close_time.slice(0, 5) ?? "19:00"}
+              disabled={!openDays[day]}
+              className="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm disabled:opacity-40"
+            />
+          </div>
         </div>
       ))}
     </>

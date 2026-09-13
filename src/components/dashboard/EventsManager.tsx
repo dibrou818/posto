@@ -1,134 +1,63 @@
 "use client";
 
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 import type { Event, Tag } from "@/lib/queries";
-import { compactInputClass, labelClass } from "@/lib/ui";
-import { TextField } from "@/components/ui/TextField";
-import { SaveButton } from "@/components/ui/SaveButton";
 import { DeleteButton } from "@/components/ui/DeleteButton";
-import { QrCodeSection } from "@/components/dashboard/QrCodeSection";
-import { PosterSection } from "@/components/dashboard/PosterSection";
 import { formatEventSchedule, formatRecurrence, formatDuration } from "@/lib/eventSchedule";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
+import { EventForm } from "@/components/dashboard/EventForm";
 
-const TITLE_MAX_LENGTH = 100;
-const DESCRIPTION_MAX_LENGTH = 500;
-const RECURRENCE_MAX_LENGTH = 60;
-const PRICE_MAX_LENGTH = 40;
-const RESTRICTIONS_MAX_LENGTH = 150;
-
+/** List of a place's events, each linking to its own edit page (title,
+ * dates, QR code and poster all live there — see
+ * dashboard/places/[id]/evenements/[eventId]) — plus a quick "add" form for
+ * a new one, right here, since creating one is the most frequent action on
+ * this list. */
 export function EventsManager({
+  placeId,
   events,
   allTags,
   placeCoverPhotoUrl,
   onCreate,
   onDelete,
-  onGenerateQr,
-  onSavePoster,
-  onDeletePoster,
 }: {
+  placeId: string;
   events: Event[];
   allTags: Tag[];
-  /** Fallback background for an event's poster when it has no cover photo
-   * of its own — same rule the create form below already documents. */
   placeCoverPhotoUrl: string | null;
   onCreate: (formData: FormData) => Promise<void>;
   onDelete: (eventId: string) => Promise<void>;
-  onGenerateQr: (eventId: string) => Promise<void>;
-  onSavePoster: (eventId: string, posterUrl: string) => Promise<void>;
-  onDeletePoster: (eventId: string) => Promise<void>;
 }) {
-  const [coverPhotoUrl, setCoverPhotoUrl] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
-  const supabase = createClient();
-
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    setUploadError(null);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setUploadError("Vous devez être connecté.");
-      setUploading(false);
-      return;
-    }
-
-    const path = `${user.id}/${Date.now()}-${file.name}`;
-    const { error: uploadErr } = await supabase.storage
-      .from("place-photos")
-      .upload(path, file, { upsert: true });
-
-    if (uploadErr) {
-      setUploadError(uploadErr.message);
-      setUploading(false);
-      return;
-    }
-
-    const { data } = supabase.storage.from("place-photos").getPublicUrl(path);
-    setCoverPhotoUrl(data.publicUrl);
-    setUploading(false);
-  }
-
   return (
     <div className="flex flex-col gap-3">
       <ul className="flex flex-col gap-2">
         {events.map((event) => (
-          <li key={event.id} className="rounded-lg border border-gray-200 text-sm">
-            <div className="flex items-center justify-between gap-2 px-3 py-2">
-              <div className="min-w-0">
-                <p className="truncate font-medium text-gray-900">{event.title}</p>
-                <p className="text-xs text-gray-500">
-                  {formatEventSchedule(event.start_datetime, event.end_datetime)}
-                  {event.recurrence_rule ? ` · ${formatRecurrence(event.recurrence_rule)}` : ""}
-                  {event.price ? ` · ${event.price}` : ""}
-                  {formatDuration(event.duration_minutes) ? ` · ${formatDuration(event.duration_minutes)}` : ""}
-                </p>
-                {event.restrictions && (
-                  <div className="mt-1">
-                    <RestrictionsBadge text={event.restrictions} />
-                  </div>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setExpandedEventId((cur) => (cur === event.id ? null : event.id))}
-                  className="text-xs font-medium text-gray-600 transition-colors hover:text-gray-900 focus:outline-none focus-visible:underline"
-                >
-                  {expandedEventId === event.id ? "Fermer" : "QR & affiche"}
-                </button>
-                <DeleteButton
-                  action={onDelete.bind(null, event.id)}
-                  confirmMessage={`Supprimer l'événement « ${event.title} » ?`}
-                />
-              </div>
-            </div>
-            {expandedEventId === event.id && (
-              <div className="flex flex-col gap-4 border-t border-gray-100 px-3 py-3">
-                <QrCodeSection
-                  qrCodeUrl={event.qr_code_url}
-                  publicPath={`/events/${event.id}`}
-                  action={onGenerateQr.bind(null, event.id)}
-                />
-                <div className="border-t border-gray-100 pt-3">
-                  <PosterSection
-                    event={event}
-                    placeCoverPhotoUrl={placeCoverPhotoUrl}
-                    onSave={onSavePoster.bind(null, event.id)}
-                    onDelete={onDeletePoster.bind(null, event.id)}
-                  />
+          <li key={event.id} className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+            <div className="min-w-0">
+              <p className="truncate font-medium text-gray-900">{event.title}</p>
+              <p className="text-xs text-gray-500">
+                {formatEventSchedule(event.start_datetime, event.end_datetime)}
+                {event.recurrence_rule ? ` · ${formatRecurrence(event.recurrence_rule)}` : ""}
+                {event.price ? ` · ${event.price}` : ""}
+                {formatDuration(event.duration_minutes) ? ` · ${formatDuration(event.duration_minutes)}` : ""}
+              </p>
+              {event.restrictions && (
+                <div className="mt-1">
+                  <RestrictionsBadge text={event.restrictions} />
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              <Link
+                href={`/dashboard/places/${placeId}/evenements/${event.id}`}
+                className="text-xs font-medium text-gray-600 transition-colors hover:text-gray-900 focus:outline-none focus-visible:underline"
+              >
+                Modifier
+              </Link>
+              <DeleteButton
+                action={onDelete.bind(null, event.id)}
+                confirmMessage={`Supprimer l'événement « ${event.title} » ?`}
+              />
+            </div>
           </li>
         ))}
         {events.length === 0 && (
@@ -136,100 +65,12 @@ export function EventsManager({
         )}
       </ul>
 
-      <form action={onCreate} className="flex flex-col gap-2 rounded-lg border border-dashed border-gray-300 p-3">
-        <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+      <div className="rounded-lg border border-dashed border-gray-300 p-3">
+        <p className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">
           Ajouter un événement
         </p>
-        <TextField
-          name="title"
-          placeholder="Titre de l'événement"
-          required
-          maxLength={TITLE_MAX_LENGTH}
-        />
-        <TextField
-          name="description"
-          placeholder="Description (optionnel)"
-          maxLength={DESCRIPTION_MAX_LENGTH}
-        />
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Début</label>
-            <input
-              type="datetime-local"
-              name="start_datetime"
-              required
-              className={`w-full ${compactInputClass}`}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Fin (optionnel)</label>
-            <input
-              type="datetime-local"
-              name="end_datetime"
-              className={`w-full ${compactInputClass}`}
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <TextField
-            name="recurrence_rule"
-            placeholder="Récurrence, ex: weekly:thursday"
-            maxLength={RECURRENCE_MAX_LENGTH}
-          />
-          <TextField
-            name="price"
-            placeholder="Prix, ex: Gratuit / 10€"
-            maxLength={PRICE_MAX_LENGTH}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <TextField
-            label="Durée typique (min)"
-            name="duration_minutes"
-            type="number"
-            min={1}
-            placeholder="120"
-          />
-          <TextField
-            label="Restriction"
-            name="restrictions"
-            placeholder="Ex: +18 ans"
-            maxLength={RESTRICTIONS_MAX_LENGTH}
-          />
-        </div>
-        <select name="tag_id" className={compactInputClass}>
-          <option value="">Hérite des tags du lieu</option>
-          {allTags.map((tag) => (
-            <option key={tag.id} value={tag.id}>
-              {tag.label}
-            </option>
-          ))}
-        </select>
-
-        <div>
-          <label className={labelClass}>
-            Photo de l&apos;événement (optionnel — sinon celle du lieu est utilisée)
-          </label>
-          <input type="file" accept="image/*" onChange={handleFileChange} className="text-sm" />
-          <input type="hidden" name="cover_photo_url" value={coverPhotoUrl} />
-          {uploading && <p className="mt-1 text-xs text-gray-500">Envoi en cours...</p>}
-          {coverPhotoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={coverPhotoUrl} alt="Aperçu" className="mt-2 h-20 w-32 rounded-lg object-cover" />
-          )}
-          {uploadError && <p className="mt-1 text-xs text-red-600">{uploadError}</p>}
-        </div>
-
-        <SaveButton
-          size="compact"
-          className="self-start"
-          disabled={uploading}
-          savedLabel="Ajouté"
-          pendingLabel="Ajout..."
-        >
-          Ajouter
-        </SaveButton>
-      </form>
+        <EventForm allTags={allTags} placeCoverPhotoUrl={placeCoverPhotoUrl} action={onCreate} />
+      </div>
     </div>
   );
 }

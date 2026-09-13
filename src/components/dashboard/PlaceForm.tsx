@@ -1,26 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/types/database.types";
 import { TextField, TextareaField } from "@/components/ui/TextField";
 import { PhoneField } from "@/components/ui/PhoneField";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { labelClass } from "@/lib/ui";
-
-const NAME_MAX_LENGTH = 80;
-const DESCRIPTION_MAX_LENGTH = 500;
-const URGENT_MESSAGE_MAX_LENGTH = 200;
-
-/** `2026-09-10T14:30:00+00:00` (DB) -> `2026-09-10T14:30` (datetime-local
- * input value) in the browser's own timezone. */
-function toDatetimeLocalValue(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
+import { useSupabasePhotoUpload } from "@/lib/useSupabasePhotoUpload";
+import { toDatetimeLocalValue } from "@/lib/eventSchedule";
+import {
+  PLACE_NAME_MAX_LENGTH as NAME_MAX_LENGTH,
+  PLACE_DESCRIPTION_MAX_LENGTH as DESCRIPTION_MAX_LENGTH,
+  URGENT_MESSAGE_MAX_LENGTH,
+} from "@/lib/fieldLimits";
 
 export function PlaceForm({
   place,
@@ -30,83 +22,21 @@ export function PlaceForm({
   action: (formData: FormData) => Promise<void>;
 }) {
   const [coverPhotoUrl, setCoverPhotoUrl] = useState(place?.cover_photo_url ?? "");
-  const [uploading, setUploading] = useState(false);
   const [photoUrls, setPhotoUrls] = useState<string[]>(place?.photo_urls ?? []);
-  const [galleryUploading, setGalleryUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [address, setAddress] = useState(place?.address ?? "");
   const [lat, setLat] = useState(place?.lat !== undefined ? String(place.lat) : "");
   const [lng, setLng] = useState(place?.lng !== undefined ? String(place.lng) : "");
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
-  const supabase = createClient();
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    setError(null);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setError("Vous devez être connecté.");
-      setUploading(false);
-      return;
-    }
-
-    const path = `${user.id}/${Date.now()}-${file.name}`;
-    const { error: uploadError } = await supabase.storage
-      .from("place-photos")
-      .upload(path, file, { upsert: true });
-
-    if (uploadError) {
-      setError(uploadError.message);
-      setUploading(false);
-      return;
-    }
-
-    const { data } = supabase.storage.from("place-photos").getPublicUrl(path);
-    setCoverPhotoUrl(data.publicUrl);
-    setUploading(false);
-  }
-
+  const coverUpload = useSupabasePhotoUpload(setCoverPhotoUrl, { upsert: true });
   // Unlike the cover photo (one fixed slot), the gallery grows by one photo
   // per upload rather than replacing a single value — each call appends.
-  async function handleGalleryFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setGalleryUploading(true);
-    setError(null);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setError("Vous devez être connecté.");
-      setGalleryUploading(false);
-      return;
-    }
-
-    const path = `${user.id}/gallery-${Date.now()}-${file.name}`;
-    const { error: uploadError } = await supabase.storage.from("place-photos").upload(path, file);
-
-    if (uploadError) {
-      setError(uploadError.message);
-      setGalleryUploading(false);
-      return;
-    }
-
-    const { data } = supabase.storage.from("place-photos").getPublicUrl(path);
-    setPhotoUrls((prev) => [...prev, data.publicUrl]);
-    setGalleryUploading(false);
-    e.target.value = ""; // lets the owner pick the same file again if needed
-  }
+  const galleryUpload = useSupabasePhotoUpload(
+    (url) => setPhotoUrls((prev) => [...prev, url]),
+    { pathPrefix: "gallery-", clearInputAfterUpload: true },
+  );
+  const error = coverUpload.error ?? galleryUpload.error;
 
   function removeGalleryPhoto(url: string) {
     setPhotoUrls((prev) => prev.filter((u) => u !== url));
@@ -216,9 +146,9 @@ export function PlaceForm({
 
       <div>
         <label className={labelClass}>Photo de couverture</label>
-        <input type="file" accept="image/*" onChange={handleFileChange} className="text-sm" />
+        <input type="file" accept="image/*" onChange={coverUpload.handleFileChange} className="text-sm" />
         <input type="hidden" name="cover_photo_url" value={coverPhotoUrl} />
-        {uploading && <p className="mt-1 text-xs text-gray-500">Envoi en cours...</p>}
+        {coverUpload.uploading && <p className="mt-1 text-xs text-gray-500">Envoi en cours...</p>}
         {coverPhotoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={coverPhotoUrl} alt="Aperçu" className="mt-2 h-32 w-48 rounded-lg object-cover" />
@@ -234,11 +164,11 @@ export function PlaceForm({
         <input
           type="file"
           accept="image/*"
-          onChange={handleGalleryFileChange}
-          disabled={galleryUploading}
+          onChange={galleryUpload.handleFileChange}
+          disabled={galleryUpload.uploading}
           className="text-sm"
         />
-        {galleryUploading && <p className="mt-1 text-xs text-gray-500">Envoi en cours...</p>}
+        {galleryUpload.uploading && <p className="mt-1 text-xs text-gray-500">Envoi en cours...</p>}
         {photoUrls.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {photoUrls.map((url) => (
@@ -306,7 +236,7 @@ export function PlaceForm({
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <SaveButton disabled={uploading || galleryUploading} className="self-start">
+      <SaveButton disabled={coverUpload.uploading || galleryUpload.uploading} className="self-start">
         {place ? "Enregistrer les informations" : "Créer le lieu"}
       </SaveButton>
     </form>

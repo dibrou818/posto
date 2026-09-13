@@ -6,22 +6,21 @@ import { useSearchParams } from "next/navigation";
 import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
 import type { MapFocusTarget, MapSheetItem } from "@/components/Map";
 import { SearchBar, type SearchResult, type CityResult } from "@/components/SearchBar";
-import { KindFilter } from "@/components/KindFilter";
-import { EventDateFilter } from "@/components/EventDateFilter";
+import { MapFilterButton } from "@/components/MapFilterButton";
 import { MapBottomSheet } from "@/components/MapBottomSheet";
 import { usePlacesExplorer } from "@/lib/usePlacesExplorer";
 import type { ResultKindFilter } from "@/lib/resultFilter";
-import { matchesDateBucket, type EventDateBucket } from "@/lib/eventDateFilter";
+import { matchesEventDateFilter, ALL_EVENT_DATES, type EventDateFilterValue } from "@/lib/eventDateFilter";
 
 const CITY_ZOOM = 12;
 
+// Close to the Liberty style's own background tone (a warm off-white, not
+// stark white) so the moment the real map's canvas fades in over this isn't
+// itself a visible color jump — this is a placeholder to hand off from, not
+// something the user should consciously register as "the loading screen".
 const Map = dynamic(() => import("@/components/Map").then((m) => m.Map), {
   ssr: false,
-  loading: () => (
-    <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">
-      Chargement de la carte...
-    </div>
-  ),
+  loading: () => <div className="h-full w-full" style={{ background: "#f2efe6" }} />,
 });
 
 /** Prevents the page behind the map from scrolling/bouncing on mobile while
@@ -68,7 +67,7 @@ export function FullScreenMap({
   const { selectedTag, setSelectedTag, places: filteredPlaces } = usePlacesExplorer(places);
   const [focusTarget, setFocusTarget] = useState<MapFocusTarget | null>(useInitialCityFocus());
   const [kindFilter, setKindFilter] = useState<ResultKindFilter>("all");
-  const [dateBucket, setDateBucket] = useState<EventDateBucket>("all");
+  const [dateFilter, setDateFilter] = useState<EventDateFilterValue>(ALL_EVENT_DATES);
   // Mobile-only: which pin's preview the bottom sheet is showing (see
   // Map.tsx's onSelectPlace/onSelectEvent — desktop never sets this, it
   // keeps using Leaflet's own popup instead).
@@ -84,8 +83,8 @@ export function FullScreenMap({
   const visiblePlaces = kindFilter === "event" ? [] : filteredPlaces;
   const visibleEvents = useMemo(() => {
     if (kindFilter === "place") return [];
-    return tagFilteredEvents.filter((e) => matchesDateBucket(e.start_datetime, dateBucket));
-  }, [tagFilteredEvents, kindFilter, dateBucket]);
+    return tagFilteredEvents.filter((e) => matchesEventDateFilter(e.start_datetime, dateFilter));
+  }, [tagFilteredEvents, kindFilter, dateFilter]);
 
   function handleSelectResult(result: SearchResult) {
     // Events are keyed by their own id on the map (see EventClusteredMarkers),
@@ -117,8 +116,8 @@ export function FullScreenMap({
 
       <MapBottomSheet item={sheetItem} onClose={() => setSheetItem(null)} />
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-[1000] flex flex-col gap-2 p-3">
-        <div className="flex items-start gap-2">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[1000] flex flex-col items-center gap-2 p-3">
+        <div className="flex w-full max-w-xl items-center gap-2">
           <div className="pointer-events-auto min-w-0 flex-1">
             <SearchBar
               onSelectTag={setSelectedTag}
@@ -127,21 +126,22 @@ export function FullScreenMap({
               placeholder="Rechercher un lieu, une ville, un événement..."
               filter={kindFilter}
               onFilterChange={setKindFilter}
+              inputRoundingClassName="rounded-full"
             />
           </div>
           <div className="pointer-events-auto shrink-0">
-            <KindFilter value={kindFilter} onChange={setKindFilter} />
+            <MapFilterButton
+              kindFilter={kindFilter}
+              onKindFilterChange={setKindFilter}
+              dateFilter={dateFilter}
+              onDateFilterChange={setDateFilter}
+            />
           </div>
         </div>
-        {kindFilter !== "place" && (
-          <div className="pointer-events-auto">
-            <EventDateFilter value={dateBucket} onChange={setDateBucket} />
-          </div>
-        )}
         {selectedTag && (
           <button
             onClick={() => setSelectedTag(null)}
-            className="pointer-events-auto flex w-fit items-center gap-1 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-md transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
+            className="pointer-events-auto flex w-fit items-center gap-1 self-start rounded-full bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-md transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
           >
             {selectedTag.label} ✕
           </button>

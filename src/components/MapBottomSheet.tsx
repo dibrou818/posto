@@ -6,14 +6,7 @@ import { useRouter } from "next/navigation";
 import type { MapSheetItem } from "@/components/Map";
 import type { PlaceWithRelations } from "@/lib/queries";
 import { isOpenNow } from "@/lib/opening-hours";
-
-const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+import { formatEventDateBadge } from "@/lib/eventSchedule";
 
 // Mirrors Map.tsx's marker/popup violet, so the sheet reads as the same
 // object as the pin the user just tapped.
@@ -88,7 +81,7 @@ function SheetContent({ item }: { item: MapSheetItem }) {
             style={{ background: "#ede9fe", color: EVENT_COLOR }}
           >
             <CalendarIcon />
-            {eventDateFormatter.format(new Date(item.event.start_datetime))}
+            {formatEventDateBadge(item.event.start_datetime)}
           </span>
         )}
       </div>

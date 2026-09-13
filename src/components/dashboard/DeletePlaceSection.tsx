@@ -37,7 +37,7 @@ export function DeletePlaceSection({
   const canDelete = confirmText.trim().toLowerCase() === CONFIRM_PHRASE;
 
   return (
-    <section className="mt-12 rounded-xl border border-red-200 bg-red-50 p-4">
+    <section className="rounded-xl border border-red-200 bg-red-50 p-4">
       <h2 className="text-sm font-semibold text-red-800">Zone de danger</h2>
       <p className="mt-1 text-sm text-red-700">
         Supprimer « {placeName} » efface aussi, définitivement, ses horaires, tags, activités,

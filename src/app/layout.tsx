@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "leaflet/dist/leaflet.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
@@ -32,6 +32,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Warms up the DNS/TLS handshake to the map tile host ahead of
+            time — the map component only starts requesting from it once its
+            JS has loaded and run, so without this every first tile/style/
+            glyph request pays that latency on top of the fetch itself. */}
+        <link rel="preconnect" href="https://tiles.openfreemap.org" />
+        <link rel="dns-prefetch" href="https://tiles.openfreemap.org" />
+      </head>
       <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
         <Header user={user} />
         {/* This padding exists purely to keep content from sitting under the
