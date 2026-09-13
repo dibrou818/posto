@@ -496,31 +496,53 @@ export function Map({
   });
 
   const [initialView] = useState(() => readStoredView());
+  // Set only if the map itself couldn't be created at all (most commonly
+  // GPUInitializationError: the browser/GPU can't give MapLibre a WebGL2
+  // context — hardware acceleration disabled, a blocklisted GPU driver,
+  // running under remote desktop/VM without GPU passthrough, etc.). This is
+  // thrown synchronously *inside* the `new maplibregl.Map()` call below, in
+  // an effect — React error boundaries don't catch effect-phase throws, so
+  // left uncaught this took down the whole page with a blank/crashed
+  // screen and nothing a user could act on.
+  const [initError, setInitError] = useState<string | null>(null);
 
   // Mount the map exactly once. Every prop below is read through refs or
   // handled by its own effect further down — none of this re-runs on every
   // render, unlike react-leaflet's per-child-component model.
   useEffect(() => {
     const initialCenter: [number, number] = initialView ? [initialView.lng, initialView.lat] : LILLE_CENTER;
-    const map = new maplibregl.Map({
-      container: containerRef.current!,
-      style: STYLE_URL,
-      center: initialCenter,
-      zoom: initialView?.zoom ?? DEFAULT_ZOOM,
-      dragRotate: false,
-      pitchWithRotate: false,
-      touchPitch: false,
-      attributionControl: false,
-    });
+    let map: maplibregl.Map;
+    try {
+      map = new maplibregl.Map({
+        container: containerRef.current!,
+        style: STYLE_URL,
+        center: initialCenter,
+        zoom: initialView?.zoom ?? DEFAULT_ZOOM,
+        dragRotate: false,
+        pitchWithRotate: false,
+        touchPitch: false,
+        attributionControl: false,
+      });
+    } catch (e) {
+      // Deferred a tick (react-hooks/set-state-in-effect): setState must
+      // not run synchronously inside an effect body, only from a callback.
+      const message = e instanceof Error ? e.message : "Impossible d'initialiser la carte.";
+      queueMicrotask(() => setInitError(message));
+      return;
+    }
     mapRef.current = map;
 
-    // Fades the canvas in once the first real frame is actually ready
-    // ("idle" — style parsed *and* every tile currently on screen loaded —
-    // not just "load", which can fire while the view is still a wash of
-    // background color) instead of it popping in mid-render. Toggled via
-    // direct style manipulation, not React state, since it's purely
-    // presentational and doesn't need a re-render.
-    map.once("idle", () => {
+    // Fades the canvas in on "load" — style parsed and every source
+    // declared in it registered, which is enough for a real first frame —
+    // rather than waiting for "idle" (every tile *currently on screen*
+    // finished loading too). "idle" gave a marginally cleaner first frame
+    // (no tiles still visibly streaming in) but cost up to another second+
+    // of blank placeholder on a cold cache; every other map product (Google/
+    // Apple/Mapbox included) shows the basemap immediately and lets tiles
+    // pop in progressively, which reads as fast rather than unfinished.
+    // Toggled via direct style manipulation, not React state, since it's
+    // purely presentational and doesn't need a re-render.
+    map.once("load", () => {
       if (mapRef.current !== map) return;
       map.getContainer().style.opacity = "1";
 
@@ -529,9 +551,10 @@ export function Map({
       // AttributionControl has no option to cherry-pick from, since the
       // three credits aren't separate entries; only the resulting DOM node
       // can be edited. OpenStreetMap's own data licence is the one that
-      // actually requires attribution here, so this keeps just that one
-      // once the control has rendered it (idle, same as the fade-in above,
-      // is the first point it's guaranteed to exist).
+      // actually requires attribution here, so this keeps just that one.
+      // Overwriting unconditionally (not reading the existing text first)
+      // means it doesn't matter whether the control has already built its
+      // real attribution string by this point or not.
       const attribInner = map.getContainer().querySelector(".maplibregl-ctrl-attrib-inner");
       if (attribInner) {
         attribInner.innerHTML =
@@ -846,6 +869,19 @@ export function Map({
     if (map.isStyleLoaded()) fly();
     else map.once("load", fly);
   }, [focusTarget]);
+
+  if (initError) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gray-50 px-6 text-center">
+        <p className="text-sm font-medium text-gray-900">La carte n&apos;a pas pu s&apos;afficher</p>
+        <p className="max-w-sm text-sm text-gray-500">
+          Votre navigateur n&apos;a pas pu activer l&apos;accélération graphique (WebGL2) nécessaire à la
+          carte. Essayez d&apos;activer l&apos;accélération matérielle dans les réglages de votre
+          navigateur, de fermer des onglets, ou d&apos;utiliser un autre navigateur.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div
