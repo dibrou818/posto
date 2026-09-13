@@ -76,7 +76,7 @@ export function BottomNav({ user }: { user: User | null }) {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white pb-[calc(env(safe-area-inset-bottom)+8px)] md:hidden"
       aria-label="Navigation principale"
     >
       <div className="mx-auto flex max-w-6xl">
