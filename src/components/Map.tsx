@@ -463,6 +463,20 @@ export function Map({
     map.once("idle", () => {
       if (mapRef.current !== map) return;
       map.getContainer().style.opacity = "1";
+
+      // The tile source's attribution string is a single atomic blob —
+      // "OpenFreeMap © OpenMapTiles Data from OpenStreetMap" — that
+      // AttributionControl has no option to cherry-pick from, since the
+      // three credits aren't separate entries; only the resulting DOM node
+      // can be edited. OpenStreetMap's own data licence is the one that
+      // actually requires attribution here, so this keeps just that one
+      // once the control has rendered it (idle, same as the fade-in above,
+      // is the first point it's guaranteed to exist).
+      const attribInner = map.getContainer().querySelector(".maplibregl-ctrl-attrib-inner");
+      if (attribInner) {
+        attribInner.innerHTML =
+          '<a href="https://www.openstreetmap.org/copyright" target="_blank">© OpenStreetMap</a>';
+      }
     });
 
     // The map is always north-up — see the removed leaflet-rotate feature

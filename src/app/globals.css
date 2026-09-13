@@ -67,6 +67,21 @@ body {
 .maplibregl-ctrl-attrib a {
   color: inherit !important;
 }
+/* The padding override above is deliberately tight for the collapsed
+   (icon-only) state, but once expanded (.maplibregl-compact-show, after
+   tapping the "i") the text needs room to not render underneath the icon —
+   this restores the left padding MapLibre's own default reserves for it. */
+.maplibregl-ctrl-attrib.maplibregl-compact-show {
+  padding: 0 8px 0 28px !important;
+  /* The "i" button is absolutely positioned (pinned to the container's own
+     top edge) while the text is a normal block sitting at the top of its
+     own padding box — left alone they line up by coincidence at best. Flex
+     + a min-height matching the button's own 24px centers the text exactly
+     level with the icon instead. */
+  display: flex !important;
+  align-items: center !important;
+  min-height: 24px !important;
+}
 
 /* Place/event marker popups (Map.tsx's popupCard()): by default MapLibre's
    popup wraps injected content in ~10px of its own padding, which is fine
