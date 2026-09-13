@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
@@ -19,6 +19,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Posto — Découvrez des lieux et activités",
   description: "Trouvez des lieux proposant des activités récurrentes et des événements ponctuels près de vous.",
+};
+
+// `viewport-fit=cover` is what lets the page draw all the way under a
+// notch/Dynamic Island/rounded corners instead of Safari reserving a
+// blank strip for them — without it, env(safe-area-inset-*) below also
+// always reports 0, so nothing that depends on it (BottomNav, Header,
+// the full-screen map) can do the right thing either.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

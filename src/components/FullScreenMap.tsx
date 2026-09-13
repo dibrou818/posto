@@ -116,7 +116,7 @@ export function FullScreenMap({
 
       <MapBottomSheet item={sheetItem} onClose={() => setSheetItem(null)} />
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-[1000] flex flex-col items-center gap-2 p-3">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-[1000] flex flex-col items-center gap-2 p-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
         <div className="flex w-full max-w-xl items-center gap-2">
           <div className="pointer-events-auto min-w-0 flex-1">
             <SearchBar
