@@ -505,10 +505,19 @@ export function Map({
   // left uncaught this took down the whole page with a blank/crashed
   // screen and nothing a user could act on.
   const [initError, setInitError] = useState<string | null>(null);
+  // Bumped by the fallback UI's retry button to force the mount effect
+  // below to run again after a failed init — WebGL context creation can
+  // fail transiently (a momentarily wedged GPU process, another tab
+  // freeing up a context right after), so a plain retry with no page
+  // reload is worth offering before telling someone to go dig through
+  // browser settings.
+  const [retryKey, setRetryKey] = useState(0);
 
-  // Mount the map exactly once. Every prop below is read through refs or
-  // handled by its own effect further down — none of this re-runs on every
-  // render, unlike react-leaflet's per-child-component model.
+  // Mount the map exactly once — or again, if `retryKey` changes (see the
+  // fallback UI's retry button below). Every prop this closure reads is
+  // otherwise captured through a ref (see the sync effect above) or handled
+  // by its own effect further down — none of this re-runs on every render,
+  // unlike react-leaflet's per-child-component model.
   useEffect(() => {
     const initialCenter: [number, number] = initialView ? [initialView.lng, initialView.lat] : LILLE_CENTER;
     let map: maplibregl.Map;
@@ -752,10 +761,8 @@ export function Map({
       map.remove();
       mapRef.current = null;
     };
-    // Mount-only: every prop this closure reads is captured through a ref
-    // (see the sync effect above) or handled by its own effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [retryKey]);
 
   // Updates marker data without recreating the map or its layers — much
   // cheaper than react-leaflet's per-change marker-group rebuild. Deliberately
@@ -872,13 +879,24 @@ export function Map({
 
   if (initError) {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gray-50 px-6 text-center">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gray-50 px-6 text-center">
         <p className="text-sm font-medium text-gray-900">La carte n&apos;a pas pu s&apos;afficher</p>
         <p className="max-w-sm text-sm text-gray-500">
           Votre navigateur n&apos;a pas pu activer l&apos;accélération graphique (WebGL2) nécessaire à la
-          carte. Essayez d&apos;activer l&apos;accélération matérielle dans les réglages de votre
-          navigateur, de fermer des onglets, ou d&apos;utiliser un autre navigateur.
+          carte. Cela peut être temporaire — sinon, essayez d&apos;activer l&apos;accélération matérielle
+          dans les réglages de votre navigateur, de fermer des onglets, ou d&apos;utiliser un autre
+          navigateur.
         </p>
+        <button
+          type="button"
+          onClick={() => {
+            setInitError(null);
+            setRetryKey((k) => k + 1);
+          }}
+          className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
+        >
+          Réessayer
+        </button>
       </div>
     );
   }
