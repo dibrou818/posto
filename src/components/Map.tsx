@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
-import { isOpenNow } from "@/lib/opening-hours";
-import { formatEventDateBadge } from "@/lib/eventSchedule";
 import { useIsMobileViewport } from "@/lib/viewport";
+import { popupHtml, eventPopupHtml, EVENT_COLOR } from "@/lib/mapPopups";
+import { setupUserLocationLayer } from "@/lib/mapUserLocation";
 
 // MapLibre computes its tile-parsing Web Worker's URL as
 // `new URL('./maplibre-gl-worker.mjs', import.meta.url)` — Webpack/Vite
@@ -47,9 +47,10 @@ const MAX_LATITUDE = 85.0511;
 const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
 const PLACE_COLOR = "#111827";
-// Violet, distinct from the dark place dot, so a glance at the map tells
-// places and events apart even before opening anything.
-const EVENT_COLOR = "#7c3aed";
+// EVENT_COLOR itself now lives in lib/mapPopups.ts (it's also the badge
+// color on an event's popup, which is what actually owns the value) —
+// imported above so this layer's paint color and the popup's badge always
+// agree without having to keep two copies in sync.
 
 // Remembers where the user left the map (center/zoom) across a full page
 // navigation — e.g. tapping a pin's "Voir la fiche" and hitting back — so
@@ -110,110 +111,6 @@ function applyFrenchLabels(map: maplibregl.Map) {
   }
 }
 
-// Leaflet's bindPopup(string)/MapLibre's Popup#setHTML(string) both inject
-// the string as raw HTML with no escaping of their own — place.name/
-// place.address are free text any signed-up user controls, so they must be
-// entity-encoded before going anywhere near this template, or a malicious
-// place name becomes stored XSS for every visitor who opens its popup on the
-// public map.
-function escapeHtml(value: string): string {
-  const div = document.createElement("div");
-  div.textContent = value;
-  return div.innerHTML;
-}
-
-// escapeHtml is only safe inside a text node: the textContent→innerHTML
-// round-trip encodes &/</> but not quote characters, since quotes have no
-// special meaning there. Dropped into an attribute (the cover photo's
-// src="...") an unescaped `"` could close the attribute early and inject
-// markup — cover_photo_url is validated server-side against an allowlist,
-// but this doesn't rely on that holding to stay safe.
-function escapeAttr(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-// Small inline icons for the popup card — kept as plain SVG markup (not
-// React components) since this whole template is a string handed to
-// Popup#setHTML, not JSX.
-const PIN_ICON_SVG =
-  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.5-7-11.5a7 7 0 0 1 14 0C19 14.5 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.2"/></svg>';
-const CALENDAR_ICON_SVG =
-  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>';
-
-// Shared "card" chrome for both popup types: an optional cover photo flush
-// with the (CSS-overridden, see globals.css) rounded corners, then a padded
-// body. Kept as one helper so a place popup and an event popup always read
-// as the same kind of object, just with different content inside.
-function popupCard(opts: {
-  coverPhotoUrl: string | null;
-  title: string;
-  subtitle: string;
-  badge: { label: string; bg: string; fg: string; dot?: string; icon?: string };
-  href: string;
-  cta: string;
-}) {
-  return `
-    <div style="width:208px;">
-      ${
-        opts.coverPhotoUrl
-          ? `<div style="width:100%;height:92px;background:#e5e7eb;">
-               <img src="${escapeAttr(opts.coverPhotoUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />
-             </div>`
-          : ""
-      }
-      <div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;">
-        <span style="font-weight:600;font-size:14px;line-height:1.25;color:#111827;">${escapeHtml(opts.title)}</span>
-        ${
-          opts.subtitle
-            ? `<span style="display:flex;align-items:center;gap:4px;font-size:12px;color:#6b7280;overflow:hidden;">
-                 <span style="flex-shrink:0;display:flex;">${PIN_ICON_SVG}</span>
-                 <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(opts.subtitle)}</span>
-               </span>`
-            : ""
-        }
-        <span style="display:inline-flex;align-items:center;gap:5px;width:fit-content;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:600;background:${opts.badge.bg};color:${opts.badge.fg};">
-          ${opts.badge.dot ? `<span style="width:6px;height:6px;border-radius:50%;background:${opts.badge.dot};"></span>` : ""}
-          ${opts.badge.icon ? `<span style="display:flex;">${opts.badge.icon}</span>` : ""}
-          ${escapeHtml(opts.badge.label)}
-        </span>
-        <a href="${opts.href}" style="margin-top:2px;display:block;text-align:center;padding:7px 10px;border-radius:8px;background:#111827;color:#ffffff;font-size:12px;font-weight:600;text-decoration:none;">
-          ${escapeHtml(opts.cta)}
-        </a>
-      </div>
-    </div>
-  `;
-}
-
-function popupHtml(place: PlaceWithRelations) {
-  const open = isOpenNow(place.opening_hours);
-  return popupCard({
-    coverPhotoUrl: place.cover_photo_url,
-    title: place.name,
-    subtitle: place.address ?? "",
-    badge: open
-      ? { label: "Ouvert", bg: "#dcfce7", fg: "#166534", dot: "#22c55e" }
-      : { label: "Fermé", bg: "#fee2e2", fg: "#991b1b", dot: "#ef4444" },
-    href: `/places/${place.id}`,
-    cta: "Voir la fiche",
-  });
-}
-
-function eventPopupHtml(event: EventWithPlace) {
-  return popupCard({
-    coverPhotoUrl: event.cover_photo_url ?? event.place.cover_photo_url,
-    title: event.title,
-    subtitle: event.place.name,
-    badge: {
-      label: formatEventDateBadge(event.start_datetime),
-      bg: "#ede9fe",
-      fg: EVENT_COLOR,
-      icon: CALENDAR_ICON_SVG,
-    },
-    href: `/events/${event.id}`,
-    cta: "Voir l'événement",
-  });
-}
-
 function placesToFeatureCollection(places: PlaceWithRelations[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: "FeatureCollection",
@@ -263,7 +160,17 @@ function addClusteredLayer(
     type: "geojson",
     data: opts.data,
     cluster: true,
-    clusterRadius: 50,
+    // How close two points' *screen* positions need to be (in pixels, at
+    // whatever the current zoom is) to still merge into one cluster —
+    // supercluster recomputes this fresh at every zoom level, not just once.
+    // 50 grouped points that were already comfortably far enough apart to
+    // tell apart on their own, so zooming in kept them merged well past the
+    // point they'd have been readable as separate pins; a tighter radius
+    // means a cluster only forms (and stays formed while zooming in) when
+    // its points are genuinely crowded together on screen, not just in the
+    // same general area — so it breaks apart into individual places/events
+    // earlier, right around where they'd actually be distinguishable.
+    clusterRadius: 35,
     clusterMaxZoom: 16,
   });
 
@@ -874,169 +781,3 @@ function expandCluster(map: maplibregl.Map, sourceId: string, feature: maplibreg
     });
 }
 
-type LocateStatus = "idle" | "locating" | "active" | "denied";
-
-// The classic "recenter on me" navigation arrow used by most map apps
-// (Google Maps, Apple Maps, etc.) — a simple filled arrowhead pointing
-// up-right, rather than a crosshair.
-function locateButtonIcon(status: LocateStatus) {
-  const color = status === "active" ? "#2563eb" : status === "denied" ? "#dc2626" : "#374151";
-  return `
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="${color}" stroke="${color}" stroke-width="1" stroke-linejoin="round">
-      <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
-    </svg>
-  `;
-}
-
-/** Custom MapLibre control (bottom-right, next to the zoom control) that
- * lets the user request their live position on the map. */
-class LocateControl implements maplibregl.IControl {
-  private button: HTMLButtonElement | null = null;
-  private onClickHandler: (() => void) | null = null;
-
-  onAdd(): HTMLElement {
-    const container = document.createElement("div");
-    container.className = "maplibregl-ctrl maplibregl-ctrl-group";
-    // Round, not the library's own default square-ish group shape — the
-    // classic "recenter on me" button shape shared by most map apps, and
-    // this control is always alone in its group so there's no shared-edge
-    // styling with a neighbor to preserve. margin-bottom overrides the
-    // library's own ~10px default (an inline style here always wins over
-    // its stylesheet rule, same element) — a few more px so the button
-    // doesn't read as glued to the very bottom edge of the map.
-    container.style.cssText = "border-radius:9999px;overflow:hidden;margin-bottom:20px;";
-    const button = document.createElement("button");
-    button.type = "button";
-    button.setAttribute("aria-label", "Me localiser");
-    button.style.cssText =
-      "width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:#fff;border:none;border-radius:9999px;cursor:pointer;";
-    button.innerHTML = locateButtonIcon("idle");
-    button.addEventListener("click", () => this.onClickHandler?.());
-    this.button = button;
-    container.appendChild(button);
-    return container;
-  }
-
-  onRemove(): void {
-    this.button = null;
-  }
-
-  setStatus(status: LocateStatus) {
-    if (this.button) this.button.innerHTML = locateButtonIcon(status);
-  }
-
-  setOnClick(handler: () => void) {
-    this.onClickHandler = handler;
-  }
-}
-
-/** Plain pulsing "you are here" blue dot — no heading/direction indicator,
- * just the position itself — plus an accuracy circle. Live via
- * watchPosition; first fix auto-centers, later updates just follow. Returns
- * a cleanup function. */
-function setupUserLocationLayer(map: maplibregl.Map): () => void {
-  let marker: maplibregl.Marker | null = null;
-  let watchId: number | null = null;
-  let hasCentered = false;
-  let latestLat = 0;
-  let latestAccuracy = 0;
-
-  const el = document.createElement("div");
-  el.style.cssText = "position:relative;width:18px;height:18px;";
-  el.innerHTML = `
-    <div class="posto-locate-pulse" style="position:absolute;inset:0;border-radius:50%;background:#2563eb;"></div>
-    <div style="position:absolute;inset:0;border-radius:50%;background:#2563eb;border:3px solid #ffffff;box-shadow:0 0 0 1px rgba(37,99,235,0.4),0 1px 4px rgba(0,0,0,0.35);"></div>
-  `;
-
-  function updateAccuracyCircleRadius() {
-    const source = map.getSource("user-accuracy") as maplibregl.GeoJSONSource | undefined;
-    if (!source || latestAccuracy === 0) return;
-    // Standard Web Mercator ground-resolution formula: meters per pixel at a
-    // given zoom and latitude, for the usual 256px tile scheme.
-    const metersPerPixel = (156543.03392 * Math.cos((latestLat * Math.PI) / 180)) / Math.pow(2, map.getZoom());
-    const pixelRadius = latestAccuracy / metersPerPixel;
-    if (map.getLayer("user-accuracy-fill")) {
-      map.setPaintProperty("user-accuracy-fill", "circle-radius", pixelRadius);
-    }
-  }
-
-  function ensureAccuracyLayer() {
-    if (map.getSource("user-accuracy")) return;
-    map.addSource("user-accuracy", {
-      type: "geojson",
-      data: { type: "FeatureCollection", features: [] },
-    });
-    map.addLayer({
-      id: "user-accuracy-fill",
-      type: "circle",
-      source: "user-accuracy",
-      paint: {
-        "circle-radius": 0,
-        "circle-color": "#2563eb",
-        "circle-opacity": 0.1,
-        "circle-stroke-width": 1,
-        "circle-stroke-color": "#2563eb",
-      },
-    });
-  }
-
-  function updatePosition(lat: number, lng: number, accuracy: number) {
-    latestLat = lat;
-    latestAccuracy = accuracy;
-    if (map.isStyleLoaded()) ensureAccuracyLayer();
-    else map.once("load", ensureAccuracyLayer);
-
-    const source = map.getSource("user-accuracy") as maplibregl.GeoJSONSource | undefined;
-    source?.setData({
-      type: "FeatureCollection",
-      features: [{ type: "Feature", geometry: { type: "Point", coordinates: [lng, lat] }, properties: {} }],
-    });
-    updateAccuracyCircleRadius();
-
-    if (!marker) {
-      marker = new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([lng, lat]).addTo(map);
-    } else {
-      marker.setLngLat([lng, lat]);
-    }
-  }
-
-  const control = new LocateControl();
-  map.addControl(control, "bottom-right");
-
-  function startWatching() {
-    control.setStatus("locating");
-    watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        control.setStatus("active");
-        updatePosition(latitude, longitude, accuracy);
-        if (!hasCentered) {
-          hasCentered = true;
-          map.flyTo({ center: [longitude, latitude], zoom: Math.max(map.getZoom(), 15) });
-        }
-      },
-      () => control.setStatus("denied"),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
-    );
-  }
-
-  control.setOnClick(() => {
-    if (!navigator.geolocation) {
-      control.setStatus("denied");
-      return;
-    }
-    if (marker) {
-      map.flyTo({ center: marker.getLngLat(), zoom: Math.max(map.getZoom(), 15) });
-      return;
-    }
-    startWatching();
-  });
-
-  map.on("zoom", updateAccuracyCircleRadius);
-
-  return () => {
-    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
-    marker?.remove();
-    map.off("zoom", updateAccuracyCircleRadius);
-  };
-}
