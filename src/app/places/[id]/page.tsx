@@ -65,7 +65,15 @@ export default async function PlacePage({
           <p className="whitespace-pre-line">{place.urgent_message}</p>
         </div>
       )}
-      <div className="relative mb-4 h-64 w-full overflow-hidden rounded-xl bg-gray-100">
+      {/* Exact concentric radius with the BackButton circle sitting on this
+          corner (see posto-conventions): the button is offset top-3/left-3
+          (12px) and is itself a 36px circle (18px radius) — for the two
+          arcs to share one center, outer radius = offset + button radius =
+          12 + 18 = 30px. Not on Tailwind's standard scale (rounded-3xl
+          tops out at 24px), so this is an arbitrary value rather than an
+          approximation — the whole point here was an exact match, not "close
+          enough". */}
+      <div className="relative mb-4 h-64 w-full overflow-hidden rounded-[30px] bg-gray-100">
         <PhotoCarousel photos={photos} alt={place.name} />
         <div className="absolute top-3 left-3 z-10">
           <BackButton fallbackHref="/" />

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
-import { SignOutButton } from "@/components/SignOutButton";
 import { buttonClass } from "@/lib/ui";
 
 const navLinkClass =
@@ -39,12 +38,9 @@ export function Header({ user }: { user: User | null }) {
             Carte
           </Link>
           {user ? (
-            <>
-              <Link href="/dashboard" className={linkClass("/dashboard")}>
-                Mon espace
-              </Link>
-              <SignOutButton />
-            </>
+            <Link href="/dashboard" className={linkClass("/dashboard")}>
+              Mon espace
+            </Link>
           ) : (
             <>
               <Link href="/login" className={linkClass("/login")}>

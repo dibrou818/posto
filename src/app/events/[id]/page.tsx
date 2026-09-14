@@ -34,7 +34,10 @@ export default async function EventPage({
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
-      <div className="relative mb-4 h-64 w-full overflow-hidden rounded-xl bg-gray-100">
+      {/* rounded-[30px] — see the matching comment on the place page's own
+          hero photo (same BackButton-over-corner pairing, same exact-match
+          derivation: 12px offset + 18px button radius). */}
+      <div className="relative mb-4 h-64 w-full overflow-hidden rounded-[30px] bg-gray-100">
         {coverPhotoUrl && (
           <Image
             src={coverPhotoUrl}

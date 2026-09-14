@@ -4,6 +4,7 @@ import { DashboardSection } from "@/components/dashboard/DashboardSection";
 import { ChangeEmailSection } from "@/components/dashboard/ChangeEmailSection";
 import { ChangePasswordSection } from "@/components/dashboard/ChangePasswordSection";
 import { DeleteAccountSection } from "@/components/dashboard/DeleteAccountSection";
+import { SignOutButton } from "@/components/SignOutButton";
 import { deleteAccount } from "@/app/dashboard/actions";
 
 export default async function AccountSettingsPage() {
@@ -27,6 +28,14 @@ export default async function AccountSettingsPage() {
       <DashboardSection title="Mot de passe">
         <ChangePasswordSection email={user.email ?? ""} />
       </DashboardSection>
+
+      {/* A plain button in the page flow, not its own titled card — signing
+          out isn't a "setting" the way email/password/deletion are, just an
+          action that belongs with the rest of this page's account controls
+          rather than duplicated in the desktop header (see SignOutButton). */}
+      <div className="mb-6">
+        <SignOutButton />
+      </div>
 
       <DeleteAccountSection action={deleteAccount} />
     </div>
