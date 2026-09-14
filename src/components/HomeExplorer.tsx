@@ -156,91 +156,94 @@ export function HomeExplorer({
   }, [visibleEvents, tagFilteredEvents, events, selectedTag, locationFilter, kindFilter, sortByDistance]);
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
-      <LocationWeather onLocated={setUserLocation} onCityResolved={handleCityResolved} />
+    <div className="flex flex-1 flex-col">
+      {/* Full-bleed to the screen edges — deliberately outside the p-4 the
+          rest of the page content below uses, so this banner reads as one
+          big block rather than a card floating in the page's own margins. */}
+      <LocationWeather onLocated={setUserLocation} onCityResolved={handleCityResolved}>
+        <SearchBar
+          onSelectTag={setSelectedTag}
+          onSelectResult={(r) =>
+            router.push(r.result_type === "event" ? `/events/${r.id}` : `/places/${r.place_id}`)
+          }
+          onSelectCity={(city) => router.push(`/map?lat=${city.lat}&lng=${city.lng}`)}
+          filter={kindFilter}
+          onFilterChange={setKindFilter}
+          // Same pill shape as the map's own search bar — one consistent
+          // search-bar language across the app instead of two.
+          inputRoundingClassName="rounded-full"
+        />
+      </LocationWeather>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1">
-            <SearchBar
-              onSelectTag={setSelectedTag}
-              onSelectResult={(r) =>
-                router.push(r.result_type === "event" ? `/events/${r.id}` : `/places/${r.place_id}`)
-              }
-              onSelectCity={(city) => router.push(`/map?lat=${city.lat}&lng=${city.lng}`)}
-              filter={kindFilter}
-              onFilterChange={setKindFilter}
-            />
-          </div>
-          {/* Wraps to its own line rather than forcing the page to overflow
-              horizontally when both filters don't fit next to a long city name. */}
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <KindFilter value={kindFilter} onChange={setKindFilter} />
             <LocationFilter value={locationFilter} onChange={setLocationFilter} />
           </div>
+          {selectedTag && (
+            <button
+              onClick={() => setSelectedTag(null)}
+              className="flex w-fit items-center gap-1 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
+            >
+              {selectedTag.label} ✕
+            </button>
+          )}
         </div>
-        {selectedTag && (
-          <button
-            onClick={() => setSelectedTag(null)}
-            className="flex w-fit items-center gap-1 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
-          >
-            {selectedTag.label} ✕
-          </button>
-        )}
-      </div>
 
-      <div className="flex flex-col gap-6">
-        {showPlaces && (
-          <section className="flex flex-col gap-2">
-            {placesDisplay.heading && (
-              <h2 className="text-sm font-semibold text-gray-900">{placesDisplay.heading}</h2>
-            )}
-            {placesDisplay.note && (
-              <p className="text-sm text-gray-500">{placesDisplay.note}</p>
-            )}
-            {placesDisplay.list.length > 0 && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {placesDisplay.list.map((place) => (
-                  <PlaceCard
-                    key={place.id}
-                    place={place}
-                    distanceKm={
-                      referencePoint
-                        ? haversineKm(referencePoint.lat, referencePoint.lng, place.lat, place.lng)
-                        : undefined
-                    }
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-        )}
+        <div className="flex flex-col gap-6">
+          {showPlaces && (
+            <section className="flex flex-col gap-2">
+              {placesDisplay.heading && (
+                <h2 className="text-sm font-semibold text-gray-900">{placesDisplay.heading}</h2>
+              )}
+              {placesDisplay.note && (
+                <p className="text-sm text-gray-500">{placesDisplay.note}</p>
+              )}
+              {placesDisplay.list.length > 0 && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {placesDisplay.list.map((place) => (
+                    <PlaceCard
+                      key={place.id}
+                      place={place}
+                      distanceKm={
+                        referencePoint
+                          ? haversineKm(referencePoint.lat, referencePoint.lng, place.lat, place.lng)
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
-        {showEvents && (
-          <section className="flex flex-col gap-2">
-            {eventsDisplay.heading && (
-              <h2 className="text-sm font-semibold text-gray-900">{eventsDisplay.heading}</h2>
-            )}
-            {eventsDisplay.note && (
-              <p className="text-sm text-gray-500">{eventsDisplay.note}</p>
-            )}
-            {eventsDisplay.list.length > 0 && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {eventsDisplay.list.map((event) => (
-                  <EventCard
-                    key={event.id}
-                    event={event}
-                    distanceKm={
-                      referencePoint
-                        ? haversineKm(referencePoint.lat, referencePoint.lng, event.place.lat, event.place.lng)
-                        : undefined
-                    }
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-        )}
+          {showEvents && (
+            <section className="flex flex-col gap-2">
+              {eventsDisplay.heading && (
+                <h2 className="text-sm font-semibold text-gray-900">{eventsDisplay.heading}</h2>
+              )}
+              {eventsDisplay.note && (
+                <p className="text-sm text-gray-500">{eventsDisplay.note}</p>
+              )}
+              {eventsDisplay.list.length > 0 && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {eventsDisplay.list.map((event) => (
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      distanceKm={
+                        referencePoint
+                          ? haversineKm(referencePoint.lat, referencePoint.lng, event.place.lat, event.place.lng)
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+        </div>
       </div>
     </div>
   );

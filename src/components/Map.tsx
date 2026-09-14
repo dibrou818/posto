@@ -230,110 +230,6 @@ function eventPopupHtml(event: EventWithPlace) {
   });
 }
 
-// Blends `hex` toward white by `amount` (0-1) — used for the pins' gradient
-// highlight, computed rather than hand-picked so it always stays a lighter
-// shade of each marker's own color instead of a second color to keep in
-// sync.
-function lightenColor(hex: string, amount: number): string {
-  const num = parseInt(hex.replace("#", ""), 16);
-  const r = (num >> 16) & 0xff;
-  const g = (num >> 8) & 0xff;
-  const b = num & 0xff;
-  const mix = (c: number) => Math.round(c + (255 - c) * amount);
-  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
-}
-
-// Symbol-layer icons for unclustered markers. Drawn once onto an offscreen
-// canvas and registered via addImage — vector styles have no "just drop a
-// colored <div>" shortcut like Leaflet's divIcon, this is the GL equivalent.
-// pixelRatio 2 keeps them crisp on retina screens without a second draw.
-// Both shapes get a soft drop shadow and a subtle top-left highlight
-// (radial gradient, lighter than the flat base color) instead of a flat
-// fill, so they read as a raised marker rather than a plain colored sticker.
-function createDotIconImage(color: string): ImageData {
-  const size = 72;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d")!;
-  const cx = size / 2;
-  const cy = size / 2;
-  // Extra inset (vs. the old flat version) leaves room for the shadow blur
-  // to sit fully inside the canvas instead of clipping at its edge.
-  const r = size / 2 - 14;
-
-  ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.35)";
-  ctx.shadowBlur = 6;
-  ctx.shadowOffsetY = 3;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  const gradient = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.15, cx, cy, r);
-  gradient.addColorStop(0, lightenColor(color, 0.35));
-  gradient.addColorStop(1, color);
-  ctx.fillStyle = gradient;
-  ctx.fill();
-  ctx.restore(); // drops the shadow before the stroke, which shouldn't cast one
-
-  ctx.lineWidth = 6;
-  ctx.strokeStyle = "#ffffff";
-  ctx.stroke();
-  return ctx.getImageData(0, 0, size, size);
-}
-
-// A teardrop/pin shape (flat top-circle, pointed bottom) so events keep a
-// visually distinct silhouette from places' plain dot, not just a color
-// difference — anchored at its point (see icon-anchor: "bottom" below). The
-// small punched-out white circle near the top is the classic map-pin motif
-// (Google/Apple Maps both use it) — a second, shape-level cue that this is
-// an event marker, readable even before color registers.
-function createPinIconImage(color: string): ImageData {
-  const width = 64;
-  const height = 84;
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d")!;
-  const cx = width / 2;
-  const r = width / 2 - 12;
-  const cy = r + 12;
-
-  ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.35)";
-  ctx.shadowBlur = 6;
-  ctx.shadowOffsetY = 3;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, Math.PI * 0.15, Math.PI * 0.85, true);
-  ctx.lineTo(cx, height - 10);
-  ctx.closePath();
-  const gradient = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.15, cx, cy, r * 1.3);
-  gradient.addColorStop(0, lightenColor(color, 0.3));
-  gradient.addColorStop(1, color);
-  ctx.fillStyle = gradient;
-  ctx.fill();
-  ctx.restore();
-
-  ctx.lineWidth = 6;
-  ctx.strokeStyle = "#ffffff";
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.36, 0, Math.PI * 2);
-  ctx.fillStyle = "#ffffff";
-  ctx.fill();
-
-  return ctx.getImageData(0, 0, width, height);
-}
-
-function ensureIconsLoaded(map: maplibregl.Map) {
-  if (!map.hasImage("place-dot")) {
-    map.addImage("place-dot", createDotIconImage(PLACE_COLOR), { pixelRatio: 2 });
-  }
-  if (!map.hasImage("event-pin")) {
-    map.addImage("event-pin", createPinIconImage(EVENT_COLOR), { pixelRatio: 2 });
-  }
-}
-
 function placesToFeatureCollection(places: PlaceWithRelations[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: "FeatureCollection",
@@ -359,12 +255,25 @@ function eventsToFeatureCollection(events: EventWithPlace[]): GeoJSON.FeatureCol
 // Cast to `any` for these two step expressions: MapLibre's exact expression
 // type isn't re-exported from the top-level package, and the literal array
 // shape is already validated at runtime by the style spec.
-const CLUSTER_RADIUS_STEPS = ["step", ["get", "point_count"], 23, 10, 27, 50, 33] as unknown as number;
-const CLUSTER_CORE_RADIUS_STEPS = ["step", ["get", "point_count"], 17, 10, 21, 50, 27] as unknown as number;
+//
+// A cluster used to render at roughly 3x an individual pin's size, which
+// read as two unrelated marker languages on the same map. Now individual
+// markers use this exact same circle-ring-plus-core paint (see
+// UNCLUSTERED_RING_RADIUS/UNCLUSTERED_CORE_RADIUS below, fixed at this
+// smallest tier's own size) so a user zooming past the point a cluster
+// splits apart sees it settle into an ordinary pin, not a different marker
+// language. The small step up per count tier beyond that still exists so
+// "more pins here" remains legible at a glance.
+const CLUSTER_RADIUS_STEPS = ["step", ["get", "point_count"], 15, 10, 19, 50, 23] as unknown as number;
+const CLUSTER_CORE_RADIUS_STEPS = ["step", ["get", "point_count"], 10, 10, 13, 50, 16] as unknown as number;
+// The smallest cluster tier's own radii, reused as-is (not just "close to")
+// for individual pins — see the constant comment above.
+const UNCLUSTERED_RING_RADIUS = 15;
+const UNCLUSTERED_CORE_RADIUS = 10;
 
 function addClusteredLayer(
   map: maplibregl.Map,
-  opts: { id: string; data: GeoJSON.FeatureCollection<GeoJSON.Point>; color: string; icon: string; iconAnchor: "center" | "bottom" },
+  opts: { id: string; data: GeoJSON.FeatureCollection<GeoJSON.Point>; color: string },
 ) {
   map.addSource(opts.id, {
     type: "geojson",
@@ -397,7 +306,7 @@ function addClusteredLayer(
     paint: {
       "circle-radius": CLUSTER_CORE_RADIUS_STEPS,
       "circle-color": opts.color,
-      "circle-stroke-width": 3,
+      "circle-stroke-width": 2,
       "circle-stroke-color": "#ffffff",
     },
   });
@@ -409,11 +318,12 @@ function addClusteredLayer(
     layout: {
       "text-field": ["get", "point_count_abbreviated"],
       "text-font": ["Noto Sans Bold"],
-      "text-size": 14,
+      "text-size": 10,
       // Without these, the basemap's own street/place labels can win the
       // collision check against the count and silently hide it — the count
       // is essential info on a cluster, not a nice-to-have, so it must
-      // always win (same reasoning as icon-allow-overlap below).
+      // always win (same reasoning as the unclustered layers' own overlap
+      // below).
       "text-allow-overlap": true,
       "text-ignore-placement": true,
     },
@@ -423,16 +333,36 @@ function addClusteredLayer(
       "text-halo-width": 0.6,
     },
   });
+
+  // Individual (unclustered) markers: the exact same ring+core circle pair
+  // as a cluster, just fixed at the smallest tier's size and with no count
+  // layer on top — a cluster with one pin in it, visually, since that's
+  // genuinely what it is. Replaces the previous canvas-drawn gradient
+  // dot/teardrop icons, which gave places and events their own distinct
+  // raised-sticker look that no longer matched the flatter cluster style
+  // once that was redesigned smaller.
   map.addLayer({
-    id: `${opts.id}-unclustered`,
-    type: "symbol",
+    id: `${opts.id}-unclustered-ring`,
+    type: "circle",
     source: opts.id,
     filter: ["!", ["has", "point_count"]],
-    layout: {
-      "icon-image": opts.icon,
-      "icon-size": 0.62,
-      "icon-anchor": opts.iconAnchor,
-      "icon-allow-overlap": true,
+    paint: {
+      "circle-radius": UNCLUSTERED_RING_RADIUS,
+      "circle-color": opts.color,
+      "circle-opacity": 0.16,
+      "circle-blur": 0.65,
+    },
+  });
+  map.addLayer({
+    id: `${opts.id}-unclustered-core`,
+    type: "circle",
+    source: opts.id,
+    filter: ["!", ["has", "point_count"]],
+    paint: {
+      "circle-radius": UNCLUSTERED_CORE_RADIUS,
+      "circle-color": opts.color,
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#ffffff",
     },
   });
 }
@@ -598,21 +528,16 @@ export function Map({
       if (mapRef.current !== map) return;
 
       applyFrenchLabels(map);
-      ensureIconsLoaded(map);
 
       addClusteredLayer(map, {
         id: "places",
         data: placesToFeatureCollection(places),
         color: PLACE_COLOR,
-        icon: "place-dot",
-        iconAnchor: "center",
       });
       addClusteredLayer(map, {
         id: "events",
         data: eventsToFeatureCollection(events),
         color: EVENT_COLOR,
-        icon: "event-pin",
-        iconAnchor: "bottom",
       });
 
       // Now safe to run — see updateMinZoom's own isStyleLoaded guard below
@@ -625,7 +550,16 @@ export function Map({
     // Single delegated click handler for every interactive layer — clicking
     // a cluster expands it, clicking a marker opens its popup (desktop) or
     // the mobile sheet, and clicking bare map dismisses the sheet.
-    const interactiveLayers = ["places-cluster-ring", "places-cluster-core", "places-unclustered", "events-cluster-ring", "events-cluster-core", "events-unclustered"];
+    const interactiveLayers = [
+      "places-cluster-ring",
+      "places-cluster-core",
+      "places-unclustered-ring",
+      "places-unclustered-core",
+      "events-cluster-ring",
+      "events-cluster-core",
+      "events-unclustered-ring",
+      "events-unclustered-core",
+    ];
 
     map.on("click", (e: maplibregl.MapMouseEvent) => {
       const style = map.getStyle();
@@ -650,7 +584,7 @@ export function Map({
         expandCluster(map, "events", feature);
         return;
       }
-      if (layerId === "places-unclustered") {
+      if (layerId === "places-unclustered-ring" || layerId === "places-unclustered-core") {
         const place = placesByIdRef.current[String(feature.properties?.id)];
         if (!place) return;
         if (isMobileRef.current) {
@@ -660,7 +594,7 @@ export function Map({
         }
         return;
       }
-      if (layerId === "events-unclustered") {
+      if (layerId === "events-unclustered-ring" || layerId === "events-unclustered-core") {
         const event = eventsByIdRef.current[String(feature.properties?.id)];
         if (!event) return;
         if (isMobileRef.current) {
@@ -958,8 +892,11 @@ class LocateControl implements maplibregl.IControl {
     // Round, not the library's own default square-ish group shape — the
     // classic "recenter on me" button shape shared by most map apps, and
     // this control is always alone in its group so there's no shared-edge
-    // styling with a neighbor to preserve.
-    container.style.cssText = "border-radius:9999px;overflow:hidden;";
+    // styling with a neighbor to preserve. margin-bottom overrides the
+    // library's own ~10px default (an inline style here always wins over
+    // its stylesheet rule, same element) — a few more px so the button
+    // doesn't read as glued to the very bottom edge of the map.
+    container.style.cssText = "border-radius:9999px;overflow:hidden;margin-bottom:20px;";
     const button = document.createElement("button");
     button.type = "button";
     button.setAttribute("aria-label", "Me localiser");

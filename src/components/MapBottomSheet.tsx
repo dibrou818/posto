@@ -59,7 +59,12 @@ function SheetContent({ item }: { item: MapSheetItem }) {
   return (
     <div className="flex flex-col gap-2">
       {coverPhotoUrl && (
-        <div className="relative h-28 w-full shrink-0 overflow-hidden bg-gray-100">
+        // Rounded on its own top corners (mirroring the sheet's own
+        // rounded-t-2xl) and flush against the drag handle right above it —
+        // no gap, no side padding — so the photo reads as its own rounded
+        // card nested right under the handle, not a plain rectangle
+        // floating inside the sheet.
+        <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-t-2xl bg-gray-100">
           <Image src={coverPhotoUrl} alt="" fill sizes="480px" className="object-cover" />
         </div>
       )}
@@ -116,7 +121,15 @@ export function MapBottomSheet({ item, onClose }: { item: MapSheetItem | null; o
 
   const [dragY, setDragY] = useState(0);
   const [dragging, setDragging] = useState(false);
+  // Set once a drag-up past the threshold is released — instead of
+  // navigating immediately, the sheet keeps sliding (programmatically, via
+  // the transform transition below) up to the very top of the screen, and
+  // only *once that slide finishes* (see handleTransitionEnd) does it
+  // actually navigate to the full page. Continuing the same upward motion
+  // all the way, rather than cutting to the destination mid-gesture.
+  const [expanding, setExpanding] = useState(false);
   const dragStartYRef = useRef(0);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   const open = item !== null;
 
@@ -147,22 +160,45 @@ export function MapBottomSheet({ item, onClose }: { item: MapSheetItem | null; o
     if (!dragging) return;
     setDragging(false);
     if (dragY < PEEK_TO_OPEN_PX && content) {
-      router.push(hrefFor(content));
-      onClose();
+      // Slides the rest of the way to the top instead of jumping straight
+      // to the destination page — how far "the rest of the way" is depends
+      // on the sheet's own (content-dependent) height, so it's measured
+      // rather than a guessed constant.
+      const sheetHeight = sheetRef.current?.offsetHeight ?? 0;
+      setDragY(-(window.innerHeight - sheetHeight));
+      setExpanding(true);
     } else if (dragY > PEEK_TO_CLOSE_PX) {
       onClose();
+      setDragY(0);
+    } else {
+      setDragY(0);
     }
+  }
+
+  function handleTransitionEnd(e: React.TransitionEvent) {
+    // Only the expand-to-top slide should trigger navigation — a plain
+    // reject-the-drag snap-back also transitions `transform` and would
+    // otherwise fire this too.
+    if (!expanding || e.propertyName !== "transform" || !content) return;
+    router.push(hrefFor(content));
+    onClose();
+    setExpanding(false);
     setDragY(0);
   }
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[1200] flex justify-center md:hidden" aria-hidden={!open}>
       <div
+        ref={sheetRef}
         className="pointer-events-auto w-full max-w-md overflow-hidden rounded-t-2xl bg-white shadow-[0_-4px_24px_rgba(0,0,0,0.18)]"
         style={{
-          transform: open ? `translateY(${Math.max(dragY, -40)}px)` : "translateY(100%)",
-          transition: dragging ? "none" : "transform 240ms ease",
+          // The -40px clamp only applies to an ordinary drag/rest position —
+          // expanding needs dragY to actually reach all the way up to
+          // -(viewport height - sheet height), not get capped at -40.
+          transform: open ? `translateY(${expanding ? dragY : Math.max(dragY, -40)}px)` : "translateY(100%)",
+          transition: dragging ? "none" : `transform ${expanding ? 320 : 240}ms ease`,
         }}
+        onTransitionEnd={handleTransitionEnd}
       >
         {/* Drag handle: a 36px-tall hit area even though the visible bar is
             thin, so it's a comfortable touch target on its own. */}
