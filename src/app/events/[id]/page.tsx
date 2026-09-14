@@ -4,9 +4,11 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getEventById } from "@/lib/queries";
 import { BackButton } from "@/components/ui/BackButton";
+import { ShareButton } from "@/components/ui/ShareButton";
 import { RecurrenceBadge } from "@/components/RecurrenceBadge";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
 import { formatEventSchedule, formatDuration } from "@/lib/eventSchedule";
+import { eventShareText } from "@/lib/share";
 
 export default async function EventPage({
   params,
@@ -84,6 +86,7 @@ export default async function EventPage({
           </svg>
           Itinéraire
         </a>
+        <ShareButton title={event.title} text={eventShareText(event.title, dateLabel, place.address)} />
       </div>
 
       {(event.price || event.recurrence_rule || event.duration_minutes) && (

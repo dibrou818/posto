@@ -26,6 +26,11 @@ export type CityResult = {
   subtitle: string | null;
   lat: number;
   lng: number;
+  /** How close to fly in when picked — cities want a wide view of the whole
+   * town, a street address wants to land right on it. Omitted for cities;
+   * FullScreenMap falls back to its own city zoom. Set by api/search's
+   * address bucket, which shares this same shape. */
+  zoom?: number;
 };
 
 interface Props {
@@ -76,6 +81,15 @@ function CalendarIcon() {
   );
 }
 
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m20 20-4.7-4.7" />
+    </svg>
+  );
+}
+
 function CityIcon() {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -86,7 +100,11 @@ function CityIcon() {
 }
 
 type Row =
+  // Separate "city"/"address" variants (not one variant with a two-value
+  // kind) — TypeScript only narrows a discriminated union cleanly when each
+  // variant's own discriminant is a single literal.
   | { kind: "city"; key: string; title: string; subtitle: string | null; city: CityResult }
+  | { kind: "address"; key: string; title: string; subtitle: string | null; city: CityResult }
   | { kind: "tag"; key: string; title: string; subtitle: string | null; tag: TagResult }
   | {
       kind: "place" | "activity" | "event";
@@ -100,7 +118,7 @@ function RowIcon({ kind }: { kind: Row["kind"] }) {
   if (kind === "tag") return <TagIcon />;
   if (kind === "event") return <CalendarIcon />;
   if (kind === "city") return <CityIcon />;
-  return <PinIcon />; // place & activity: both anchored to a specific venue
+  return <PinIcon />; // place, activity & address: all anchored to a specific point
 }
 
 export function SearchBar({
@@ -117,6 +135,7 @@ export function SearchBar({
   const [tags, setTags] = useState<TagResult[]>([]);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [cities, setCities] = useState<CityResult[]>([]);
+  const [addresses, setAddresses] = useState<CityResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [internalFilter, setInternalFilter] = useState<ResultKindFilter>("all");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -143,6 +162,7 @@ export function SearchBar({
         setTags(data.tags ?? []);
         setResults(data.results ?? []);
         setCities(data.cities ?? []);
+        setAddresses(data.addresses ?? []);
         setOpen(true);
       } finally {
         setLoading(false);
@@ -174,6 +194,13 @@ export function SearchBar({
           subtitle: city.subtitle,
           city,
         })),
+        ...addresses.map((address): Row => ({
+          kind: "address",
+          key: `address-${address.label}-${address.lat}`,
+          title: address.label,
+          subtitle: address.subtitle,
+          city: address,
+        })),
         ...tags.map((tag): Row => ({
           kind: "tag",
           key: `tag-${tag.id}`,
@@ -195,7 +222,7 @@ export function SearchBar({
   function selectRow(row: Row) {
     setOpen(false);
     setQuery("");
-    if (row.kind === "city") onSelectCity(row.city);
+    if (row.kind === "city" || row.kind === "address") onSelectCity(row.city);
     else if (row.kind === "tag") onSelectTag(row.tag);
     else onSelectResult(row.result);
   }
@@ -212,6 +239,14 @@ export function SearchBar({
 
   return (
     <div ref={containerRef} className="relative w-full max-w-xl">
+      {/* Purely decorative (aria-hidden) — the input's placeholder already
+          says what to do, this just makes "this is a search field" legible
+          at a glance the way every other search bar looks. pointer-events-
+          none so it never steals the click focus should intend for the
+          input itself. */}
+      <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-gray-400">
+        <SearchIcon />
+      </span>
       <input
         type="text"
         value={query}
@@ -219,10 +254,19 @@ export function SearchBar({
         onFocus={() => query.trim().length >= 2 && setOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className={`w-full border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 transition-colors focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10 ${inputRoundingClassName}`}
+        className={`w-full border border-gray-300 bg-white py-2.5 pr-4 pl-10 text-sm text-gray-900 transition-colors focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10 ${inputRoundingClassName}`}
       />
       {open && (loading || rows.length > 0 || query.trim().length >= 2) && (
-        <div className="absolute z-20 mt-1 max-h-96 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+        // min(24rem, ...) — 24rem (max-h-96) is the usual cap; the
+        // viewport-relative half of the min() is what actually guarantees
+        // this never reaches past the bottom of a short/locked-scroll
+        // viewport (see MapFilterButton's panel for the same reasoning).
+        // z-50: above this app's persistent chrome (Header z-40, BottomNav
+        // z-30), not just above ordinary page content — see QrCodeSection's
+        // tooltip for the full reasoning. On the homepage both of those
+        // are visible at once, and this dropdown sits right under the
+        // header.
+        <div className="absolute z-50 mt-1 max-h-[min(24rem,calc(100dvh-6rem))] w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
           <div hidden={isControlled} className="flex gap-1.5 border-b border-gray-100 px-3 py-2">
             {RESULT_KIND_OPTIONS.map((option) => (
               <button

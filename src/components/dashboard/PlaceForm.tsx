@@ -5,6 +5,8 @@ import type { Tables } from "@/types/database.types";
 import { TextField, TextareaField } from "@/components/ui/TextField";
 import { PhoneField } from "@/components/ui/PhoneField";
 import { SaveButton } from "@/components/ui/SaveButton";
+import { PhotoPickerButton } from "@/components/ui/PhotoPickerButton";
+import { DateTimeField } from "@/components/ui/DateTimeField";
 import { labelClass } from "@/lib/ui";
 import { useSupabasePhotoUpload } from "@/lib/useSupabasePhotoUpload";
 import { toDatetimeLocalValue } from "@/lib/eventSchedule";
@@ -146,7 +148,7 @@ export function PlaceForm({
 
       <div>
         <label className={labelClass}>Photo de couverture</label>
-        <input type="file" accept="image/*" onChange={coverUpload.handleFileChange} className="text-sm" />
+        <PhotoPickerButton id="place-cover-photo" onChange={coverUpload.handleFileChange} />
         <input type="hidden" name="cover_photo_url" value={coverPhotoUrl} />
         {coverUpload.uploading && <p className="mt-1 text-xs text-gray-500">Envoi en cours...</p>}
         {coverPhotoUrl && (
@@ -161,12 +163,11 @@ export function PlaceForm({
           Intérieur, ambiance, terrain... plusieurs photos aident bien plus à se décider qu&apos;une
           seule.
         </p>
-        <input
-          type="file"
-          accept="image/*"
+        <PhotoPickerButton
+          id="place-gallery-photo"
           onChange={galleryUpload.handleFileChange}
           disabled={galleryUpload.uploading}
-          className="text-sm"
+          label="Ajouter une photo"
         />
         {galleryUpload.uploading && <p className="mt-1 text-xs text-gray-500">Envoi en cours...</p>}
         {photoUrls.length > 0 && (
@@ -224,10 +225,9 @@ export function PlaceForm({
           className="border-amber-300"
         />
         <div className="mt-2">
-          <TextField
+          <DateTimeField
             label="Expire le"
             name="urgent_message_expires_at"
-            type="datetime-local"
             defaultValue={toDatetimeLocalValue(place?.urgent_message_expires_at)}
             className="border-amber-300"
           />

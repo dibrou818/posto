@@ -8,6 +8,11 @@ const NOMINATIM_BASE_URL = "https://nominatim.openstreetmap.org";
 const NOMINATIM_USER_AGENT = "Posto/1.0 (+https://github.com/dibrou818/posto)";
 
 export type NominatimAddress = {
+  house_number?: string;
+  road?: string;
+  neighbourhood?: string;
+  suburb?: string;
+  postcode?: string;
   city?: string;
   town?: string;
   village?: string;

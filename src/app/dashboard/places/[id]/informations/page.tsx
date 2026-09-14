@@ -52,6 +52,7 @@ export default async function PlaceInformationsPage({
         <QrCodeSection
           qrCodeUrl={place.qr_code_url}
           publicPath={`/places/${place.id}`}
+          label="Renvoie vers la page de votre lieu"
           action={generatePlaceQrCode.bind(null, id)}
         />
       </DashboardSection>

@@ -54,6 +54,7 @@ export default async function EditEventPage({
         <QrCodeSection
           qrCodeUrl={event.qr_code_url}
           publicPath={`/events/${event.id}`}
+          label="Renvoie vers la page de votre événement"
           action={generateEventQrCode.bind(null, id, eventId)}
         />
       </DashboardSection>

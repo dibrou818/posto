@@ -4,6 +4,7 @@ import type { Activity, Tag } from "@/lib/queries";
 import { compactInputClass, labelClass } from "@/lib/ui";
 import { TextField } from "@/components/ui/TextField";
 import { SaveButton } from "@/components/ui/SaveButton";
+import { DurationField } from "@/components/ui/DurationField";
 import {
   ACTIVITY_NAME_MAX_LENGTH,
   ACTIVITY_DESCRIPTION_MAX_LENGTH,
@@ -46,13 +47,10 @@ export function ActivityForm({
         defaultValue={activity?.description ?? ""}
       />
       <div className="grid grid-cols-2 gap-2">
-        <TextField
-          label="Durée typique (min)"
+        <DurationField
+          label={activity ? "Durée typique" : undefined}
           name="duration_minutes"
-          type="number"
-          min={1}
-          placeholder="20"
-          defaultValue={activity?.duration_minutes ?? ""}
+          defaultValue={activity?.duration_minutes}
         />
         <TextField
           label="Restriction"

@@ -7,7 +7,16 @@ export type CitySearchResult = {
   subtitle: string | null;
   lat: number;
   lng: number;
+  /** How close to fly in when this result is picked — cities want a wide
+   * view of the whole town, a street address wants to land right on it.
+   * Omitted for cities; FullScreenMap falls back to its own city zoom. */
+  zoom?: number;
 };
+
+// Close enough to read individual street names/building outlines on the
+// vector basemap without being so tight the pin ends up hidden under the
+// search bar itself.
+const ADDRESS_ZOOM = 17;
 
 /** Searches French cities/towns/villages by name via OpenStreetMap's free
  * Nominatim geocoder. Never throws — a geocoding hiccup shouldn't break the
@@ -39,19 +48,46 @@ async function searchCities(query: string): Promise<CitySearchResult[]> {
   });
 }
 
+/** Searches full street addresses (not just settlements) via Nominatim,
+ * unrestricted beyond France — "3 boulevard de la Moselle", "rue Massena",
+ * etc. Only keeps results Nominatim actually resolved to a road (filters
+ * out the bare city/admin-area matches searchCities already covers, so the
+ * two buckets don't just duplicate each other for an ambiguous query). */
+async function searchAddresses(query: string): Promise<CitySearchResult[]> {
+  const data = await nominatimSearch({
+    q: query,
+    format: "json",
+    countrycodes: "fr",
+    addressdetails: "1",
+    limit: "5",
+  });
+  if (data === null) return [];
+
+  return data
+    .filter((item) => item.address?.road)
+    .map((item) => {
+      const { house_number, road, postcode } = item.address!;
+      const label = house_number ? `${house_number} ${road}` : road!;
+      const cityName = addressPlaceName(item.address);
+      const subtitle = [postcode, cityName].filter(Boolean).join(" ") || null;
+      return { label, subtitle, lat: parseFloat(item.lat), lng: parseFloat(item.lon), zoom: ADDRESS_ZOOM };
+    });
+}
+
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q")?.trim() ?? "";
 
   if (q.length < 2) {
-    return NextResponse.json({ tags: [], results: [], cities: [] });
+    return NextResponse.json({ tags: [], results: [], cities: [], addresses: [] });
   }
 
   const supabase = await createClient();
 
-  const [tagsRes, resultsRes, cities] = await Promise.all([
+  const [tagsRes, resultsRes, cities, addresses] = await Promise.all([
     supabase.rpc("search_tags", { search_query: q }),
     supabase.rpc("search_all", { search_query: q }),
     searchCities(q),
+    searchAddresses(q),
   ]);
 
   if (tagsRes.error) {
@@ -69,5 +105,6 @@ export async function GET(request: NextRequest) {
     tags: tagsRes.data ?? [],
     results: resultsRes.data ?? [],
     cities,
+    addresses,
   });
 }

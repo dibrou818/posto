@@ -97,8 +97,11 @@ export function FullScreenMap({
 
   function handleSelectCity(city: CityResult) {
     // No marker will ever match this id, so Map falls back to a plain
-    // flyTo — exactly what a city/area target needs (no popup to open).
-    setFocusTarget({ id: `city:${city.label}:${Date.now()}`, lat: city.lat, lng: city.lng, zoom: CITY_ZOOM });
+    // flyTo — exactly what a city/area (or street address — same shape,
+    // see SearchBar's "address" bucket) target needs (no popup to open).
+    // A picked address carries its own tighter zoom; a city has none and
+    // falls back to the wide CITY_ZOOM.
+    setFocusTarget({ id: `city:${city.label}:${Date.now()}`, lat: city.lat, lng: city.lng, zoom: city.zoom ?? CITY_ZOOM });
   }
 
   return (

@@ -1,6 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+// Same breakpoint as the rest of the app's mobile/desktop split (BottomNav,
+// Map.tsx's mobile bottom sheet) — kept local rather than imported since
+// it's a single small hook and none of those modules export it.
+const MOBILE_BREAKPOINT_QUERY = "(max-width: 767px)";
+
+function useIsMobileViewport(): boolean {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
+    const update = () => setIsMobile(mql.matches);
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
+  return isMobile;
+}
 
 function ShareIcon() {
   return (
@@ -12,19 +29,27 @@ function ShareIcon() {
   );
 }
 
-/** Opens the device's native share sheet (Messages, Mail, Instagram, etc.)
- * via the Web Share API — supported on iOS/Android/most modern browsers.
- * Where it isn't available (mainly desktop), falls back to copying the
- * link, with a brief "Lien copié !" confirmation instead of failing silently. */
-export function ShareButton({ title, text }: { title: string; text?: string }) {
+/** Share a place or event page: on mobile, opens the device's native share
+ * sheet (Messages, WhatsApp, Instagram...) via the Web Share API, with
+ * `text` (name/date/address — built by the caller, see lib/share.ts) plus
+ * the page's link appended on its own line, which is what lets most share
+ * targets auto-linkify/preview it. On desktop, the native sheet is skipped
+ * even where the browser technically supports it (macOS Safari/some Chrome
+ * builds do) — for a "share this link" click at a desk, copying straight to
+ * the clipboard is the faster, more expected action; the OS share sheet
+ * there is built for a completely different, rarer flow (AirDrop, Mail...).
+ * The clipboard fallback also covers any mobile browser without Web Share
+ * support. */
+export function ShareButton({ title, text }: { title: string; text: string }) {
+  const isMobile = useIsMobileViewport();
   const [copied, setCopied] = useState(false);
 
   async function handleShare() {
     const url = window.location.href;
 
-    if (typeof navigator.share === "function") {
+    if (isMobile && typeof navigator.share === "function") {
       try {
-        await navigator.share({ title, text, url });
+        await navigator.share({ title, text: `${text}\n\n${url}` });
       } catch {
         // User cancelled the native sheet, or the platform refused — either
         // way there's nothing useful to recover from here.
@@ -37,7 +62,7 @@ export function ShareButton({ title, text }: { title: string; text?: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // No Web Share API and no Clipboard API — nothing left to fall back to.
+      // No Clipboard API either — nothing left to fall back to.
     }
   }
 

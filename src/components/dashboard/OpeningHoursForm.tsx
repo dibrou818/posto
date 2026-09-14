@@ -117,7 +117,12 @@ export function OpeningHoursForm({
         </div>
       ))}
 
-      <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 p-3">
+      {/* flex-wrap + a real min-width on the input (not min-w-0) — same
+          pattern as DayRows' time-range group above: on a narrow screen the
+          button drops to its own full-width line below the input instead of
+          either overflowing the card or squeezing the input unreadably
+          thin. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-gray-300 p-3">
         <input
           value={newZoneName}
           onChange={(e) => setNewZoneName(e.target.value)}
@@ -128,14 +133,14 @@ export function OpeningHoursForm({
             }
           }}
           placeholder="Nom de la zone/du service, ex: Bassin extérieur"
-          className={`flex-1 ${compactInputClass}`}
+          className={`min-w-[12rem] flex-1 ${compactInputClass}`}
         />
         <button
           type="button"
           onClick={addZone}
-          className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          className="w-full shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:w-auto"
         >
-          + Ajouter une zone
+          + Ajouter la zone
         </button>
       </div>
 

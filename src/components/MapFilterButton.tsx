@@ -87,7 +87,15 @@ export function MapFilterButton({
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 z-20 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
+        // max-w/max-h clamp to the viewport (minus a small margin), with its
+        // own scroll once content would exceed that — the map view locks all
+        // page scroll (see useLockBodyScroll), so without this, a panel tall
+        // enough to reach past the bottom of a short viewport would have no
+        // way to be scrolled into view at all, not just look cramped.
+        // z-50: above this app's persistent chrome (BottomNav is z-30),
+        // not just above ordinary page content — see QrCodeSection's
+        // tooltip for the full reasoning.
+        <div className="absolute top-full right-0 z-50 mt-2 max-h-[calc(100dvh-6rem)] w-72 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
           <p className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">Quoi</p>
           <div className="flex gap-1.5">
             {RESULT_KIND_OPTIONS.map((option) => (

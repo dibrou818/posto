@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -13,6 +12,8 @@ import { OpeningHoursAccordion } from "@/components/OpeningHoursAccordion";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
 import { BackButton } from "@/components/ui/BackButton";
 import { ShareButton } from "@/components/ui/ShareButton";
+import { PhotoCarousel } from "@/components/PhotoCarousel";
+import { placeShareText } from "@/lib/share";
 
 const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
   weekday: "long",
@@ -42,6 +43,11 @@ export default async function PlacePage({
     getUpcomingEventsForPlace(supabase, place.id),
   ]);
 
+  // Cover photo first (if set), then the gallery — one ordered set the
+  // carousel cycles through, rather than a static cover plus a separate
+  // scroll strip for the rest.
+  const photos = [place.cover_photo_url, ...place.photo_urls].filter((url): url is string => Boolean(url));
+
   const open = isOpenNow(place.opening_hours);
   const schedule = scheduleByDay(place.opening_hours);
   const zoneNames = listZoneNames(place.opening_hours);
@@ -60,30 +66,11 @@ export default async function PlacePage({
         </div>
       )}
       <div className="relative mb-4 h-64 w-full overflow-hidden rounded-xl bg-gray-100">
-        {place.cover_photo_url && (
-          <Image
-            src={place.cover_photo_url}
-            alt={place.name}
-            fill
-            sizes="768px"
-            className="object-cover"
-            priority
-          />
-        )}
-        <div className="absolute top-3 left-3">
+        <PhotoCarousel photos={photos} alt={place.name} />
+        <div className="absolute top-3 left-3 z-10">
           <BackButton fallbackHref="/" />
         </div>
       </div>
-
-      {place.photo_urls.length > 0 && (
-        <div className="mb-4 -mt-2 flex gap-2 overflow-x-auto pb-1">
-          {place.photo_urls.map((url, i) => (
-            <div key={url} className="relative h-20 w-28 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-              <Image src={url} alt={`${place.name} — photo ${i + 2}`} fill sizes="112px" className="object-cover" />
-            </div>
-          ))}
-        </div>
-      )}
 
       <div className="flex items-start justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">{place.name}</h1>
@@ -163,7 +150,7 @@ export default async function PlacePage({
             </svg>
           </a>
         )}
-        <ShareButton title={place.name} text={`${place.name} sur Posto`} />
+        <ShareButton title={place.name} text={placeShareText(place.name, place.address)} />
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
