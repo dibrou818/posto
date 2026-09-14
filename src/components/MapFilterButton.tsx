@@ -212,7 +212,7 @@ export function MapFilterButton({
                       type="button"
                       onClick={clearDate}
                       aria-label="Effacer la date choisie"
-                      className="text-gray-400 transition-colors hover:text-gray-700"
+                      className="text-gray-500 transition-colors hover:text-gray-700"
                     >
                       ✕
                     </button>

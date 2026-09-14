@@ -72,7 +72,7 @@ function SheetContent({ item }: { item: MapSheetItem }) {
         <h2 className="text-base font-semibold text-gray-900">{title}</h2>
         {subtitle && (
           <p className="flex items-center gap-1.5 overflow-hidden text-sm text-gray-500">
-            <span className="shrink-0 text-gray-400">
+            <span className="shrink-0 text-gray-500">
               <PinIcon />
             </span>
             <span className="truncate">{subtitle}</span>

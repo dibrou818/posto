@@ -40,8 +40,15 @@ async function MapData() {
 // after a network round-trip nobody could see happening.
 export default function MapPage() {
   return (
-    <Suspense fallback={<MapPageSkeleton />}>
-      <MapData />
-    </Suspense>
+    <>
+      {/* Visually hidden — the map itself is the real content here, but a
+          page with zero headings gives a screen-reader user nothing to
+          land on and no page-level SEO signal. Outside the Suspense so it's
+          present immediately, not delayed behind the places/events fetch. */}
+      <h1 className="sr-only">Carte des lieux et événements à Lille</h1>
+      <Suspense fallback={<MapPageSkeleton />}>
+        <MapData />
+      </Suspense>
+    </>
   );
 }

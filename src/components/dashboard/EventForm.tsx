@@ -113,7 +113,7 @@ export function EventForm({
           <img src={coverPhotoUrl} alt="Aperçu" className="mt-2 h-20 w-32 rounded-lg object-cover" />
         )}
         {!coverPhotoUrl && placeCoverPhotoUrl && (
-          <p className="mt-1 text-xs text-gray-400">Utilisera la photo du lieu par défaut.</p>
+          <p className="mt-1 text-xs text-gray-500">Utilisera la photo du lieu par défaut.</p>
         )}
         {uploadError && <p className="mt-1 text-xs text-red-600">{uploadError}</p>}
       </div>

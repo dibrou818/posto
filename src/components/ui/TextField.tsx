@@ -12,7 +12,7 @@ import { inputClass } from "@/lib/ui";
 // wrapper's fuller layout/sizing.
 export function CharCounter({ count, max }: { count: number; max: number }) {
   return (
-    <span className={`shrink-0 text-xs tabular-nums ${count >= max ? "font-medium text-amber-600" : "text-gray-400"}`}>
+    <span className={`shrink-0 text-xs tabular-nums ${count >= max ? "font-medium text-amber-600" : "text-gray-500"}`}>
       {count}/{max}
     </span>
   );

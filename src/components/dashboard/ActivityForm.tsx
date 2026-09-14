@@ -31,8 +31,15 @@ export function ActivityForm({
 }) {
   return (
     <form action={action} className="flex flex-col gap-2">
+      {/* The compact "add" row (no `activity`) drops the visible <label> to
+          stay narrow, but a placeholder alone isn't a reliable accessible
+          name for a screen reader (it isn't consistently exposed the way a
+          real label/aria-label is, and it disappears the moment someone
+          starts typing) — aria-label fills that gap exactly when the
+          visible label isn't rendered. */}
       <TextField
         label={activity ? "Nom" : undefined}
+        aria-label={activity ? undefined : "Nom de l'activité"}
         name="name"
         placeholder="Nom de l'activité"
         required
@@ -41,6 +48,7 @@ export function ActivityForm({
       />
       <TextField
         label={activity ? "Description" : undefined}
+        aria-label={activity ? undefined : "Description de l'activité"}
         name="description"
         placeholder="Description (optionnel)"
         maxLength={ACTIVITY_DESCRIPTION_MAX_LENGTH}
@@ -62,7 +70,12 @@ export function ActivityForm({
       </div>
       <div>
         {activity && <label className={labelClass}>Tag</label>}
-        <select name="tag_id" defaultValue={activity?.tag_id ?? ""} className={compactInputClass}>
+        <select
+          name="tag_id"
+          aria-label={activity ? undefined : "Tag"}
+          defaultValue={activity?.tag_id ?? ""}
+          className={compactInputClass}
+        >
           <option value="">Hérite des tags du lieu</option>
           {allTags.map((tag) => (
             <option key={tag.id} value={tag.id}>

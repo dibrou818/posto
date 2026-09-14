@@ -262,7 +262,7 @@ export function SearchBar({
           at a glance the way every other search bar looks. pointer-events-
           none so it never steals the click focus should intend for the
           input itself. */}
-      <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-gray-400">
+      <span aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-gray-500">
         <SearchIcon />
       </span>
       <input

@@ -136,7 +136,7 @@ export default async function EventPage({
               <span className="block truncate text-xs text-gray-500">{place.address}</span>
             )}
           </span>
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4 shrink-0 text-gray-400">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4 shrink-0 text-gray-500">
             <path d="M7.5 4.5 13 10l-5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Link>

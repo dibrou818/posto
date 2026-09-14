@@ -61,7 +61,7 @@ export function QrCodeSection({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={qrCodeUrl} alt="Code QR" className="h-full w-full object-contain p-2" />
         ) : (
-          <span className="px-2 text-center text-xs text-gray-400">Pas encore généré</span>
+          <span className="px-2 text-center text-xs text-gray-500">Pas encore généré</span>
         )}
       </div>
       <div className="flex flex-col items-start gap-2">
@@ -72,7 +72,7 @@ export function QrCodeSection({
             onClick={() => setTooltipOpen((v) => !v)}
             aria-label="En savoir plus sur ce code QR"
             aria-expanded={tooltipOpen}
-            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
           >
             <InfoIcon />
           </button>

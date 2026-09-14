@@ -118,7 +118,7 @@ export function PosterSection({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={posterUrl} alt="Affiche de l'événement" className="h-full w-full object-cover" />
         ) : (
-          <span className="px-2 text-center text-xs text-gray-400">Pas encore générée</span>
+          <span className="px-2 text-center text-xs text-gray-500">Pas encore générée</span>
         )}
       </div>
       <div className="flex flex-col items-start gap-2">
