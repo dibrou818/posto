@@ -81,7 +81,22 @@ export async function getUpcomingEventsForPlace(
   return data;
 }
 
-export type EventWithPlace = Event & { place: Tables<"places"> };
+// Nests the same place_tags(tags(*)) relation PLACE_SELECT uses, not just
+// the bare place row — an event with no tag_id of its own is meant to
+// "inherit" its place's tags (that's literally what the dashboard's own
+// tag <select> says when left empty), and the tag filter on the home page
+// and map (see eventMatchesTag in lib/eventTags.ts) needs the place's real
+// tags in hand to actually honor that instead of just the UI copy claiming
+// it.
+const EVENT_SELECT = `*, place:places(${PLACE_SELECT})`;
+
+export type EventWithPlace = Event & { place: PlaceWithRelations };
+
+type RawEventWithPlace = Event & { place: RawPlace };
+
+function normalizeEvent(raw: RawEventWithPlace): EventWithPlace {
+  return { ...raw, place: normalizePlace(raw.place) };
+}
 
 export async function getEventById(
   supabase: SupabaseClient<Database>,
@@ -89,12 +104,12 @@ export async function getEventById(
 ): Promise<EventWithPlace | null> {
   const { data, error } = await supabase
     .from("events")
-    .select("*, place:places(*)")
+    .select(EVENT_SELECT)
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  return data as unknown as EventWithPlace;
+  return normalizeEvent(data as unknown as RawEventWithPlace);
 }
 
 export async function getUpcomingEvents(
@@ -102,12 +117,12 @@ export async function getUpcomingEvents(
 ): Promise<EventWithPlace[]> {
   const { data, error } = await supabase
     .from("events")
-    .select("*, place:places(*)")
+    .select(EVENT_SELECT)
     .gte("start_datetime", new Date().toISOString())
     .order("start_datetime")
     .limit(60);
   if (error) throw new Error(error.message);
-  return data as unknown as EventWithPlace[];
+  return (data as unknown as RawEventWithPlace[]).map(normalizeEvent);
 }
 
 export async function getAllEventsForPlace(

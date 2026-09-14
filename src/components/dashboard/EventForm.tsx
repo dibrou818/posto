@@ -7,14 +7,14 @@ import { TextField } from "@/components/ui/TextField";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { DurationField } from "@/components/ui/DurationField";
 import { DateTimeField } from "@/components/ui/DateTimeField";
+import { RecurrenceField } from "@/components/ui/RecurrenceField";
+import { PriceField } from "@/components/ui/PriceField";
 import { PhotoPickerButton } from "@/components/ui/PhotoPickerButton";
 import { useSupabasePhotoUpload } from "@/lib/useSupabasePhotoUpload";
 import { toDatetimeLocalValue } from "@/lib/eventSchedule";
 import {
   EVENT_TITLE_MAX_LENGTH,
   EVENT_DESCRIPTION_MAX_LENGTH,
-  EVENT_RECURRENCE_MAX_LENGTH,
-  EVENT_PRICE_MAX_LENGTH,
   RESTRICTIONS_MAX_LENGTH,
 } from "@/lib/fieldLimits";
 
@@ -71,21 +71,13 @@ export function EventForm({
           defaultValue={toDatetimeLocalValue(event?.end_datetime)}
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <TextField
-          label="Récurrence"
-          name="recurrence_rule"
-          placeholder="ex: weekly:thursday"
-          maxLength={EVENT_RECURRENCE_MAX_LENGTH}
-          defaultValue={event?.recurrence_rule ?? ""}
-        />
-        <TextField
-          label="Prix"
-          name="price"
-          placeholder="ex: Gratuit / 10€"
-          maxLength={EVENT_PRICE_MAX_LENGTH}
-          defaultValue={event?.price ?? ""}
-        />
+      {/* Stacks on mobile rather than a fixed 2-column grid: both fields are
+          now compound controls (2-3 inputs each), too cramped to share a
+          half-width column on a narrow screen the way two plain text
+          fields used to. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <RecurrenceField label="Récurrence" name="recurrence_rule" defaultValue={event?.recurrence_rule} />
+        <PriceField label="Prix" defaultCents={event?.price_cents} defaultUnit={event?.price_unit} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <DurationField label="Durée typique" name="duration_minutes" defaultValue={event?.duration_minutes} />

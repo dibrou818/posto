@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { RESULT_KIND_OPTIONS, type ResultKindFilter } from "@/lib/resultFilter";
 import { EVENT_DATE_QUICK_OPTIONS, ALL_EVENT_DATES, type EventDateFilterValue } from "@/lib/eventDateFilter";
+import { useIsMobileViewport } from "@/lib/viewport";
+
+// Keeps a sliver of map visible on both sides on mobile — "quasiment toute
+// la largeur", not literally edge-to-edge — and matches the top overlay
+// bar's own p-3 padding in FullScreenMap for visual consistency.
+const MOBILE_VIEWPORT_MARGIN = 12;
 
 function FilterIcon() {
   return (
@@ -32,15 +38,38 @@ export function MapFilterButton({
   onKindFilterChange,
   dateFilter,
   onDateFilterChange,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   kindFilter: ResultKindFilter;
   onKindFilterChange: (value: ResultKindFilter) => void;
   dateFilter: EventDateFilterValue;
   onDateFilterChange: (value: EventDateFilterValue) => void;
+  /** Lets a parent close this panel from outside — FullScreenMap uses it to
+   * close the panel the moment the map itself starts moving, which this
+   * component's own click-outside listener can't catch (the drag starts and
+   * ends on the map canvas, not on a click). Same controlled/uncontrolled
+   * split as SearchBar's own `filter` prop; omit both to keep this fully
+   * self-contained. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  function setOpen(next: boolean | ((prev: boolean) => boolean)) {
+    const resolved = typeof next === "function" ? next(open) : next;
+    if (onOpenChange) onOpenChange(resolved);
+    else setInternalOpen(resolved);
+  }
   const [showDatePicker, setShowDatePicker] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobileViewport();
+  // Measured (not a static CSS class) because it needs to be a `fixed`
+  // panel centered in the *viewport* on mobile, not just anchored under the
+  // button the way the desktop corner popup is — the button sits at the
+  // right end of the top bar, so a plain "center under me" would center on
+  // the button's own position, not the screen.
+  const [mobilePos, setMobilePos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -50,7 +79,25 @@ export function MapFilterButton({
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useLayoutEffect(() => {
+    if (!open || !isMobile) return;
+    function reposition() {
+      const el = containerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setMobilePos({
+        top: rect.bottom + 8,
+        left: MOBILE_VIEWPORT_MARGIN,
+        width: window.innerWidth - MOBILE_VIEWPORT_MARGIN * 2,
+      });
+    }
+    reposition();
+    window.addEventListener("resize", reposition);
+    return () => window.removeEventListener("resize", reposition);
+  }, [open, isMobile]);
 
   // "place" hides every event marker on the map — a "when" choice would
   // have nothing left to act on, so the section itself doesn't show.
@@ -87,15 +134,34 @@ export function MapFilterButton({
       </button>
 
       {open && (
-        // max-w/max-h clamp to the viewport (minus a small margin), with its
-        // own scroll once content would exceed that — the map view locks all
+        // Two entirely different placements below the `md` breakpoint
+        // (tablet/desktop keep the small corner popup, unchanged): on
+        // mobile this becomes a `fixed`, viewport-centered panel — nearly
+        // the full screen width (MOBILE_VIEWPORT_MARGIN on each side, so a
+        // sliver of map stays visible) rather than a cramped 288px box
+        // anchored under a button pinned to the right edge of the screen.
+        // `fixed` + measured position (mobilePos, see the layout effect
+        // above) rather than a `md:`-prefixed Tailwind class: centering in
+        // the viewport can't be expressed relative to this panel's own
+        // `absolute` anchor (the button's own small container), the same
+        // reasoning as LocationFilter's own dropdown positioning.
+        //
+        // max-h clamps to the viewport (minus a small margin), with its own
+        // scroll once content would exceed that — the map view locks all
         // page scroll (see useLockBodyScroll), so without this, a panel tall
         // enough to reach past the bottom of a short viewport would have no
         // way to be scrolled into view at all, not just look cramped.
         // z-50: above this app's persistent chrome (BottomNav is z-30),
         // not just above ordinary page content — see QrCodeSection's
         // tooltip for the full reasoning.
-        <div className="absolute top-full right-0 z-50 mt-2 max-h-[calc(100dvh-6rem)] w-72 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-lg">
+        <div
+          className={
+            isMobile
+              ? "fixed z-50 max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-lg"
+              : "absolute top-full right-0 z-50 mt-2 max-h-[calc(100dvh-6rem)] w-72 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-lg"
+          }
+          style={isMobile && mobilePos ? { top: mobilePos.top, left: mobilePos.left, width: mobilePos.width } : undefined}
+        >
           <p className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">Quoi</p>
           <div className="flex gap-1.5">
             {RESULT_KIND_OPTIONS.map((option) => (

@@ -12,6 +12,7 @@ import { LocationFilter, LOCATION_FILTER_RADIUS_KM, type LocationFilterValue } f
 import { haversineKm } from "@/lib/distance";
 import { usePlacesExplorer, type UserLocation } from "@/lib/usePlacesExplorer";
 import type { ResultKindFilter } from "@/lib/resultFilter";
+import { eventMatchesTag } from "@/lib/eventTags";
 
 export function HomeExplorer({
   places,
@@ -50,7 +51,7 @@ export function HomeExplorer({
   }, [sortedPlaces, locationFilter]);
 
   const tagFilteredEvents = useMemo(
-    () => (selectedTag ? events.filter((e) => e.tag_id === selectedTag.id) : events),
+    () => (selectedTag ? events.filter((e) => eventMatchesTag(e, selectedTag.id)) : events),
     [events, selectedTag],
   );
 

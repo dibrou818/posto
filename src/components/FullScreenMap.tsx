@@ -11,6 +11,7 @@ import { MapBottomSheet } from "@/components/MapBottomSheet";
 import { usePlacesExplorer } from "@/lib/usePlacesExplorer";
 import type { ResultKindFilter } from "@/lib/resultFilter";
 import { matchesEventDateFilter, ALL_EVENT_DATES, type EventDateFilterValue } from "@/lib/eventDateFilter";
+import { eventMatchesTag } from "@/lib/eventTags";
 
 const CITY_ZOOM = 12;
 
@@ -68,13 +69,17 @@ export function FullScreenMap({
   const [focusTarget, setFocusTarget] = useState<MapFocusTarget | null>(useInitialCityFocus());
   const [kindFilter, setKindFilter] = useState<ResultKindFilter>("all");
   const [dateFilter, setDateFilter] = useState<EventDateFilterValue>(ALL_EVENT_DATES);
+  // Lifted out of MapFilterButton (controlled, see its own props) so the map
+  // itself can close the panel the moment it starts moving — see Map's
+  // onInteractionStart doc comment.
+  const [filterOpen, setFilterOpen] = useState(false);
   // Mobile-only: which pin's preview the bottom sheet is showing (see
   // Map.tsx's onSelectPlace/onSelectEvent — desktop never sets this, it
   // keeps using Leaflet's own popup instead).
   const [sheetItem, setSheetItem] = useState<MapSheetItem | null>(null);
 
   const tagFilteredEvents = useMemo(
-    () => (selectedTag ? events.filter((e) => e.tag_id === selectedTag.id) : events),
+    () => (selectedTag ? events.filter((e) => eventMatchesTag(e, selectedTag.id)) : events),
     [events, selectedTag],
   );
 
@@ -114,6 +119,7 @@ export function FullScreenMap({
           onSelectPlace={(place) => setSheetItem({ kind: "place", place })}
           onSelectEvent={(event) => setSheetItem({ kind: "event", event })}
           onDismissSelection={() => setSheetItem(null)}
+          onInteractionStart={() => setFilterOpen(false)}
         />
       </div>
 
@@ -138,6 +144,8 @@ export function FullScreenMap({
               onKindFilterChange={setKindFilter}
               dateFilter={dateFilter}
               onDateFilterChange={setDateFilter}
+              open={filterOpen}
+              onOpenChange={setFilterOpen}
             />
           </div>
         </div>

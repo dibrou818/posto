@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Event } from "@/lib/queries";
 import { generateEventPosterBlob } from "@/lib/poster";
+import { formatPrice } from "@/lib/eventSchedule";
 import { buttonClass } from "@/lib/ui";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { PLACE_PHOTOS_BUCKET } from "@/lib/storage";
@@ -64,7 +65,7 @@ export function PosterSection({
         description: event.description,
         startDatetime: event.start_datetime,
         endDatetime: event.end_datetime,
-        price: event.price,
+        price: formatPrice(event.price_cents, event.price_unit),
         restrictions: event.restrictions,
         coverPhotoUrl: event.cover_photo_url ?? placeCoverPhotoUrl,
         qrTargetUrl: `${window.location.origin}/events/${event.id}`,

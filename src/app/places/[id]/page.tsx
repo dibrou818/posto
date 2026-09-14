@@ -7,7 +7,7 @@ import {
   getUpcomingEventsForPlace,
 } from "@/lib/queries";
 import { isOpenNow, scheduleByDay, listZoneNames } from "@/lib/opening-hours";
-import { formatDuration } from "@/lib/eventSchedule";
+import { formatDuration, formatPrice } from "@/lib/eventSchedule";
 import { OpeningHoursAccordion } from "@/components/OpeningHoursAccordion";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
 import { BackButton } from "@/components/ui/BackButton";
@@ -226,6 +226,7 @@ export default async function PlacePage({
           <ul className="space-y-2">
             {events.map((event) => {
               const start = new Date(event.start_datetime);
+              const priceLabel = formatPrice(event.price_cents, event.price_unit);
               return (
                 <li key={event.id}>
                   <Link
@@ -246,9 +247,9 @@ export default async function PlacePage({
                     <div className="flex-1 p-3">
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-medium text-gray-900">{event.title}</p>
-                        {event.price && (
+                        {priceLabel && (
                           <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                            {event.price}
+                            {priceLabel}
                           </span>
                         )}
                       </div>

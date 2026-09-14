@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { EventWithPlace } from "@/lib/queries";
 import { formatDistance } from "@/lib/distance";
-import { formatEventDateBadge } from "@/lib/eventSchedule";
+import { formatEventDateBadge, formatPrice } from "@/lib/eventSchedule";
 import { cardClass } from "@/lib/ui";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
 
@@ -16,6 +16,7 @@ export function EventCard({
   distanceKm?: number;
 }) {
   const coverPhotoUrl = event.cover_photo_url ?? event.place.cover_photo_url;
+  const priceLabel = formatPrice(event.price_cents, event.price_unit);
 
   return (
     <Link
@@ -37,9 +38,9 @@ export function EventCard({
         <div>
           <div className="flex items-start justify-between gap-2">
             <h3 className="truncate font-semibold text-gray-900">{event.title}</h3>
-            {event.price && (
+            {priceLabel && (
               <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                {event.price}
+                {priceLabel}
               </span>
             )}
           </div>

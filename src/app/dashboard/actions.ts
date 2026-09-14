@@ -15,7 +15,6 @@ import {
   EVENT_TITLE_MAX_LENGTH,
   EVENT_DESCRIPTION_MAX_LENGTH,
   EVENT_RECURRENCE_MAX_LENGTH,
-  EVENT_PRICE_MAX_LENGTH,
   RESTRICTIONS_MAX_LENGTH,
 } from "@/lib/fieldLimits";
 
@@ -103,6 +102,34 @@ function parseDurationMinutes(formData: FormData, key: string): number | null {
   return Math.round(minutes);
 }
 
+// PriceField (see components/ui/PriceField) submits these as two real
+// columns, not a combined string — price_cents stays null when neither
+// "Gratuit" nor an amount was entered ("prix non précisé", same as an
+// empty old free-text `price`), 0 when "Gratuit" is checked.
+const ALLOWED_PRICE_UNITS = ["personne", "equipe", "partie"];
+
+function parsePriceCents(formData: FormData): number | null {
+  const raw = textField(formData, "price_cents");
+  if (!raw) return null;
+  const cents = Number(raw);
+  if (!Number.isInteger(cents) || cents < 0) {
+    throw new Error("Prix invalide.");
+  }
+  return cents;
+}
+
+function parsePriceUnit(formData: FormData, priceCents: number | null): string | null {
+  // A unit only means something alongside an actual (non-free) amount —
+  // ignore whatever the field carries otherwise rather than trust the
+  // client to have cleared it (PriceField already does, but this action
+  // can be called directly).
+  if (!priceCents) return null;
+  const raw = textField(formData, "price_unit");
+  if (!raw) return null;
+  if (!ALLOWED_PRICE_UNITS.includes(raw)) throw new Error("Unité de prix invalide.");
+  return raw;
+}
+
 function parseUrlField(formData: FormData, key: string, label: string): string | null {
   const raw = textField(formData, key);
   if (!raw) return null;
@@ -122,7 +149,7 @@ function parseUrlField(formData: FormData, key: string, label: string): string |
 // a cover photo can be — so unlike ALLOWED_PHOTO_HOSTS above, this is
 // scoped to exactly one bucket, not a general allowlist.
 const SUPABASE_STORAGE_HOST = "khvchawnkzamhfwrbhtz.supabase.co";
-const POSTER_PATH_PREFIX = `/storage/v1/object/public/${PLACE_PHOTOS_BUCKET}/`;
+const STORAGE_PUBLIC_PATH_PREFIX = `/storage/v1/object/public/${PLACE_PHOTOS_BUCKET}/`;
 
 // The client posts back the public URL it just uploaded to (see
 // PosterSection) — re-validated here rather than trusted outright, same
@@ -135,17 +162,23 @@ function parsePosterUrl(rawUrl: string): string {
   } catch {
     throw new Error("URL d'affiche invalide.");
   }
-  if (url.protocol !== "https:" || url.hostname !== SUPABASE_STORAGE_HOST || !url.pathname.startsWith(POSTER_PATH_PREFIX)) {
+  if (url.protocol !== "https:" || url.hostname !== SUPABASE_STORAGE_HOST || !url.pathname.startsWith(STORAGE_PUBLIC_PATH_PREFIX)) {
     throw new Error("URL d'affiche non autorisée.");
   }
   return rawUrl;
 }
 
-function storagePathFromPosterUrl(posterUrl: string): string | null {
+// Not poster-specific despite the name it replaced (storagePathFromPosterUrl)
+// — any public URL in our own bucket (a poster, a cover photo, a gallery
+// photo) has this exact same shape, so this now backs cleanup for all of
+// them. Returns null for a URL that isn't actually ours (e.g. one of the
+// Unsplash/Picsum photos seeded on demo places) — nothing to remove there,
+// not an error.
+function storagePathFromPublicUrl(publicUrl: string): string | null {
   try {
-    const url = new URL(posterUrl);
-    if (!url.pathname.startsWith(POSTER_PATH_PREFIX)) return null;
-    return decodeURIComponent(url.pathname.slice(POSTER_PATH_PREFIX.length));
+    const url = new URL(publicUrl);
+    if (url.hostname !== SUPABASE_STORAGE_HOST || !url.pathname.startsWith(STORAGE_PUBLIC_PATH_PREFIX)) return null;
+    return decodeURIComponent(url.pathname.slice(STORAGE_PUBLIC_PATH_PREFIX.length));
   } catch {
     return null;
   }
@@ -174,6 +207,13 @@ function parsePlaceFields(formData: FormData) {
     lng,
     description: textFieldLimited(formData, "description", PLACE_DESCRIPTION_MAX_LENGTH, "Description"),
     address: textField(formData, "address"),
+    // Structured alongside the free-text address, both filled by the same
+    // "Localiser" geocode call (see PlaceForm) — not shown/edited directly,
+    // just carried through so future features (browse by city/quartier)
+    // have real data instead of starting from nothing.
+    city: textField(formData, "city"),
+    postcode: textField(formData, "postcode"),
+    suburb: textField(formData, "suburb"),
     phone: textField(formData, "phone"),
     cover_photo_url: parseCoverPhotoUrl(formData),
     photo_urls: parsePhotoUrls(formData),
@@ -206,8 +246,32 @@ export async function updatePlace(placeId: string, formData: FormData) {
   await assertOwnsPlace(supabase, user.id, placeId);
   const fields = parsePlaceFields(formData);
 
+  // Fetched *before* the update, so this still has the photos about to be
+  // replaced/dropped — same "read the old value first" shape as
+  // saveEventPoster/deleteEventPoster's own cleanup below.
+  const { data: existing } = await supabase
+    .from("places")
+    .select("cover_photo_url, photo_urls")
+    .eq("id", placeId)
+    .maybeSingle();
+
   const { error } = await supabase.from("places").update(fields).eq("id", placeId);
   if (error) throw new Error(error.message);
+
+  // A cover photo swapped for a new one, or a gallery photo the owner
+  // removed, otherwise leaves its old file behind in Storage forever —
+  // exactly what saveEventPoster/deleteEventPoster already avoid for
+  // posters, just not applied here until now. storagePathFromPublicUrl
+  // quietly returns null for a URL that was never ours (an Unsplash/Picsum
+  // photo on a demo place), so there's nothing to remove for those.
+  const droppedUrls = [
+    existing?.cover_photo_url && existing.cover_photo_url !== fields.cover_photo_url ? existing.cover_photo_url : null,
+    ...(existing?.photo_urls ?? []).filter((url) => !fields.photo_urls.includes(url)),
+  ].filter((url): url is string => Boolean(url));
+  const droppedPaths = droppedUrls.map(storagePathFromPublicUrl).filter((path): path is string => Boolean(path));
+  if (droppedPaths.length > 0) {
+    await supabase.storage.from(PLACE_PHOTOS_BUCKET).remove(droppedPaths);
+  }
 
   revalidatePath(`/dashboard/places/${placeId}/informations`);
   revalidatePath("/dashboard");
@@ -374,7 +438,8 @@ export async function createEvent(placeId: string, formData: FormData) {
   const end_datetime = textField(formData, "end_datetime");
   const recurrence_rule = textFieldLimited(formData, "recurrence_rule", EVENT_RECURRENCE_MAX_LENGTH, "Récurrence");
   const tag_id = textField(formData, "tag_id");
-  const price = textFieldLimited(formData, "price", EVENT_PRICE_MAX_LENGTH, "Prix");
+  const price_cents = parsePriceCents(formData);
+  const price_unit = parsePriceUnit(formData, price_cents);
   const cover_photo_url = parseCoverPhotoUrl(formData);
   const duration_minutes = parseDurationMinutes(formData, "duration_minutes");
   const restrictions = textFieldLimited(formData, "restrictions", RESTRICTIONS_MAX_LENGTH, "Restriction");
@@ -391,7 +456,8 @@ export async function createEvent(placeId: string, formData: FormData) {
     end_datetime: end_datetime ? new Date(end_datetime).toISOString() : null,
     recurrence_rule,
     tag_id,
-    price,
+    price_cents,
+    price_unit,
     cover_photo_url,
     duration_minutes,
     restrictions,
@@ -415,7 +481,8 @@ export async function updateEvent(placeId: string, eventId: string, formData: Fo
   const end_datetime = textField(formData, "end_datetime");
   const recurrence_rule = textFieldLimited(formData, "recurrence_rule", EVENT_RECURRENCE_MAX_LENGTH, "Récurrence");
   const tag_id = textField(formData, "tag_id");
-  const price = textFieldLimited(formData, "price", EVENT_PRICE_MAX_LENGTH, "Prix");
+  const price_cents = parsePriceCents(formData);
+  const price_unit = parsePriceUnit(formData, price_cents);
   const cover_photo_url = parseCoverPhotoUrl(formData);
   const duration_minutes = parseDurationMinutes(formData, "duration_minutes");
   const restrictions = textFieldLimited(formData, "restrictions", RESTRICTIONS_MAX_LENGTH, "Restriction");
@@ -434,7 +501,8 @@ export async function updateEvent(placeId: string, eventId: string, formData: Fo
         end_datetime: end_datetime ? new Date(end_datetime).toISOString() : null,
         recurrence_rule,
         tag_id,
-        price,
+        price_cents,
+        price_unit,
         cover_photo_url,
         duration_minutes,
         restrictions,
@@ -519,7 +587,7 @@ export async function saveEventPoster(placeId: string, eventId: string, posterUr
 
   // Regenerating replaces the file at a new path (see PosterSection) — the
   // old upload is now orphaned in Storage unless cleaned up here.
-  const previousPath = existing?.poster_url ? storagePathFromPosterUrl(existing.poster_url) : null;
+  const previousPath = existing?.poster_url ? storagePathFromPublicUrl(existing.poster_url) : null;
   if (previousPath) {
     await supabase.storage.from(PLACE_PHOTOS_BUCKET).remove([previousPath]);
   }
@@ -547,10 +615,53 @@ export async function deleteEventPoster(placeId: string, eventId: string) {
   if (error) throw new Error(error.message);
   if (!count) throw new Error("Cet événement n'appartient pas à ce lieu.");
 
-  const path = existing?.poster_url ? storagePathFromPosterUrl(existing.poster_url) : null;
+  const path = existing?.poster_url ? storagePathFromPublicUrl(existing.poster_url) : null;
   if (path) {
     await supabase.storage.from(PLACE_PHOTOS_BUCKET).remove([path]);
   }
 
   revalidatePath(`/dashboard/places/${placeId}/evenements/${eventId}`);
+}
+
+// Deletes the signed-in owner's account and everything they own. No
+// service-role key lives anywhere in this app — instead of the admin API,
+// this calls a SECURITY DEFINER Postgres function (delete_own_account) that
+// deletes the caller's own auth.users row; places_owner_id_fkey is ON
+// DELETE CASCADE (and every place-owned table cascades from places in
+// turn), so that one delete removes every place, its opening hours, tags,
+// activities and events too. Storage isn't part of that cascade — the
+// owner's photos/posters are cleaned up here first, same reasoning as
+// updatePlace's own cleanup above, just gathered across every place instead
+// of one.
+export async function deleteAccount() {
+  const { supabase, user } = await requireUser();
+
+  const { data: places } = await supabase
+    .from("places")
+    .select("id, cover_photo_url, photo_urls")
+    .eq("owner_id", user.id);
+
+  const placeIds = (places ?? []).map((p) => p.id);
+  const { data: events } =
+    placeIds.length > 0
+      ? await supabase.from("events").select("poster_url").in("place_id", placeIds)
+      : { data: [] as { poster_url: string | null }[] };
+
+  const urls = [
+    ...(places ?? []).flatMap((p) => [p.cover_photo_url, ...p.photo_urls]),
+    ...(events ?? []).map((e) => e.poster_url),
+  ].filter((url): url is string => Boolean(url));
+  const paths = urls.map(storagePathFromPublicUrl).filter((path): path is string => Boolean(path));
+  if (paths.length > 0) {
+    await supabase.storage.from(PLACE_PHOTOS_BUCKET).remove(paths);
+  }
+
+  const { error } = await supabase.rpc("delete_own_account");
+  if (error) throw new Error(error.message);
+
+  // The account (and its session) no longer exists server-side — clear the
+  // now-stale session cookies explicitly rather than leaving them to expire
+  // on their own.
+  await supabase.auth.signOut();
+  redirect("/");
 }

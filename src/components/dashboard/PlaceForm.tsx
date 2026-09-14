@@ -28,6 +28,13 @@ export function PlaceForm({
   const [address, setAddress] = useState(place?.address ?? "");
   const [lat, setLat] = useState(place?.lat !== undefined ? String(place.lat) : "");
   const [lng, setLng] = useState(place?.lng !== undefined ? String(place.lng) : "");
+  // Not shown/edited directly (no browse-by-city UI reads these yet) —
+  // just carried through from the same geocode call that already fills
+  // lat/lng, via hidden fields below, so the structured address Nominatim
+  // returns isn't thrown away.
+  const [city, setCity] = useState(place?.city ?? "");
+  const [postcode, setPostcode] = useState(place?.postcode ?? "");
+  const [suburb, setSuburb] = useState(place?.suburb ?? "");
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
 
@@ -65,6 +72,9 @@ export function PlaceForm({
       }
       setLat(String(data.lat));
       setLng(String(data.lng));
+      setCity(data.city ?? "");
+      setPostcode(data.postcode ?? "");
+      setSuburb(data.suburb ?? "");
     } catch {
       setGeocodeError("Géocodage indisponible, réessayez.");
     } finally {
@@ -117,6 +127,9 @@ export function PlaceForm({
           )}
         </div>
         {geocodeError && <p className="mt-1 text-xs text-red-600">{geocodeError}</p>}
+        <input type="hidden" name="city" value={city} />
+        <input type="hidden" name="postcode" value={postcode} />
+        <input type="hidden" name="suburb" value={suburb} />
       </div>
 
       <div>

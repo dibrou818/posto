@@ -72,7 +72,8 @@ export type Database = {
           id: string
           place_id: string
           poster_url: string | null
-          price: string | null
+          price_cents: number | null
+          price_unit: string | null
           qr_code_url: string | null
           recurrence_rule: string | null
           restrictions: string | null
@@ -89,7 +90,8 @@ export type Database = {
           id?: string
           place_id: string
           poster_url?: string | null
-          price?: string | null
+          price_cents?: number | null
+          price_unit?: string | null
           qr_code_url?: string | null
           recurrence_rule?: string | null
           restrictions?: string | null
@@ -106,7 +108,8 @@ export type Database = {
           id?: string
           place_id?: string
           poster_url?: string | null
-          price?: string | null
+          price_cents?: number | null
+          price_unit?: string | null
           qr_code_url?: string | null
           recurrence_rule?: string | null
           restrictions?: string | null
@@ -199,6 +202,7 @@ export type Database = {
       places: {
         Row: {
           address: string | null
+          city: string | null
           cover_photo_url: string | null
           created_at: string
           description: string | null
@@ -211,13 +215,16 @@ export type Database = {
           owner_id: string
           phone: string | null
           photo_urls: string[]
+          postcode: string | null
           qr_code_url: string | null
+          suburb: string | null
           urgent_message: string | null
           urgent_message_expires_at: string | null
           website_url: string | null
         }
         Insert: {
           address?: string | null
+          city?: string | null
           cover_photo_url?: string | null
           created_at?: string
           description?: string | null
@@ -230,13 +237,16 @@ export type Database = {
           owner_id: string
           phone?: string | null
           photo_urls?: string[]
+          postcode?: string | null
           qr_code_url?: string | null
+          suburb?: string | null
           urgent_message?: string | null
           urgent_message_expires_at?: string | null
           website_url?: string | null
         }
         Update: {
           address?: string | null
+          city?: string | null
           cover_photo_url?: string | null
           created_at?: string
           description?: string | null
@@ -249,7 +259,9 @@ export type Database = {
           owner_id?: string
           phone?: string | null
           photo_urls?: string[]
+          postcode?: string | null
           qr_code_url?: string | null
+          suburb?: string | null
           urgent_message?: string | null
           urgent_message_expires_at?: string | null
           website_url?: string | null
@@ -282,6 +294,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_own_account: { Args: never; Returns: undefined }
       search_all: {
         Args: { search_query: string }
         Returns: {

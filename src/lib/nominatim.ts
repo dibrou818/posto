@@ -64,3 +64,12 @@ export function addressPlaceName(address: NominatimAddress | undefined): string 
   if (!address) return null;
   return address.city ?? address.town ?? address.village ?? address.municipality ?? null;
 }
+
+/** Picks the best "quartier" label off a Nominatim address block — `suburb`
+ * is the usual field for this in French OSM data, `neighbourhood` the
+ * occasional alternative (a smaller area inside a suburb, or used instead
+ * of it depending on how that particular area was mapped). */
+export function addressSuburb(address: NominatimAddress | undefined): string | null {
+  if (!address) return null;
+  return address.suburb ?? address.neighbourhood ?? null;
+}

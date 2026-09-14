@@ -1,9 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { nominatimSearch } from "@/lib/nominatim";
+import { nominatimSearch, addressPlaceName, addressSuburb } from "@/lib/nominatim";
 
 /** Turns a free-text address into lat/lng via OpenStreetMap's free Nominatim
  * geocoder — used by the dashboard "Localiser" button so place owners never
- * have to look up GPS coordinates by hand. */
+ * have to look up GPS coordinates by hand. Also keeps the structured
+ * city/postcode/suburb Nominatim already returns alongside the coordinates
+ * (see PlaceForm) — stored for later, no browse-by-city/quartier UI reads
+ * them yet. */
 export async function GET(request: NextRequest) {
   const address = request.nextUrl.searchParams.get("address")?.trim() ?? "";
 
@@ -15,7 +18,7 @@ export async function GET(request: NextRequest) {
     q: address,
     format: "json",
     countrycodes: "fr",
-    addressdetails: "0",
+    addressdetails: "1",
     limit: "1",
   });
 
@@ -31,5 +34,8 @@ export async function GET(request: NextRequest) {
     lat: parseFloat(match.lat),
     lng: parseFloat(match.lon),
     label: match.display_name,
+    city: addressPlaceName(match.address),
+    postcode: match.address?.postcode ?? null,
+    suburb: addressSuburb(match.address),
   });
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Event, Tag } from "@/lib/queries";
 import { DeleteButton } from "@/components/ui/DeleteButton";
-import { formatEventSchedule, formatRecurrence, formatDuration } from "@/lib/eventSchedule";
+import { formatEventSchedule, formatRecurrence, formatDuration, formatPrice } from "@/lib/eventSchedule";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
 import { EventForm } from "@/components/dashboard/EventForm";
 
@@ -30,36 +30,39 @@ export function EventsManager({
   return (
     <div className="flex flex-col gap-3">
       <ul className="flex flex-col gap-2">
-        {events.map((event) => (
-          <li key={event.id} className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
-            <div className="min-w-0">
-              <p className="truncate font-medium text-gray-900">{event.title}</p>
-              <p className="text-xs text-gray-500">
-                {formatEventSchedule(event.start_datetime, event.end_datetime)}
-                {event.recurrence_rule ? ` · ${formatRecurrence(event.recurrence_rule)}` : ""}
-                {event.price ? ` · ${event.price}` : ""}
-                {formatDuration(event.duration_minutes) ? ` · ${formatDuration(event.duration_minutes)}` : ""}
-              </p>
-              {event.restrictions && (
-                <div className="mt-1">
-                  <RestrictionsBadge text={event.restrictions} />
-                </div>
-              )}
-            </div>
-            <div className="flex shrink-0 items-center gap-3">
-              <Link
-                href={`/dashboard/places/${placeId}/evenements/${event.id}`}
-                className="text-xs font-medium text-gray-600 transition-colors hover:text-gray-900 focus:outline-none focus-visible:underline"
-              >
-                Modifier
-              </Link>
-              <DeleteButton
-                action={onDelete.bind(null, event.id)}
-                confirmMessage={`Supprimer l'événement « ${event.title} » ?`}
-              />
-            </div>
-          </li>
-        ))}
+        {events.map((event) => {
+          const priceLabel = formatPrice(event.price_cents, event.price_unit);
+          return (
+            <li key={event.id} className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-gray-900">{event.title}</p>
+                <p className="text-xs text-gray-500">
+                  {formatEventSchedule(event.start_datetime, event.end_datetime)}
+                  {event.recurrence_rule ? ` · ${formatRecurrence(event.recurrence_rule)}` : ""}
+                  {priceLabel ? ` · ${priceLabel}` : ""}
+                  {formatDuration(event.duration_minutes) ? ` · ${formatDuration(event.duration_minutes)}` : ""}
+                </p>
+                {event.restrictions && (
+                  <div className="mt-1">
+                    <RestrictionsBadge text={event.restrictions} />
+                  </div>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <Link
+                  href={`/dashboard/places/${placeId}/evenements/${event.id}`}
+                  className="text-xs font-medium text-gray-600 transition-colors hover:text-gray-900 focus:outline-none focus-visible:underline"
+                >
+                  Modifier
+                </Link>
+                <DeleteButton
+                  action={onDelete.bind(null, event.id)}
+                  confirmMessage={`Supprimer l'événement « ${event.title} » ?`}
+                />
+              </div>
+            </li>
+          );
+        })}
         {events.length === 0 && (
           <p className="text-sm text-gray-500">Aucun événement à venir.</p>
         )}

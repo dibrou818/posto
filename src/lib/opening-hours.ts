@@ -21,20 +21,39 @@ function toMinutes(time: string) {
   return h * 60 + m;
 }
 
+// Whether `nowMinutes` falls inside [openM, closeM) — including a range
+// that wraps past midnight (closeM < openM, e.g. 22:00-02:00), where "open"
+// really means "from openM to 24:00, then again from 00:00 to closeM".
+function withinRange(nowMinutes: number, openM: number, closeM: number): boolean {
+  if (closeM < openM) return nowMinutes >= openM || nowMinutes < closeM;
+  return nowMinutes >= openM && nowMinutes < closeM;
+}
+
 // A place can now also carry named sub-schedules (see listZoneNames below) —
 // e.g. "Bassin extérieur" open fewer hours than the place's general hours.
 // Whether the *place itself* reads as open only ever depends on its general
 // schedule (zone_name null); a zone being closed doesn't close the place.
 export function isOpenNow(hours: OpeningHour[], now: Date = new Date()) {
   const generalHours = hours.filter((h) => h.zone_name === null);
-  const today = generalHours.find((h) => h.day_of_week === now.getDay());
-  if (!today) return false;
-
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  return (
-    nowMinutes >= toMinutes(today.open_time) &&
-    nowMinutes < toMinutes(today.close_time)
-  );
+
+  const today = generalHours.find((h) => h.day_of_week === now.getDay());
+  if (today && withinRange(nowMinutes, toMinutes(today.open_time), toMinutes(today.close_time))) {
+    return true;
+  }
+
+  // A schedule that closes after midnight is stored under the day it
+  // *started* — a bar open Friday 22:00-02:00 is still "Friday" in the
+  // database, so Saturday 00:30 has to check Friday's row too, not just
+  // Saturday's own (which may not even exist, or may start later that day).
+  const yesterday = generalHours.find((h) => h.day_of_week === (now.getDay() + 6) % 7);
+  if (yesterday) {
+    const openM = toMinutes(yesterday.open_time);
+    const closeM = toMinutes(yesterday.close_time);
+    if (closeM < openM && nowMinutes < closeM) return true;
+  }
+
+  return false;
 }
 
 /** Every distinct named sub-schedule present in a place's hours, in the

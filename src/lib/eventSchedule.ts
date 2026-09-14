@@ -92,3 +92,22 @@ export function formatDuration(minutes: number | null): string | null {
   const rest = minutes % 60;
   return rest === 0 ? `${hours}h` : `${hours}h${String(rest).padStart(2, "0")}`;
 }
+
+const PRICE_UNIT_LABEL: Record<string, string> = {
+  personne: "personne",
+  equipe: "équipe",
+  partie: "partie",
+};
+
+/** price_cents/price_unit -> "Gratuit" / "15 €" / "20 € / équipe" — the
+ * same rendered shape the old free-text `price` column used to hold, now
+ * derived from two structured columns instead of typed by hand. `cents`
+ * null means "prix non précisé" (renders nothing, same as an empty old
+ * `price`); 0 is an explicit "Gratuit", not "unset". */
+export function formatPrice(cents: number | null, unit: string | null): string | null {
+  if (cents === null) return null;
+  if (cents === 0) return "Gratuit";
+  const amount = cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2).replace(".", ",");
+  const unitLabel = unit ? PRICE_UNIT_LABEL[unit] : undefined;
+  return unitLabel ? `${amount} € / ${unitLabel}` : `${amount} €`;
+}

@@ -14,7 +14,6 @@ export const ACTIVITY_DESCRIPTION_MAX_LENGTH = 300;
 export const EVENT_TITLE_MAX_LENGTH = 100;
 export const EVENT_DESCRIPTION_MAX_LENGTH = 500;
 export const EVENT_RECURRENCE_MAX_LENGTH = 60;
-export const EVENT_PRICE_MAX_LENGTH = 40;
 
 // Shared by activities and events — both have a free-text "conditions
 // d'accès" field with the same shape and the same limit.

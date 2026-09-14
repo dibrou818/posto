@@ -7,7 +7,7 @@ import { BackButton } from "@/components/ui/BackButton";
 import { ShareButton } from "@/components/ui/ShareButton";
 import { RecurrenceBadge } from "@/components/RecurrenceBadge";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
-import { formatEventSchedule, formatDuration } from "@/lib/eventSchedule";
+import { formatEventSchedule, formatDuration, formatPrice } from "@/lib/eventSchedule";
 import { eventShareText } from "@/lib/share";
 
 export default async function EventPage({
@@ -26,6 +26,7 @@ export default async function EventPage({
   const end = event.end_datetime ? new Date(event.end_datetime) : null;
   const isPast = (end ?? start).getTime() < new Date().getTime();
   const dateLabel = formatEventSchedule(event.start_datetime, event.end_datetime);
+  const priceLabel = formatPrice(event.price_cents, event.price_unit);
 
   // The event can have its own photo; falls back to the place's when it
   // doesn't bother setting one.
@@ -89,11 +90,11 @@ export default async function EventPage({
         <ShareButton title={event.title} text={eventShareText(event.title, dateLabel, place.address)} />
       </div>
 
-      {(event.price || event.recurrence_rule || event.duration_minutes) && (
+      {(priceLabel || event.recurrence_rule || event.duration_minutes) && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          {event.price && (
+          {priceLabel && (
             <span className="rounded-full bg-gray-900 px-2.5 py-1 text-xs font-medium text-white">
-              {event.price}
+              {priceLabel}
             </span>
           )}
           {formatDuration(event.duration_minutes) && (

@@ -174,7 +174,13 @@ export function LocationWeather({
         : "Cliquer pour activer la localisation";
 
   return (
-    <div className="relative w-full overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-violet-800 px-4 pt-10 pb-12 sm:px-6 sm:pt-14 sm:pb-16">
+    // No overflow-hidden here: this hero has nothing decorative overflowing
+    // its own bounds, but it does contain the search bar's results dropdown
+    // (via `children`), which is taller than the hero itself once open —
+    // overflow-hidden would clip it exactly at the hero's bottom edge
+    // instead of letting it float over the page content below, the way an
+    // absolutely-positioned dropdown is supposed to.
+    <div className="relative w-full bg-gradient-to-br from-gray-900 via-gray-900 to-violet-800 px-4 pt-10 pb-12 sm:px-6 sm:pt-14 sm:pb-16">
       <div className="mx-auto flex max-w-2xl flex-col items-center gap-5">
         {state.status === "granted" ? (
           <div className="text-center">

@@ -154,22 +154,40 @@ export function SearchBar({
   useEffect(() => {
     if (queryTooShort) return;
 
+    // Aborts the in-flight fetch (not just the pending debounce timer) as
+    // soon as a newer query supersedes this one. Without this, two requests
+    // can end up in flight together — e.g. edit a character then retype the
+    // same address fast enough — and Nominatim's response time varies
+    // enough that the *older*, narrower query (which often resolves to zero
+    // address matches, since a partial address rarely has a `road` Nominatim
+    // can match) can arrive after the newer one and silently overwrite its
+    // correct, non-empty results with an empty state.
+    const controller = new AbortController();
     const handle = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal: controller.signal });
         const data = await res.json();
         setTags(data.tags ?? []);
         setResults(data.results ?? []);
         setCities(data.cities ?? []);
         setAddresses(data.addresses ?? []);
         setOpen(true);
+      } catch (err) {
+        // A superseded request — its response is stale by definition, so
+        // drop it instead of letting it clobber whatever the newer request
+        // already put in state.
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        throw err;
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }, 300);
 
-    return () => clearTimeout(handle);
+    return () => {
+      clearTimeout(handle);
+      controller.abort();
+    };
   }, [query, queryTooShort]);
 
   useEffect(() => {

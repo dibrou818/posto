@@ -5,6 +5,7 @@ import * as maplibregl from "maplibre-gl";
 import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
 import { isOpenNow } from "@/lib/opening-hours";
 import { formatEventDateBadge } from "@/lib/eventSchedule";
+import { useIsMobileViewport } from "@/lib/viewport";
 
 // MapLibre computes its tile-parsing Web Worker's URL as
 // `new URL('./maplibre-gl-worker.mjs', import.meta.url)` — Webpack/Vite
@@ -82,23 +83,6 @@ function writeStoredView(view: StoredMapView) {
   } catch {
     // ignore — see readStoredView
   }
-}
-
-// Same breakpoint as Tailwind's `md` (and the rest of the app's mobile/
-// desktop split, e.g. BottomNav) — below it, tapping a pin opens the bottom
-// sheet instead of a popup.
-const MOBILE_BREAKPOINT_QUERY = "(max-width: 767px)";
-
-function useIsMobileViewport(): boolean {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const mql = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
-    const update = () => setIsMobile(mql.matches);
-    update();
-    mql.addEventListener("change", update);
-    return () => mql.removeEventListener("change", update);
-  }, []);
-  return isMobile;
 }
 
 // OpenFreeMap/OpenMapTiles labels are usually a single `["get","name"]`
@@ -384,6 +368,7 @@ export function Map({
   onSelectPlace,
   onSelectEvent,
   onDismissSelection,
+  onInteractionStart,
 }: {
   places: PlaceWithRelations[];
   events?: EventWithPlace[];
@@ -401,6 +386,13 @@ export function Map({
   /** Tapping the bare map dismisses the mobile bottom sheet, mirroring a
    * desktop popup closing on an outside click. */
   onDismissSelection?: () => void;
+  /** Fired the moment the map starts moving — panning, pinching, scroll-
+   * zooming, or an easeTo/flyTo animation (marker-click recentering
+   * included). FullScreenMap uses this to close the filter panel, which a
+   * click-outside listener alone wouldn't catch: dragging starts and ends
+   * on the map canvas itself, so the panel would otherwise stay open while
+   * the map slides around underneath it. */
+  onInteractionStart?: () => void;
 }) {
   const isMobile = useIsMobileViewport();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -418,11 +410,13 @@ export function Map({
   const onSelectPlaceRef = useRef(onSelectPlace);
   const onSelectEventRef = useRef(onSelectEvent);
   const onDismissSelectionRef = useRef(onDismissSelection);
+  const onInteractionStartRef = useRef(onInteractionStart);
   useEffect(() => {
     isMobileRef.current = isMobile;
     onSelectPlaceRef.current = onSelectPlace;
     onSelectEventRef.current = onSelectEvent;
     onDismissSelectionRef.current = onDismissSelection;
+    onInteractionStartRef.current = onInteractionStart;
   });
 
   const [initialView] = useState(() => readStoredView());
@@ -587,6 +581,13 @@ export function Map({
       if (layerId === "places-unclustered-ring" || layerId === "places-unclustered-core") {
         const place = placesByIdRef.current[String(feature.properties?.id)];
         if (!place) return;
+        // Same recenter animation as expandCluster's own easeTo — clicking a
+        // single pin used to leave the map exactly where it was, only
+        // popping the popup open at whatever screen position the pin
+        // happened to be in (easy to end up cramped near an edge, or
+        // several nearby event pins' popups overlapping). This brings that
+        // pin to the center the same way a cluster click already does.
+        map.easeTo({ center: coordinates });
         if (isMobileRef.current) {
           onSelectPlaceRef.current?.(place);
         } else {
@@ -597,6 +598,7 @@ export function Map({
       if (layerId === "events-unclustered-ring" || layerId === "events-unclustered-core") {
         const event = eventsByIdRef.current[String(feature.properties?.id)];
         if (!event) return;
+        map.easeTo({ center: coordinates });
         if (isMobileRef.current) {
           onSelectEventRef.current?.(event);
         } else {
@@ -604,6 +606,12 @@ export function Map({
         }
       }
     });
+
+    // Covers drag, pinch/scroll-zoom, and any programmatic easeTo/flyTo
+    // (including the recenter-on-marker-click above) — see onInteractionStart's
+    // own doc comment for why FullScreenMap needs this instead of relying on
+    // its filter panel's own click-outside listener alone.
+    map.on("movestart", () => onInteractionStartRef.current?.());
 
     map.on("mousemove", (e: maplibregl.MapMouseEvent) => {
       const style = map.getStyle();
