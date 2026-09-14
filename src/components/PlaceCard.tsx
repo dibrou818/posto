@@ -17,42 +17,45 @@ export function PlaceCard({
   return (
     <Link
       href={`/places/${place.id}`}
-      className={`flex gap-4 p-3 focus:outline-none focus:ring-2 focus:ring-gray-900/20 ${cardClass}`}
+      className={`flex gap-3 p-2.5 focus:outline-none focus:ring-2 focus:ring-gray-900/20 ${cardClass}`}
     >
-      <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+      <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
         {place.cover_photo_url ? (
           <Image
             src={place.cover_photo_url}
             alt={place.name}
             fill
-            sizes="128px"
+            sizes="96px"
             className="object-cover"
           />
         ) : null}
       </div>
+      {/* min-w-0 on the row below (not just here) is what lets `truncate`
+          on the title actually shrink instead of overflowing — see
+          EventCard, which has the same fix for the same reason. */}
       <div className="flex min-w-0 flex-1 flex-col justify-between">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="truncate font-semibold text-gray-900">{place.name}</h3>
+            <h3 className="min-w-0 truncate font-semibold text-gray-900">{place.name}</h3>
             <span
-              className={`shrink-0 text-xs font-medium ${open ? "text-green-600" : "text-red-500"}`}
+              className={`shrink-0 text-xs font-medium whitespace-nowrap ${open ? "text-green-600" : "text-red-500"}`}
             >
               {open ? "Ouvert" : "Fermé"}
             </span>
           </div>
           <p className="truncate text-xs text-gray-500">{place.address}</p>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {place.tags.map((tag) => (
             <span
               key={tag.id}
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+              className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs whitespace-nowrap text-gray-600"
             >
               {tag.label}
             </span>
           ))}
           {distanceKm !== undefined && (
-            <span className="ml-auto text-xs text-gray-500">{formatDistance(distanceKm)}</span>
+            <span className="ml-auto shrink-0 text-xs whitespace-nowrap text-gray-500">{formatDistance(distanceKm)}</span>
           )}
         </div>
       </div>
