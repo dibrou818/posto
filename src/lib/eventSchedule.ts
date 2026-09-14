@@ -1,13 +1,14 @@
 const fullDate = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 const shortDate = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" });
 const time = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" });
-const badgeDateTime = new Intl.DateTimeFormat("fr-FR", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+// Kept as two separate formatters (date, time) rather than one combined
+// Intl.DateTimeFormat with both weekday/date and hour/minute fields —
+// fr-FR's built-in combined format inserts a comma before the time
+// ("sam. 19 sept., 14:30"), which reads as a formatting glitch in a small
+// badge rather than a real date+time pair. Joining the two pieces with a
+// plain space avoids that comma entirely.
+const badgeDate = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+const badgeTime = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -79,7 +80,8 @@ export function formatRecurrence(rule: string | null): string | null {
  * shared by the map popups, the mobile bottom sheet, and the home page's
  * event cards, which all show the same compact stamp. */
 export function formatEventDateBadge(iso: string): string {
-  return badgeDateTime.format(new Date(iso));
+  const date = new Date(iso);
+  return `${badgeDate.format(date)} ${badgeTime.format(date)}`;
 }
 
 /** A typical/expected duration in minutes -> "20 min" or "1h30" — the same

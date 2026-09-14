@@ -35,14 +35,11 @@ export function PlaceCard({
           EventCard, which has the same fix for the same reason. */}
       <div className="flex min-w-0 flex-1 flex-col justify-between">
         <div className="min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="min-w-0 truncate font-semibold text-gray-900">{place.name}</h3>
-            <span
-              className={`shrink-0 text-xs font-medium whitespace-nowrap ${open ? "text-green-600" : "text-red-500"}`}
-            >
-              {open ? "Ouvert" : "Fermé"}
-            </span>
-          </div>
+          {/* The title used to share its line with the Ouvert/Fermé status —
+              same fix as EventCard's title/price: it now gets the full
+              first line, and the status moves down into the badge row,
+              grouped with distance in the bottom-right corner. */}
+          <h3 className="truncate font-semibold text-gray-900">{place.name}</h3>
           <p className="truncate text-xs text-gray-500">{place.address}</p>
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -54,9 +51,16 @@ export function PlaceCard({
               {tag.label}
             </span>
           ))}
-          {distanceKm !== undefined && (
-            <span className="ml-auto shrink-0 text-xs whitespace-nowrap text-gray-500">{formatDistance(distanceKm)}</span>
-          )}
+          <span className="ml-auto flex shrink-0 items-center gap-1.5">
+            {distanceKm !== undefined && (
+              <span className="text-xs whitespace-nowrap text-gray-500">{formatDistance(distanceKm)}</span>
+            )}
+            <span
+              className={`shrink-0 text-xs font-medium whitespace-nowrap ${open ? "text-green-600" : "text-red-500"}`}
+            >
+              {open ? "Ouvert" : "Fermé"}
+            </span>
+          </span>
         </div>
       </div>
     </Link>
