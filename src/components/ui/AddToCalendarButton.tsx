@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CALENDAR_PROVIDERS,
   ICS_FALLBACK_PROVIDER,
@@ -9,6 +9,7 @@ import {
   type CalendarProviderId,
 } from "@/lib/calendar";
 import { useIsMobileViewport } from "@/lib/viewport";
+import { useDragToDismissSheet } from "@/lib/useDragToDismissSheet";
 
 function CalendarIcon() {
   return (
@@ -103,6 +104,14 @@ export function AddToCalendarButton({ event }: { event: CalendarEventInput }) {
   const firstItemRef = useRef<HTMLAnchorElement>(null);
   const wasOpenRef = useRef(false);
   const isMobile = useIsMobileViewport();
+  // Same slide-up/drag-down-to-dismiss physics as MapBottomSheet's own map-
+  // pin preview — see that hook for why it's shared rather than
+  // reimplemented here.
+  const closeSheet = useCallback(() => setOpen(false), []);
+  const { handlePointerDown, handlePointerMove, handlePointerUp, style: sheetStyle } = useDragToDismissSheet(
+    open,
+    closeSheet,
+  );
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -135,6 +144,43 @@ export function AddToCalendarButton({ event }: { event: CalendarEventInput }) {
 
   const filename = icsFilename(event.title);
 
+  // Shared between the desktop popover and the mobile sheet — same
+  // providers, same header, just a different container around it.
+  const pickerContent = (
+    <>
+      <div className={isMobile ? "mb-2 px-1" : "px-2 pt-1 pb-2"}>
+        <p className="text-sm font-semibold text-gray-900">Ajouter à mon calendrier</p>
+        <p className="text-xs text-gray-500">Choisissez votre calendrier</p>
+      </div>
+
+      <div className="flex flex-col">
+        {CALENDAR_PROVIDERS.map((provider, i) => (
+          <ProviderRow
+            key={provider.id}
+            id={provider.id}
+            label={provider.label}
+            href={provider.getHref(event)}
+            external={provider.opensExternalSite}
+            filename={filename}
+            onSelect={() => setOpen(false)}
+            autoFocusRef={i === 0 ? firstItemRef : undefined}
+          />
+        ))}
+      </div>
+
+      <div className="my-1 border-t border-gray-100" />
+
+      <ProviderRow
+        id={ICS_FALLBACK_PROVIDER.id}
+        label={ICS_FALLBACK_PROVIDER.label}
+        href={ICS_FALLBACK_PROVIDER.getHref(event)}
+        external={ICS_FALLBACK_PROVIDER.opensExternalSite}
+        filename={filename}
+        onSelect={() => setOpen(false)}
+      />
+    </>
+  );
+
   return (
     <div ref={containerRef} className="relative">
       <button
@@ -149,58 +195,62 @@ export function AddToCalendarButton({ event }: { event: CalendarEventInput }) {
         Ajouter au calendrier
       </button>
 
-      {open && (
+      {/* Desktop: a small popover anchored under the button, only ever
+          mounted while open — no drag/slide, that's a mobile-only pattern
+          here (see below). */}
+      {!isMobile && open && (
+        <div
+          role="dialog"
+          aria-label="Ajouter à mon calendrier"
+          className="absolute top-full left-0 z-50 mt-2 max-h-[min(24rem,calc(100dvh-6rem))] w-72 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 shadow-lg"
+        >
+          {pickerContent}
+        </div>
+      )}
+
+      {/* Mobile: the exact same bottom-sheet animation as MapBottomSheet's
+          map-pin preview (slide up from the bottom, drag the handle down
+          to dismiss) via the shared useDragToDismissSheet hook — always
+          mounted (not just while open), aria-hidden/inert when closed, so
+          the closing slide actually plays instead of the sheet just
+          vanishing, the same way MapBottomSheet stays mounted off-screen
+          between selections. */}
+      {isMobile && (
         <>
-          {isMobile && (
+          {open && (
             <div
-              className="fixed inset-0 z-40 bg-black/30"
+              className="fixed inset-0 z-[1150] bg-black/30"
               onClick={() => setOpen(false)}
               aria-hidden="true"
             />
           )}
           <div
-            role="dialog"
-            aria-modal={isMobile}
-            aria-label="Ajouter à mon calendrier"
-            className={
-              isMobile
-                ? "fixed inset-x-0 bottom-0 z-50 max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-t-2xl border-t border-gray-200 bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+16px)] shadow-lg"
-                : "absolute top-full left-0 z-50 mt-2 w-72 max-w-[calc(100vw-1.5rem)] max-h-[min(24rem,calc(100dvh-6rem))] overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 shadow-lg"
-            }
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-[1200] flex justify-center"
+            aria-hidden={!open}
           >
-            {isMobile && (
-              <div className="mx-auto mb-3 h-1.5 w-10 shrink-0 rounded-full bg-gray-300" aria-hidden="true" />
-            )}
-            <div className={isMobile ? "mb-2 px-1" : "px-2 pt-1 pb-2"}>
-              <p className="text-sm font-semibold text-gray-900">Ajouter à mon calendrier</p>
-              <p className="text-xs text-gray-500">Choisissez votre calendrier</p>
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Ajouter à mon calendrier"
+              inert={!open}
+              className="pointer-events-auto w-full max-w-md overflow-hidden rounded-t-2xl bg-white shadow-[0_-4px_24px_rgba(0,0,0,0.18)]"
+              style={sheetStyle}
+            >
+              {/* Drag handle: a 36px-tall hit area even though the visible
+                  bar is thin, so it's a comfortable touch target on its
+                  own — same as MapBottomSheet's own handle. */}
+              <div
+                className="flex h-9 w-full cursor-grab touch-none items-center justify-center active:cursor-grabbing"
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
+              >
+                <span className="h-1.5 w-10 rounded-full bg-gray-300" />
+              </div>
+              <div className="pb-4">{pickerContent}</div>
+              <div className="pb-[env(safe-area-inset-bottom)]" />
             </div>
-
-            <div className="flex flex-col">
-              {CALENDAR_PROVIDERS.map((provider, i) => (
-                <ProviderRow
-                  key={provider.id}
-                  id={provider.id}
-                  label={provider.label}
-                  href={provider.getHref(event)}
-                  external={provider.opensExternalSite}
-                  filename={filename}
-                  onSelect={() => setOpen(false)}
-                  autoFocusRef={i === 0 ? firstItemRef : undefined}
-                />
-              ))}
-            </div>
-
-            <div className="my-1 border-t border-gray-100" />
-
-            <ProviderRow
-              id={ICS_FALLBACK_PROVIDER.id}
-              label={ICS_FALLBACK_PROVIDER.label}
-              href={ICS_FALLBACK_PROVIDER.getHref(event)}
-              external={ICS_FALLBACK_PROVIDER.opensExternalSite}
-              filename={filename}
-              onSelect={() => setOpen(false)}
-            />
           </div>
         </>
       )}
