@@ -141,7 +141,7 @@ export function PosterSection({
             onChange={(e) => setExposureGrading(e.target.checked)}
             className="h-3.5 w-3.5 rounded border-gray-300 text-gray-900 focus:ring-gray-900/20"
           />
-          Réglage lumière sur la photo plutôt qu&apos;un bandeau noir en bas
+          Améliorer le contraste pour une meilleure lisibilité du texte
         </label>
         <div className="flex items-center gap-3">
           <button
