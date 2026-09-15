@@ -11,7 +11,7 @@ import { RecurrenceBadge } from "@/components/RecurrenceBadge";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
 import { formatEventSchedule, formatDuration, formatPrice } from "@/lib/eventSchedule";
 import { eventShareText } from "@/lib/share";
-import { buildEventIcsDataUrl, icsFilename } from "@/lib/calendar";
+import { AddToCalendarButton } from "@/components/ui/AddToCalendarButton";
 import { getSiteOrigin } from "@/lib/site";
 
 // Wrapped in React's cache() so generateMetadata and the page body below —
@@ -79,7 +79,7 @@ export default async function EventPage({
   const coverPhotoUrl = event.cover_photo_url ?? place.cover_photo_url;
 
   const siteOrigin = await getSiteOrigin();
-  const icsHref = buildEventIcsDataUrl({
+  const calendarEvent = {
     id: event.id,
     title: event.title,
     description: event.description,
@@ -89,7 +89,7 @@ export default async function EventPage({
     placeName: place.name,
     placeAddress: place.address,
     pageUrl: `${siteOrigin}/events/${event.id}`,
-  });
+  };
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
@@ -149,19 +149,7 @@ export default async function EventPage({
           </svg>
           Itinéraire
         </a>
-        <a
-          href={icsHref}
-          download={icsFilename(event.title)}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
-        >
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
-            <rect x="3.5" y="4.5" width="13" height="12" rx="1.5" />
-            <path d="M3.5 8.5h13" strokeLinecap="round" />
-            <path d="M7 3v3M13 3v3" strokeLinecap="round" />
-            <path d="M10 11v3.5M8.25 12.75H11.75" strokeLinecap="round" />
-          </svg>
-          Ajouter à mon calendrier
-        </a>
+        <AddToCalendarButton event={calendarEvent} />
         <ShareButton title={event.title} text={eventShareText(event.title, dateLabel, place.address)} />
       </div>
 
