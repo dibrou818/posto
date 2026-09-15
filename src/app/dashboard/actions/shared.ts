@@ -9,19 +9,13 @@
 // domains — same functions, same behavior, just organized by what they're
 // actually for.
 
-import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { PLACE_PHOTOS_BUCKET } from "@/lib/storage";
 
-/** Derives the current deployment's origin from the incoming request's own
- * headers, so QR codes always point at wherever the app is actually running
- * (localhost in dev, the real domain in prod) without a hardcoded env var. */
-export async function getSiteOrigin() {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  return `${proto}://${host}`;
-}
+// getSiteOrigin now lives in @/lib/site (also needed outside the dashboard —
+// the public event page's .ics download and Open Graph metadata) —
+// re-exported here so every existing "./shared" import keeps working.
+export { getSiteOrigin } from "@/lib/site";
 
 export async function assertOwnsPlace(
   supabase: Awaited<ReturnType<typeof createClient>>,

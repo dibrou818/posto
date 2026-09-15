@@ -1,6 +1,8 @@
+import { cache } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getEventById } from "@/lib/queries";
 import { BackButton } from "@/components/ui/BackButton";
@@ -9,6 +11,51 @@ import { RecurrenceBadge } from "@/components/RecurrenceBadge";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
 import { formatEventSchedule, formatDuration, formatPrice } from "@/lib/eventSchedule";
 import { eventShareText } from "@/lib/share";
+import { buildEventIcsDataUrl, icsFilename } from "@/lib/calendar";
+import { getSiteOrigin } from "@/lib/site";
+
+// Wrapped in React's cache() so generateMetadata and the page body below —
+// both called for the same request — share one DB round trip instead of
+// two: cache() memoizes by argument for the lifetime of a single render,
+// which is exactly the "fetch once, use twice" case Next.js's own docs
+// point at this for.
+const getCachedEvent = cache(async (id: string) => {
+  const supabase = await createClient();
+  return getEventById(supabase, id);
+});
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const event = await getCachedEvent(id);
+  if (!event) return {};
+
+  const dateLabel = formatEventSchedule(event.start_datetime, event.end_datetime);
+  const description = event.description
+    ? event.description.slice(0, 160)
+    : `${dateLabel} · ${event.place.name}`;
+  const imageUrl = event.cover_photo_url ?? event.place.cover_photo_url;
+
+  return {
+    title: event.title,
+    description,
+    openGraph: {
+      title: event.title,
+      description,
+      type: "website",
+      images: imageUrl ? [{ url: imageUrl }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: event.title,
+      description,
+      images: imageUrl ? [imageUrl] : undefined,
+    },
+  };
+}
 
 export default async function EventPage({
   params,
@@ -16,8 +63,7 @@ export default async function EventPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-  const event = await getEventById(supabase, id);
+  const event = await getCachedEvent(id);
 
   if (!event) notFound();
 
@@ -31,6 +77,19 @@ export default async function EventPage({
   // The event can have its own photo; falls back to the place's when it
   // doesn't bother setting one.
   const coverPhotoUrl = event.cover_photo_url ?? place.cover_photo_url;
+
+  const siteOrigin = await getSiteOrigin();
+  const icsHref = buildEventIcsDataUrl({
+    id: event.id,
+    title: event.title,
+    description: event.description,
+    startDatetime: event.start_datetime,
+    endDatetime: event.end_datetime,
+    durationMinutes: event.duration_minutes,
+    placeName: place.name,
+    placeAddress: place.address,
+    pageUrl: `${siteOrigin}/events/${event.id}`,
+  });
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
@@ -89,6 +148,19 @@ export default async function EventPage({
             <circle cx="10" cy="8" r="2.2" />
           </svg>
           Itinéraire
+        </a>
+        <a
+          href={icsHref}
+          download={icsFilename(event.title)}
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+        >
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
+            <rect x="3.5" y="4.5" width="13" height="12" rx="1.5" />
+            <path d="M3.5 8.5h13" strokeLinecap="round" />
+            <path d="M7 3v3M13 3v3" strokeLinecap="round" />
+            <path d="M10 11v3.5M8.25 12.75H11.75" strokeLinecap="round" />
+          </svg>
+          Ajouter à mon calendrier
         </a>
         <ShareButton title={event.title} text={eventShareText(event.title, dateLabel, place.address)} />
       </div>

@@ -95,6 +95,30 @@ export function formatDuration(minutes: number | null): string | null {
   return rest === 0 ? `${hours}h` : `${hours}h${String(rest).padStart(2, "0")}`;
 }
 
+// Used whenever an event has neither an explicit end time nor a typical
+// duration set, and something still needs a concrete end instant — deciding
+// whether it's happening right now, or how long to block on a calendar
+// import. 2h is a reasonable generic guess for "one evening out", the same
+// assumption formatEventSchedule's SAME_SESSION_MAX_HOURS is built around.
+export const DEFAULT_EVENT_DURATION_MINUTES = 120;
+
+/** Whether `now` falls inside the event's run — end is end_datetime if set,
+ * else start + its typical duration, else the 2h default above. Used by the
+ * "Ouvert maintenant" filter to also surface events currently in progress,
+ * not just places. */
+export function isEventHappeningNow(
+  startIso: string,
+  endIso: string | null,
+  durationMinutes: number | null,
+  now: Date = new Date(),
+): boolean {
+  const start = new Date(startIso);
+  const end = endIso
+    ? new Date(endIso)
+    : new Date(start.getTime() + (durationMinutes ?? DEFAULT_EVENT_DURATION_MINUTES) * 60_000);
+  return now >= start && now <= end;
+}
+
 const PRICE_UNIT_LABEL: Record<string, string> = {
   personne: "personne",
   equipe: "équipe",

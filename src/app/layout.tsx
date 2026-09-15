@@ -16,9 +16,36 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_NAME = "Posto — Découvrez des lieux et activités";
+const SITE_DESCRIPTION =
+  "Trouvez des lieux proposant des activités récurrentes et des événements ponctuels près de vous.";
+
 export const metadata: Metadata = {
-  title: "Posto — Découvrez des lieux et activités",
-  description: "Trouvez des lieux proposant des activités récurrentes et des événements ponctuels près de vous.",
+  // The canonical production URL relative OpenGraph/Twitter image paths on
+  // child pages resolve against — this app's own images are always already
+  // absolute (Supabase Storage URLs), so this mostly just silences Next's
+  // "metadataBase not set" warning and gives the site a stable canonical
+  // origin, rather than anything that needs to track wherever a given
+  // deployment (localhost, a preview branch) actually runs.
+  metadataBase: new URL("https://goposto.com"),
+  title: SITE_NAME,
+  description: SITE_DESCRIPTION,
+  // Site-wide fallback — any page without its own generateMetadata (or one
+  // that returns {} because the id it looked up doesn't exist) still gets a
+  // real title/description in a shared link's preview instead of whatever a
+  // crawler guesses on its own.
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    siteName: "Posto",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 // `viewport-fit=cover` is what lets the page draw all the way under a

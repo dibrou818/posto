@@ -1,5 +1,7 @@
+import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import {
   getPlaceById,
@@ -27,6 +29,45 @@ const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
 const badgeWeekdayFormatter = new Intl.DateTimeFormat("fr-FR", { weekday: "short" });
 const badgeMonthFormatter = new Intl.DateTimeFormat("fr-FR", { month: "short" });
 
+// See the matching comment on the event page — memoizes the one DB round
+// trip generateMetadata and the page body below both need for the same
+// request.
+const getCachedPlace = cache(async (id: string) => {
+  const supabase = await createClient();
+  return getPlaceById(supabase, id);
+});
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const place = await getCachedPlace(id);
+  if (!place) return {};
+
+  const description = place.description
+    ? place.description.slice(0, 160)
+    : (place.address ?? "Découvrez ce lieu sur Posto.");
+
+  return {
+    title: place.name,
+    description,
+    openGraph: {
+      title: place.name,
+      description,
+      type: "website",
+      images: place.cover_photo_url ? [{ url: place.cover_photo_url }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: place.name,
+      description,
+      images: place.cover_photo_url ? [place.cover_photo_url] : undefined,
+    },
+  };
+}
+
 export default async function PlacePage({
   params,
 }: {
@@ -34,7 +75,7 @@ export default async function PlacePage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  const place = await getPlaceById(supabase, id);
+  const place = await getCachedPlace(id);
 
   if (!place) notFound();
 

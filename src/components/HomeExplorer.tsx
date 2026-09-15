@@ -13,6 +13,8 @@ import { haversineKm } from "@/lib/distance";
 import { usePlacesExplorer, type UserLocation } from "@/lib/usePlacesExplorer";
 import type { ResultKindFilter } from "@/lib/resultFilter";
 import { eventMatchesTag } from "@/lib/eventTags";
+import { isOpenNow } from "@/lib/opening-hours";
+import { isEventHappeningNow } from "@/lib/eventSchedule";
 
 export function HomeExplorer({
   places,
@@ -25,6 +27,13 @@ export function HomeExplorer({
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locationFilter, setLocationFilter] = useState<LocationFilterValue | null>(null);
   const [kindFilter, setKindFilter] = useState<ResultKindFilter>("all");
+  // Deliberately applied *after* placesDisplay/eventsDisplay below rather
+  // than folded into the location/tag fallback-tier logic those compute —
+  // that logic's whole point is "never show a blank section, fall back to
+  // something"; showing a closed place because nothing was open would defeat
+  // the point of this filter rather than honor it. Empty here just means
+  // empty, with its own message, no further fallback tier.
+  const [openNowOnly, setOpenNowOnly] = useState(false);
 
   // Sorting reference: the chosen city once one is active, otherwise raw
   // geolocation if granted — either way, closest-first is more useful than
@@ -156,6 +165,18 @@ export function HomeExplorer({
     return { list: [], heading: "Événements à venir", note: "Aucun événement à venir pour l'instant." };
   }, [visibleEvents, tagFilteredEvents, events, selectedTag, locationFilter, kindFilter, sortByDistance]);
 
+  const finalPlacesList = useMemo(() => {
+    if (!openNowOnly) return placesDisplay.list;
+    return placesDisplay.list.filter((p) => isOpenNow(p.opening_hours));
+  }, [placesDisplay.list, openNowOnly]);
+
+  const finalEventsList = useMemo(() => {
+    if (!openNowOnly) return eventsDisplay.list;
+    return eventsDisplay.list.filter((e) =>
+      isEventHappeningNow(e.start_datetime, e.end_datetime, e.duration_minutes),
+    );
+  }, [eventsDisplay.list, openNowOnly]);
+
   return (
     <div className="flex flex-1 flex-col">
       {/* Visually hidden — LocationWeather's own heading (city name or a
@@ -186,6 +207,18 @@ export function HomeExplorer({
           <div className="flex flex-wrap items-center gap-2">
             <KindFilter value={kindFilter} onChange={setKindFilter} />
             <LocationFilter value={locationFilter} onChange={setLocationFilter} />
+            <button
+              type="button"
+              onClick={() => setOpenNowOnly((v) => !v)}
+              aria-pressed={openNowOnly}
+              className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
+                openNowOnly
+                  ? "border-gray-900 bg-gray-900 text-white"
+                  : "border-gray-300 bg-white text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              Ouvert maintenant
+            </button>
           </div>
           {selectedTag && (
             <button
@@ -206,9 +239,12 @@ export function HomeExplorer({
               {placesDisplay.note && (
                 <p className="text-sm text-gray-500">{placesDisplay.note}</p>
               )}
-              {placesDisplay.list.length > 0 && (
+              {openNowOnly && placesDisplay.list.length > 0 && finalPlacesList.length === 0 && (
+                <p className="text-sm text-gray-500">Rien d&apos;ouvert pour l&apos;instant.</p>
+              )}
+              {finalPlacesList.length > 0 && (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {placesDisplay.list.map((place) => (
+                  {finalPlacesList.map((place) => (
                     <PlaceCard
                       key={place.id}
                       place={place}
@@ -232,9 +268,12 @@ export function HomeExplorer({
               {eventsDisplay.note && (
                 <p className="text-sm text-gray-500">{eventsDisplay.note}</p>
               )}
-              {eventsDisplay.list.length > 0 && (
+              {openNowOnly && eventsDisplay.list.length > 0 && finalEventsList.length === 0 && (
+                <p className="text-sm text-gray-500">Rien en cours pour l&apos;instant.</p>
+              )}
+              {finalEventsList.length > 0 && (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {eventsDisplay.list.map((event) => (
+                  {finalEventsList.map((event) => (
                     <EventCard
                       key={event.id}
                       event={event}
