@@ -15,13 +15,25 @@ import type { ResultKindFilter } from "@/lib/resultFilter";
 import { eventMatchesTag } from "@/lib/eventTags";
 import { isOpenNow } from "@/lib/opening-hours";
 import { isEventHappeningNow } from "@/lib/eventSchedule";
+import { loadMorePlaces, loadMoreEvents } from "@/app/actions/explore";
+import { EXPLORE_PAGE_SIZE } from "@/lib/explore";
+
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="5" width="13" height="12" rx="1.5" />
+      <path d="M3.5 8.5h13" />
+      <path d="M7 3.5v3M13 3.5v3" />
+    </svg>
+  );
+}
 
 export function HomeExplorer({
-  places,
-  events,
+  initialPlaces,
+  initialEvents,
 }: {
-  places: PlaceWithRelations[];
-  events: EventWithPlace[];
+  initialPlaces: PlaceWithRelations[];
+  initialEvents: EventWithPlace[];
 }) {
   const router = useRouter();
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -34,6 +46,40 @@ export function HomeExplorer({
   // the point of this filter rather than honor it. Empty here just means
   // empty, with its own message, no further fallback tier.
   const [openNowOnly, setOpenNowOnly] = useState(false);
+
+  // The page only ever sends the first page of each list (see app/page.tsx)
+  // — everything past that grows here via "Voir plus", one bounded fetch at
+  // a time, instead of the route ever handing the browser (or the database)
+  // the whole catalog at once. A page shorter than EXPLORE_PAGE_SIZE means
+  // there's nothing left to page through.
+  const [places, setPlaces] = useState(initialPlaces);
+  const [events, setEvents] = useState(initialEvents);
+  const [hasMorePlaces, setHasMorePlaces] = useState(initialPlaces.length >= EXPLORE_PAGE_SIZE);
+  const [hasMoreEvents, setHasMoreEvents] = useState(initialEvents.length >= EXPLORE_PAGE_SIZE);
+  const [loadingMorePlaces, setLoadingMorePlaces] = useState(false);
+  const [loadingMoreEvents, setLoadingMoreEvents] = useState(false);
+
+  async function handleLoadMorePlaces() {
+    setLoadingMorePlaces(true);
+    try {
+      const nextPage = await loadMorePlaces(places.length);
+      setPlaces((prev) => [...prev, ...nextPage]);
+      setHasMorePlaces(nextPage.length >= EXPLORE_PAGE_SIZE);
+    } finally {
+      setLoadingMorePlaces(false);
+    }
+  }
+
+  async function handleLoadMoreEvents() {
+    setLoadingMoreEvents(true);
+    try {
+      const nextPage = await loadMoreEvents(events.length);
+      setEvents((prev) => [...prev, ...nextPage]);
+      setHasMoreEvents(nextPage.length >= EXPLORE_PAGE_SIZE);
+    } finally {
+      setLoadingMoreEvents(false);
+    }
+  }
 
   // Sorting reference: the chosen city once one is active, otherwise raw
   // geolocation if granted — either way, closest-first is more useful than
@@ -194,6 +240,12 @@ export function HomeExplorer({
             router.push(r.result_type === "event" ? `/events/${r.id}` : `/places/${r.place_id}`)
           }
           onSelectCity={(city) => router.push(`/map?lat=${city.lat}&lng=${city.lng}`)}
+          // No map here to fly a city/address to — LocationFilter (the
+          // "Choisir une ville" chip right below) already covers picking a
+          // city on this page, so a raw street address in these results
+          // would just be a dead end. onSelectCity above stays required by
+          // SearchBar's props but is effectively unreachable now.
+          includeLocationResults={false}
           filter={kindFilter}
           onFilterChange={setKindFilter}
           // Same pill shape as the map's own search bar — one consistent
@@ -231,6 +283,63 @@ export function HomeExplorer({
         </div>
 
         <div className="flex flex-col gap-6">
+          {/* Événements comes first: it's what Posto actually differentiates
+              on (any map app can show you bars) — a heavier, colored
+              heading treatment marks it as the featured section, not just
+              give it top position and leave both sections looking the
+              same. Lieux stays fully visible/clickable right below, just
+              visually quieter. */}
+          {showEvents && (
+            <section className="flex flex-col gap-2">
+              {eventsDisplay.heading && (
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600">
+                    <CalendarIcon />
+                  </span>
+                  <h2 className="text-base font-bold text-gray-900">{eventsDisplay.heading}</h2>
+                </div>
+              )}
+              {eventsDisplay.heading === "Événements" && (
+                <p className="text-sm text-gray-500">Ce qui se passe près de chez vous, à ne pas manquer.</p>
+              )}
+              {eventsDisplay.note && (
+                <p className="text-sm text-gray-500">{eventsDisplay.note}</p>
+              )}
+              {openNowOnly && eventsDisplay.list.length > 0 && finalEventsList.length === 0 && (
+                <p className="text-sm text-gray-500">Rien en cours pour l&apos;instant.</p>
+              )}
+              {finalEventsList.length > 0 && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {finalEventsList.map((event) => (
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      distanceKm={
+                        referencePoint
+                          ? haversineKm(referencePoint.lat, referencePoint.lng, event.place.lat, event.place.lng)
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+              {/* Only offered on the normal (non-fallback) tier — loading
+                  more raw events while e.g. "Aucun événement près de X" is
+                  already showing a distance-sorted fallback slice would
+                  just be confusing, not more useful. */}
+              {visibleEvents.length > 0 && hasMoreEvents && (
+                <button
+                  type="button"
+                  onClick={handleLoadMoreEvents}
+                  disabled={loadingMoreEvents}
+                  className="mt-1 w-fit rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 disabled:opacity-50"
+                >
+                  {loadingMoreEvents ? "Chargement..." : "Voir plus d'événements"}
+                </button>
+              )}
+            </section>
+          )}
+
           {showPlaces && (
             <section className="flex flex-col gap-2">
               {placesDisplay.heading && (
@@ -257,34 +366,15 @@ export function HomeExplorer({
                   ))}
                 </div>
               )}
-            </section>
-          )}
-
-          {showEvents && (
-            <section className="flex flex-col gap-2">
-              {eventsDisplay.heading && (
-                <h2 className="text-sm font-semibold text-gray-900">{eventsDisplay.heading}</h2>
-              )}
-              {eventsDisplay.note && (
-                <p className="text-sm text-gray-500">{eventsDisplay.note}</p>
-              )}
-              {openNowOnly && eventsDisplay.list.length > 0 && finalEventsList.length === 0 && (
-                <p className="text-sm text-gray-500">Rien en cours pour l&apos;instant.</p>
-              )}
-              {finalEventsList.length > 0 && (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {finalEventsList.map((event) => (
-                    <EventCard
-                      key={event.id}
-                      event={event}
-                      distanceKm={
-                        referencePoint
-                          ? haversineKm(referencePoint.lat, referencePoint.lng, event.place.lat, event.place.lng)
-                          : undefined
-                      }
-                    />
-                  ))}
-                </div>
+              {visiblePlaces.length > 0 && hasMorePlaces && (
+                <button
+                  type="button"
+                  onClick={handleLoadMorePlaces}
+                  disabled={loadingMorePlaces}
+                  className="mt-1 w-fit rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 disabled:opacity-50"
+                >
+                  {loadingMorePlaces ? "Chargement..." : "Voir plus de lieux"}
+                </button>
               )}
             </section>
           )}

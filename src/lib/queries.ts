@@ -39,6 +39,36 @@ export async function getAllPlaces(
   return (data as unknown as RawPlace[]).map(normalizePlace);
 }
 
+/** One page of places, same primary order as getAllPlaces — used by the
+ * home page's "Voir plus" pagination instead of getAllPlaces itself, which
+ * fetches every place in the database in one call. /map still uses
+ * getAllPlaces on purpose (a map needs every pin at once, clustering is
+ * what keeps *that* screen readable at scale — pagination doesn't apply
+ * there).
+ *
+ * `.order("id")` as a tiebreaker matters here in a way it didn't for
+ * getAllPlaces: `created_at` alone isn't unique (seed data in particular
+ * tends to share the exact same timestamp across many rows), so two
+ * separate `.range()` calls over an otherwise-identically-sorted set can
+ * come back in a different relative order for those tied rows — the same
+ * place then shows up on two pages while another silently never does. A
+ * single one-shot fetch never surfaces that; paginating over multiple
+ * requests does. */
+export async function getPlacesPage(
+  supabase: SupabaseClient<Database>,
+  { limit, offset }: { limit: number; offset: number },
+): Promise<PlaceWithRelations[]> {
+  const { data, error } = await supabase
+    .from("places")
+    .select(PLACE_SELECT)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: true })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw new Error(error.message);
+  return (data as unknown as RawPlace[]).map(normalizePlace);
+}
+
 export async function getPlaceById(
   supabase: SupabaseClient<Database>,
   id: string,
@@ -121,6 +151,33 @@ export async function getUpcomingEvents(
     .gte("start_datetime", new Date().toISOString())
     .order("start_datetime")
     .limit(60);
+  if (error) throw new Error(error.message);
+  return (data as unknown as RawEventWithPlace[]).map(normalizeEvent);
+}
+
+/** One page of upcoming events, same order/filter as getUpcomingEvents —
+ * used by the home page's "Voir plus" pagination. getUpcomingEvents' own
+ * `.limit(60)` was already a soft cap against fetching literally every
+ * future event, but 60 is still everything-at-once from the browser's
+ * perspective; this fetches a real page at a time instead. /map keeps using
+ * getUpcomingEvents (same reasoning as getPlacesPage above).
+ *
+ * `.order("id")` as a tiebreaker: same reasoning as getPlacesPage —
+ * start_datetime alone isn't unique (several seed events share an exact
+ * timestamp), and an unstable tie order across separate paginated requests
+ * is exactly what produced a real duplicate-key bug in testing (the same
+ * event on two pages, another skipped entirely). */
+export async function getUpcomingEventsPage(
+  supabase: SupabaseClient<Database>,
+  { limit, offset }: { limit: number; offset: number },
+): Promise<EventWithPlace[]> {
+  const { data, error } = await supabase
+    .from("events")
+    .select(EVENT_SELECT)
+    .gte("start_datetime", new Date().toISOString())
+    .order("start_datetime")
+    .order("id", { ascending: true })
+    .range(offset, offset + limit - 1);
   if (error) throw new Error(error.message);
   return (data as unknown as RawEventWithPlace[]).map(normalizeEvent);
 }
