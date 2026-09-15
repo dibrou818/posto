@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const SITE_NAME = "Posto — Sorties, activités, événements : Lille, en temps réel";
+const SITE_NAME = "POSTO - Sorties, activités et évènements à Lille en temps réel";
 const SITE_DESCRIPTION = "Ce qui est ouvert maintenant. Ce qui se passe ce soir. Ce qu'il ne faut pas rater.";
 
 // The site-wide share image (public/og-image.png — the branded "POSTO /
