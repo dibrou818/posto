@@ -385,8 +385,8 @@ export function HomeExplorer({
           {showEvents && (
             <section className="flex flex-col gap-2">
               {eventsDisplay.heading && (
-                <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600">
+                <div className="flex items-center gap-1.5">
+                  <span className="shrink-0 text-gray-900">
                     <CalendarIcon />
                   </span>
                   <h2 className="text-base font-bold text-gray-900">{eventsDisplay.heading}</h2>
@@ -435,8 +435,8 @@ export function HomeExplorer({
                   is precisely "place"), the pin should read just as
                   clearly as the calendar does, not a plainer sibling. */}
               {placesDisplay.heading && (
-                <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                <div className="flex items-center gap-1.5">
+                  <span className="shrink-0 text-gray-900">
                     <PinIcon />
                   </span>
                   <h2 className="text-base font-bold text-gray-900">{placesDisplay.heading}</h2>
