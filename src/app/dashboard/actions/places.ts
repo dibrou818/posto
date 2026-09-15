@@ -117,8 +117,11 @@ export async function generatePlaceQrCode(placeId: string) {
   // /places/<id> is keyed on the immutable id, never the name/address/etc,
   // so this QR stays valid for the life of the place no matter what its
   // owner edits afterwards — no need to ever regenerate it after this.
+  // ?src=qr is what lets the page tell "someone scanned the printed code"
+  // apart from "someone clicked a shared link" (see recordQrScan) — a plain
+  // link to the same page never carries this param, so it never counts.
   const origin = await getSiteOrigin();
-  const qr_code_url = await generateQrCodeDataUrl(`${origin}/places/${placeId}`);
+  const qr_code_url = await generateQrCodeDataUrl(`${origin}/places/${placeId}?src=qr`);
 
   const { error } = await supabase.from("places").update({ qr_code_url }).eq("id", placeId);
   if (error) throw new Error(error.message);

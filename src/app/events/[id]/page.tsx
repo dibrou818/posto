@@ -13,6 +13,8 @@ import { formatEventSchedule, formatDuration, formatPrice } from "@/lib/eventSch
 import { eventShareText } from "@/lib/share";
 import { AddToCalendarButton } from "@/components/ui/AddToCalendarButton";
 import { getSiteOrigin } from "@/lib/site";
+import { recordQrScan } from "@/lib/qrScans";
+import { eventJsonLd, jsonLdScriptContent } from "@/lib/structuredData";
 
 // Wrapped in React's cache() so generateMetadata and the page body below —
 // both called for the same request — share one DB round trip instead of
@@ -59,13 +61,21 @@ export async function generateMetadata({
 
 export default async function EventPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ src?: string }>;
 }) {
   const { id } = await params;
+  const { src } = await searchParams;
   const event = await getCachedEvent(id);
 
   if (!event) notFound();
+
+  // See the matching comment on the place page: awaited on purpose, one
+  // fast insert, errors swallowed inside recordQrScan itself.
+  const supabase = await createClient();
+  await recordQrScan(supabase, "event", id, src);
 
   const { place } = event;
   const start = new Date(event.start_datetime);
@@ -90,9 +100,16 @@ export default async function EventPage({
     placeAddress: place.address,
     pageUrl: `${siteOrigin}/events/${event.id}`,
   };
+  const jsonLd = eventJsonLd(event, `${siteOrigin}/events/${event.id}`);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
+      {/* Structured data only — see the matching comment on the place
+          page / structuredData.ts. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScriptContent(jsonLd) }}
+      />
       {/* rounded-[30px] — see the matching comment on the place page's own
           hero photo (same BackButton-over-corner pairing, same exact-match
           derivation: 12px offset + 18px button radius). */}

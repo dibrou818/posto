@@ -3,12 +3,23 @@
 import { useState, type ReactNode } from "react";
 import type { UserLocation } from "@/lib/usePlacesExplorer";
 import { weatherKind } from "@/lib/weatherIcon";
+import { fetchIpLocation } from "@/lib/ipGeolocation";
 
 type State =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "denied" }
-  | { status: "granted"; city: string; temperatureC: number | null; weatherCode: number | null; isDay: boolean };
+  | {
+      status: "granted";
+      city: string;
+      temperatureC: number | null;
+      weatherCode: number | null;
+      isDay: boolean;
+      // Set when this came from the IP fallback (see requestLocation) —
+      // city-level accuracy at best, so the banner says so instead of
+      // presenting it with the same confidence as real GPS.
+      approximate: boolean;
+    };
 
 function LocationIcon() {
   return (
@@ -129,39 +140,69 @@ export function LocationWeather({
 }) {
   const [state, setState] = useState<State>({ status: "idle" });
 
+  // Shared by both the precise (GPS/Wi-Fi) path and the IP fallback below —
+  // same "resolve a city name + weather for these coordinates" call either
+  // way, just fed different coordinates and tagged with whether they're
+  // approximate.
+  async function resolveAndSetGranted(location: UserLocation, approximate: boolean, fallbackCity: string | null) {
+    onLocated(location);
+    try {
+      const res = await fetch(`/api/location?lat=${location.lat}&lng=${location.lng}`);
+      const data = await res.json();
+      const city = typeof data.city === "string" ? data.city : fallbackCity;
+      onCityResolved?.(city, location);
+      setState({
+        status: "granted",
+        city: city ?? "Votre position",
+        temperatureC: typeof data.temperatureC === "number" ? data.temperatureC : null,
+        weatherCode: typeof data.weatherCode === "number" ? data.weatherCode : null,
+        isDay: data.isDay !== false,
+        approximate,
+      });
+    } catch {
+      onCityResolved?.(fallbackCity, location);
+      setState({
+        status: "granted",
+        city: fallbackCity ?? "Votre position",
+        temperatureC: null,
+        weatherCode: null,
+        isDay: true,
+        approximate,
+      });
+    }
+  }
+
+  // The one real dead end this banner used to have: deny the browser's
+  // permission prompt (or have no geolocation API at all — some in-app
+  // browsers) and there was no second act, just a "denied" state stuck
+  // until the visitor manually picked a city elsewhere on the page. IP-based
+  // location is city-level at best, but "probably Lille" beats nothing.
+  async function tryIpFallback() {
+    const ipLocation = await fetchIpLocation();
+    if (!ipLocation) {
+      setState({ status: "denied" });
+      return;
+    }
+    await resolveAndSetGranted({ lat: ipLocation.lat, lng: ipLocation.lng }, true, ipLocation.city);
+  }
+
   function requestLocation() {
     if (!navigator.geolocation) {
-      setState({ status: "denied" });
+      setState({ status: "loading" });
+      void tryIpFallback();
       return;
     }
 
     setState({ status: "loading" });
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
+      (position) => {
         const location: UserLocation = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
-        onLocated(location);
-
-        try {
-          const res = await fetch(`/api/location?lat=${location.lat}&lng=${location.lng}`);
-          const data = await res.json();
-          const city = typeof data.city === "string" ? data.city : null;
-          onCityResolved?.(city, location);
-          setState({
-            status: "granted",
-            city: city ?? "Votre position",
-            temperatureC: typeof data.temperatureC === "number" ? data.temperatureC : null,
-            weatherCode: typeof data.weatherCode === "number" ? data.weatherCode : null,
-            isDay: data.isDay !== false,
-          });
-        } catch {
-          onCityResolved?.(null, location);
-          setState({ status: "granted", city: "Votre position", temperatureC: null, weatherCode: null, isDay: true });
-        }
+        void resolveAndSetGranted(location, false, null);
       },
-      () => setState({ status: "denied" }),
+      () => void tryIpFallback(),
       { timeout: 8000 },
     );
   }
@@ -170,7 +211,7 @@ export function LocationWeather({
     state.status === "loading"
       ? "Localisation en cours..."
       : state.status === "denied"
-        ? "Localisation refusée — cliquez pour réessayer"
+        ? "Localisation indisponible — cliquez pour réessayer"
         : "Cliquer pour activer la localisation";
 
   return (
@@ -181,13 +222,23 @@ export function LocationWeather({
     // instead of letting it float over the page content below, the way an
     // absolutely-positioned dropdown is supposed to.
     <div
-      className="relative w-full bg-gray-900 bg-cover bg-center px-4 pt-10 pb-12 sm:px-6 sm:pt-14 sm:pb-16"
+      // Height comes only from this padding — bg-cover/bg-center below is
+      // untouched, so shrinking it just shows less of the photo's vertical
+      // extent (still fully cropped-to-fill, never stretched); a taller
+      // value here later would simply reveal more of the same photo again.
+      className="relative w-full bg-gray-900 bg-cover bg-center px-4 pt-7 pb-8 sm:px-6 sm:pt-9 sm:pb-10"
       style={{ backgroundImage: "url('/hero-photo.png')" }}
     >
-      <div className="mx-auto flex max-w-2xl flex-col items-center gap-5">
+      <div className="mx-auto flex max-w-2xl flex-col items-center gap-4">
         {state.status === "granted" ? (
           <div className="text-center">
-            <p className="text-xs font-medium tracking-wide text-white/60 uppercase">Votre position</p>
+            <p className="text-xs font-medium tracking-wide text-white/60 uppercase">
+              {/* IP-based location is city-level, not GPS-precise — said
+                  plainly rather than presented with the same confidence as
+                  a real "Votre position", so nobody assumes this pinpoints
+                  them. */}
+              {state.approximate ? "Votre position (approximative)" : "Votre position"}
+            </p>
             <p className="mt-1 text-3xl font-bold text-white sm:text-4xl">{state.city}</p>
           </div>
         ) : (

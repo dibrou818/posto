@@ -54,6 +54,12 @@ interface Props {
    * end — HomeExplorer passes false to keep results scoped to what it can
    * actually do something with. */
   includeLocationResults?: boolean;
+  /** The searcher's own position, when known — passed straight through to
+   * search_all as user_lat/user_lng so nearby results outrank equally-good
+   * text matches farther away. Optional and silently a no-op when omitted
+   * (denied geolocation, no city picked yet): the ranking just falls back
+   * to text similarity alone, same as before this existed. */
+  userLocation?: { lat: number; lng: number } | null;
 }
 
 // Small, minimal icons so a result's kind is obvious at a glance without
@@ -137,6 +143,7 @@ export function SearchBar({
   onFilterChange,
   inputRoundingClassName = "rounded-lg",
   includeLocationResults = true,
+  userLocation,
 }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -175,7 +182,8 @@ export function SearchBar({
       setLoading(true);
       try {
         const locationsParam = includeLocationResults ? "" : "&locations=0";
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}${locationsParam}`, {
+        const positionParam = userLocation ? `&lat=${userLocation.lat}&lng=${userLocation.lng}` : "";
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}${locationsParam}${positionParam}`, {
           signal: controller.signal,
         });
         const data = await res.json();
@@ -199,7 +207,11 @@ export function SearchBar({
       clearTimeout(handle);
       controller.abort();
     };
-  }, [query, queryTooShort, includeLocationResults]);
+    // userLocation: intentionally included — once geolocation resolves
+    // while a query is already showing, the ranking should pick that up
+    // rather than stay stuck on the location-blind results from before it
+    // arrived.
+  }, [query, queryTooShort, includeLocationResults, userLocation]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -275,7 +287,14 @@ export function SearchBar({
   }
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-xl">
+    // mx-auto: this bar renders narrower (max-w-xl) than some parents give
+    // it (e.g. LocationWeather's centered max-w-2xl column on the home
+    // page) — without it, a plain block element sits flush at the start of
+    // that extra space instead of centered in it. On the map, where this
+    // sits in a flex-1 slot right next to the filter button, the assigned
+    // width already equals max-w-xl with no slack left to auto-center
+    // into, so this is a no-op there.
+    <div ref={containerRef} className="relative mx-auto w-full max-w-xl">
       {/* Purely decorative (aria-hidden) — the input's placeholder already
           says what to do, this just makes "this is a search field" legible
           at a glance the way every other search bar looks. pointer-events-

@@ -23,6 +23,7 @@ export function QrCodeSection({
   publicPath,
   label,
   action,
+  scanStats,
 }: {
   qrCodeUrl: string | null;
   publicPath: string;
@@ -32,6 +33,11 @@ export function QrCodeSection({
    * enough to not need that distinction. */
   label: string;
   action: (formData: FormData) => Promise<void>;
+  /** Scan counts for this exact QR (see qrScans.ts) — undefined before a
+   * code has ever been generated, since there's nothing to have scanned
+   * yet. Once generated, shown even at 0: silence would read as broken,
+   * "0 scan" reads as "printed it, nobody's scanned it yet". */
+  scanStats?: { total: number; last7Days: number };
 }) {
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -101,6 +107,15 @@ export function QrCodeSection({
             </div>
           )}
         </div>
+        {qrCodeUrl && scanStats && (
+          <p className="text-xs text-gray-500">
+            <span className="font-semibold text-gray-900">{scanStats.last7Days}</span> scan
+            {scanStats.last7Days !== 1 ? "s" : ""} ces 7 derniers jours
+            {scanStats.total !== scanStats.last7Days && (
+              <span className="text-gray-400"> · {scanStats.total} au total</span>
+            )}
+          </p>
+        )}
         <form action={action}>
           <SaveButton size="compact" savedLabel="Généré ✓" pendingLabel="Génération...">
             {qrCodeUrl ? "Régénérer le code QR" : "Générer le code QR"}

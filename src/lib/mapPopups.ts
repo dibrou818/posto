@@ -1,5 +1,5 @@
 import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
-import { isOpenNow } from "@/lib/opening-hours";
+import { getOpenStatus, formatOpenStatus } from "@/lib/opening-hours";
 import { formatEventDateBadge } from "@/lib/eventSchedule";
 
 // Split out of Map.tsx (which was pushing 1000+ lines) — these are pure
@@ -88,14 +88,14 @@ function popupCard(opts: {
 }
 
 export function popupHtml(place: PlaceWithRelations) {
-  const open = isOpenNow(place.opening_hours);
+  const status = getOpenStatus(place.opening_hours);
   return popupCard({
     coverPhotoUrl: place.cover_photo_url,
     title: place.name,
     subtitle: place.address ?? "",
-    badge: open
-      ? { label: "Ouvert", bg: "#dcfce7", fg: "#166534", dot: "#22c55e" }
-      : { label: "Fermé", bg: "#fee2e2", fg: "#991b1b", dot: "#ef4444" },
+    badge: status.open
+      ? { label: formatOpenStatus(status), bg: "#dcfce7", fg: "#166534", dot: "#22c55e" }
+      : { label: formatOpenStatus(status), bg: "#fee2e2", fg: "#991b1b", dot: "#ef4444" },
     href: `/places/${place.id}`,
     cta: "Voir la fiche",
   });

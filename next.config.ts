@@ -11,6 +11,10 @@ import type { NextConfig } from "next";
 //   glyph PBFs — all fetched via fetch()/XHR (connect-src), not plain <img>
 //   tags, but it's also listed in img-src as a safety net for the style's
 //   sprite image.
+// - ipwho.is: the browser-side IP-geolocation fallback (see
+//   lib/ipGeolocation.ts) — only called after the browser's own
+//   geolocation prompt is denied/unavailable, straight fetch() from
+//   LocationWeather, so it needs connect-src, not img-src.
 // - images.unsplash.com / picsum.photos: a place/event's cover_photo_url can
 //   legitimately point straight at either (see ALLOWED_PHOTO_HOSTS in
 //   dashboard/actions.ts and images.remotePatterns below) instead of an
@@ -26,11 +30,12 @@ const SUPABASE_ORIGIN = "https://khvchawnkzamhfwrbhtz.supabase.co";
 const OPENFREEMAP_ORIGIN = "https://tiles.openfreemap.org";
 const UNSPLASH_ORIGIN = "https://images.unsplash.com";
 const PICSUM_ORIGIN = "https://picsum.photos";
+const IPWHO_ORIGIN = "https://ipwho.is";
 
 const csp = [
   "default-src 'self'",
   `img-src 'self' data: ${SUPABASE_ORIGIN} ${OPENFREEMAP_ORIGIN} ${UNSPLASH_ORIGIN} ${PICSUM_ORIGIN}`,
-  `connect-src 'self' ${SUPABASE_ORIGIN} ${OPENFREEMAP_ORIGIN}`,
+  `connect-src 'self' ${SUPABASE_ORIGIN} ${OPENFREEMAP_ORIGIN} ${IPWHO_ORIGIN}`,
   // Next.js App Router streams RSC payloads through inline <script> tags on
   // every page load, so script-src can't be 'self'-only without a per-request
   // nonce (a bigger change, not done in this pass — flagged as a follow-up).

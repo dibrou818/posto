@@ -8,7 +8,7 @@ import {
   getActivitiesForPlace,
   getUpcomingEventsForPlace,
 } from "@/lib/queries";
-import { isOpenNow, scheduleByDay, listZoneNames } from "@/lib/opening-hours";
+import { getOpenStatus, formatOpenStatus, scheduleByDay, listZoneNames } from "@/lib/opening-hours";
 import { formatDuration, formatPrice } from "@/lib/eventSchedule";
 import { OpeningHoursAccordion } from "@/components/OpeningHoursAccordion";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
@@ -16,6 +16,9 @@ import { BackButton } from "@/components/ui/BackButton";
 import { ShareButton } from "@/components/ui/ShareButton";
 import { PhotoCarousel } from "@/components/PhotoCarousel";
 import { placeShareText } from "@/lib/share";
+import { recordQrScan } from "@/lib/qrScans";
+import { localBusinessJsonLd, jsonLdScriptContent } from "@/lib/structuredData";
+import { getSiteOrigin } from "@/lib/site";
 
 const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
   weekday: "long",
@@ -70,14 +73,23 @@ export async function generateMetadata({
 
 export default async function PlacePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ src?: string }>;
 }) {
   const { id } = await params;
+  const { src } = await searchParams;
   const supabase = await createClient();
   const place = await getCachedPlace(id);
 
   if (!place) notFound();
+
+  // Awaited (it's one fast insert) rather than fired-and-forgotten — on a
+  // serverless deploy, a promise still in flight when the response is sent
+  // can simply never finish, which would silently drop scans; recordQrScan
+  // itself still swallows its own errors so this never fails the page.
+  await recordQrScan(supabase, "place", id, src);
 
   const [activities, events] = await Promise.all([
     getActivitiesForPlace(supabase, place.id),
@@ -89,15 +101,28 @@ export default async function PlacePage({
   // scroll strip for the rest.
   const photos = [place.cover_photo_url, ...place.photo_urls].filter((url): url is string => Boolean(url));
 
-  const open = isOpenNow(place.opening_hours);
+  const openStatus = getOpenStatus(place.opening_hours);
+  const open = openStatus.open;
   const schedule = scheduleByDay(place.opening_hours);
   const zoneNames = listZoneNames(place.opening_hours);
   const hasUrgentMessage =
     !!place.urgent_message &&
     (!place.urgent_message_expires_at || new Date(place.urgent_message_expires_at) > new Date());
 
+  const siteOrigin = await getSiteOrigin();
+  const jsonLd = localBusinessJsonLd(place, `${siteOrigin}/places/${place.id}`);
+
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
+      {/* Structured data only — invisible to a visitor, read by search
+          engines (and, increasingly, AI answer engines) to understand
+          "what is this place, where, when it's open" without scraping the
+          page's prose. See structuredData.ts for the field-by-field
+          reasoning. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScriptContent(jsonLd) }}
+      />
       {hasUrgentMessage && (
         <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <span className="mt-0.5 shrink-0" aria-hidden="true">
@@ -128,7 +153,11 @@ export default async function PlacePage({
             open ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
           }`}
         >
-          {open ? "Ouvert maintenant" : "Fermé"}
+          {/* formatOpenStatus already downgrades to "Ouvert" when there's
+              nothing urgent to say — this page wants "Ouvert maintenant"
+              specifically in that plain case, but keeps the urgency label
+              ("Ferme dans 20 min") verbatim once there is one to show. */}
+          {formatOpenStatus(openStatus) === "Ouvert" ? "Ouvert maintenant" : formatOpenStatus(openStatus)}
         </span>
       </div>
       <p className="mt-1 text-sm text-gray-500">{place.address}</p>

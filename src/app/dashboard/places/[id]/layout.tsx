@@ -4,7 +4,7 @@ import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { getPlaceById } from "@/lib/queries";
-import { isOpenNow } from "@/lib/opening-hours";
+import { getOpenStatus, formatOpenStatus } from "@/lib/opening-hours";
 import { BackButton } from "@/components/ui/BackButton";
 import { PlaceDashboardTabs } from "@/components/dashboard/PlaceDashboardTabs";
 import { buttonClass } from "@/lib/ui";
@@ -28,7 +28,7 @@ export default async function PlaceDashboardLayout({
   if (!place) notFound();
   if (place.owner_id !== user.id) redirect("/dashboard");
 
-  const open = isOpenNow(place.opening_hours);
+  const openStatus = getOpenStatus(place.opening_hours);
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-8">
@@ -51,8 +51,8 @@ export default async function PlaceDashboardLayout({
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-bold text-gray-900">{place.name}</h1>
           <div className="flex items-center gap-2 text-xs">
-            <span className={open ? "font-medium text-green-600" : "font-medium text-red-500"}>
-              {open ? "Ouvert" : "Fermé"}
+            <span className={openStatus.open ? "font-medium text-green-600" : "font-medium text-red-500"}>
+              {formatOpenStatus(openStatus)}
             </span>
             <Link
               href={`/places/${place.id}`}

@@ -5,6 +5,7 @@ import { PlaceForm } from "@/components/dashboard/PlaceForm";
 import { TagsForm } from "@/components/dashboard/TagsForm";
 import { DashboardSection } from "@/components/dashboard/DashboardSection";
 import { QrCodeSection } from "@/components/dashboard/QrCodeSection";
+import { getQrScanStats } from "@/lib/qrScans";
 import { updatePlace, savePlaceTags, generatePlaceQrCode } from "@/app/dashboard/actions";
 
 export default async function PlaceInformationsPage({
@@ -23,6 +24,9 @@ export default async function PlaceInformationsPage({
   if (place.owner_id !== user.id) redirect("/dashboard");
 
   const allTags = await getAllTags(supabase);
+  // No scans possible before a code exists — skip the query entirely rather
+  // than asking for stats on a QR that was never generated.
+  const scanStats = place.qr_code_url ? await getQrScanStats(supabase, "place", id) : undefined;
 
   return (
     <div>
@@ -54,6 +58,7 @@ export default async function PlaceInformationsPage({
           publicPath={`/places/${place.id}`}
           label="Renvoie vers la page de votre lieu"
           action={generatePlaceQrCode.bind(null, id)}
+          scanStats={scanStats}
         />
       </DashboardSection>
     </div>

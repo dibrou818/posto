@@ -7,6 +7,7 @@ import { QrCodeSection } from "@/components/dashboard/QrCodeSection";
 import { PosterSection } from "@/components/dashboard/PosterSection";
 import { DashboardSection } from "@/components/dashboard/DashboardSection";
 import { EventDeleteButton } from "@/components/dashboard/EventDeleteButton";
+import { getQrScanStats } from "@/lib/qrScans";
 import {
   updateEvent,
   deleteEvent,
@@ -31,6 +32,7 @@ export default async function EditEventPage({
   if (event.place.owner_id !== user.id) redirect("/dashboard");
 
   const allTags = await getAllTags(supabase);
+  const scanStats = event.qr_code_url ? await getQrScanStats(supabase, "event", eventId) : undefined;
 
   return (
     <div>
@@ -56,6 +58,7 @@ export default async function EditEventPage({
           publicPath={`/events/${event.id}`}
           label="Renvoie vers la page de votre événement"
           action={generateEventQrCode.bind(null, id, eventId)}
+          scanStats={scanStats}
         />
       </DashboardSection>
 

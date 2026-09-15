@@ -48,32 +48,93 @@ export type PosterEventData = {
   style?: "gradient" | "exposure";
 };
 
-// Exposure/offset/gamma grading applied to the whole poster photo for the
-// "exposure" style — the classic three-property tone move (see the chat
-// discussion this came from): exposure is a multiplicative stop change,
 // offset lifts/lowers the black point, gamma reshapes the midtones while
-// leaving pure black/white alone. Tuned by hand against a couple of real
-// event photos rather than derived from anything — treat these three
-// numbers as a style choice, not a formula with a right answer.
-const EXPOSURE_GRADE = { exposure: -1.14, offset: 0.0135, gamma: 0.93 };
+// leaving pure black/white alone — same two "shape" properties the original
+// hand-tuned preset used. What's no longer fixed is *how much* exposure
+// reduction gets applied: that's now measured per photo (see
+// applyExposureGrading) instead of every photo getting the same -1.14
+// stops regardless of whether it started dark or already bright.
+const EXPOSURE_OFFSET = 0.0135;
+const EXPOSURE_GAMMA = 0.93;
+// Where exposure reduction aims to land a photo's average brightness —
+// picked to sit close to what the old fixed -1.14-stop preset produced on a
+// typical mid-gray event photo, so this reads as the same house look, just
+// arrived at by measurement instead of one constant for every photo.
+const TARGET_LUMINANCE = 0.26;
+// Never darken a photo past this multiplier — an already-dark photo (which
+// needs little to no correction) should never get pushed toward pure black
+// chasing an unreachable target, and even a very bright photo keeps some of
+// its own tonal range instead of being crushed flat.
+const MIN_EXPOSURE_FACTOR = 0.3;
+// A region's measured average is compared against this to decide whether
+// text drawn over it (see the "exposure" style's title/description/venue
+// text below) should be white or near-black — the direct generalization of
+// the same measurement this grading step already takes.
+const BRIGHT_REGION_THRESHOLD = 0.55;
+
+// Rec. 709 relative luminance — the standard "how bright does this pixel
+// actually look" weighting (green contributes far more than blue), not a
+// plain RGB average.
+function relativeLuminance(r: number, g: number, b: number): number {
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+}
+
+/** Average luminance over `imageData`, sampled every 7th pixel in each
+ * direction (~2% of pixels) rather than every one — plenty for a stable
+ * average at this canvas size, a fraction of the cost. */
+function measureAverageLuminance(imageData: ImageData): number {
+  const { data, width, height } = imageData;
+  const STEP = 7;
+  let total = 0;
+  let count = 0;
+  for (let y = 0; y < height; y += STEP) {
+    for (let x = 0; x < width; x += STEP) {
+      const i = (y * width + x) * 4;
+      total += relativeLuminance(data[i], data[i + 1], data[i + 2]);
+      count++;
+    }
+  }
+  return count > 0 ? total / count : 0.5;
+}
+
+/** Same sparse-sampled average, restricted to one rectangle of `ctx` — used
+ * after grading to check specifically the area text will be drawn over,
+ * which can read very differently from the photo's overall average (a photo
+ * that's dark up top and bright at the bottom, or vice versa). */
+function measureRegionLuminance(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): number {
+  const clampedY = Math.max(0, Math.min(y, ctx.canvas.height - 1));
+  const clampedH = Math.max(1, Math.min(h, ctx.canvas.height - clampedY));
+  return measureAverageLuminance(ctx.getImageData(x, clampedY, w, clampedH));
+}
 
 /** Per-pixel exposure/offset/gamma grading, applied in place on whatever is
  * already drawn on `ctx`. Needs a real pixel readback (getImageData) — a
  * CSS `filter` string can fake brightness/contrast but has no primitive for
  * this exact three-property curve — which is real work per poster (~2M
  * pixels at this canvas size), acceptable since a poster is generated once
- * per click, not per render. */
+ * per click, not per render.
+ *
+ * The exposure factor itself is measured, not fixed: an already-dark photo
+ * (average luminance already at or below TARGET_LUMINANCE) is left alone —
+ * factor 1, no extra darkening — while a bright photo gets pulled down
+ * toward the target, clamped so it's never crushed past MIN_EXPOSURE_FACTOR.
+ * Two identically-styled posters from a dark bar photo and a sunlit terrace
+ * photo now get two different amounts of correction instead of the same
+ * -1.14 stops regardless of what either photo actually looked like. */
 function applyExposureGrading(ctx: CanvasRenderingContext2D, width: number, height: number) {
-  const exposureFactor = Math.pow(2, EXPOSURE_GRADE.exposure);
   const imageData = ctx.getImageData(0, 0, width, height);
+  const avgLuminance = measureAverageLuminance(imageData);
+  const exposureFactor =
+    avgLuminance > TARGET_LUMINANCE ? Math.max(MIN_EXPOSURE_FACTOR, TARGET_LUMINANCE / avgLuminance) : 1;
+
   const px = imageData.data;
   for (let i = 0; i < px.length; i += 4) {
     for (let ch = 0; ch < 3; ch++) {
       let v = px[i + ch] / 255;
       v = v * exposureFactor;
-      v = v + EXPOSURE_GRADE.offset;
+      v = v + EXPOSURE_OFFSET;
       v = Math.max(0, Math.min(1, v));
-      v = Math.pow(v, EXPOSURE_GRADE.gamma);
+      v = Math.pow(v, EXPOSURE_GAMMA);
       px[i + ch] = Math.round(Math.max(0, Math.min(1, v)) * 255);
     }
   }
@@ -302,6 +363,30 @@ export async function generateEventPosterBlob(data: PosterEventData): Promise<Bl
   // badge up top — ordinary posters never get near this floor.
   const contentTopY = Math.max(contentBottomY - contentHeight, HEIGHT * 0.32);
 
+  // ---- Text color: white by default (the "gradient" style's black scrim
+  // below guarantees a dark background regardless of the photo, so there's
+  // nothing to adapt to there). The "exposure" style skips that scrim on
+  // purpose — leaning on the photo's own (regraded) tones instead — which
+  // means the title/description/venue text sits directly on the photo, and
+  // a bright one would wash out plain white. Direct generalization of the
+  // grading step above: measure the actual region text will be drawn over
+  // (not the whole photo's average, which can read very differently) and
+  // flip to near-black with a light glow when that region is bright enough
+  // that white would struggle, instead of assuming white always works. ----
+  let contentTextColor = "#ffffff";
+  let contentTextColorMuted = "rgba(255,255,255,0.88)";
+  let contentAddressColor = "rgba(255,255,255,0.78)";
+  let contentShadowColor = "rgba(0,0,0,0.45)";
+  if (data.style === "exposure") {
+    const regionLuminance = measureRegionLuminance(ctx, 0, Math.round(contentTopY), WIDTH, Math.round(HEIGHT - contentTopY));
+    if (regionLuminance > BRIGHT_REGION_THRESHOLD) {
+      contentTextColor = "#171717";
+      contentTextColorMuted = "rgba(23,23,23,0.85)";
+      contentAddressColor = "rgba(23,23,23,0.72)";
+      contentShadowColor = "rgba(255,255,255,0.65)";
+    }
+  }
+
   // ---- Background gradient: sized to whatever was actually measured above
   // instead of a fixed fraction, so it never comes up short under a long
   // title/description and never overshoots (washing out more of the photo
@@ -346,12 +431,12 @@ export async function generateEventPosterBlob(data: PosterEventData): Promise<Bl
   ctx.textAlign = "center";
   let cursorY = contentTopY;
 
-  ctx.shadowColor = "rgba(0,0,0,0.45)";
+  ctx.shadowColor = contentShadowColor;
   ctx.shadowBlur = 16;
   ctx.shadowOffsetY = 2;
   ctx.textBaseline = "top";
   ctx.font = TITLE_FONT;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = contentTextColor;
   for (const line of titleLines) {
     ctx.fillText(line, centerX, cursorY);
     cursorY += TITLE_LINE_HEIGHT;
@@ -372,9 +457,9 @@ export async function generateEventPosterBlob(data: PosterEventData): Promise<Bl
   if (descriptionLines.length > 0) {
     cursorY += GAP_DATE_DESC;
     ctx.font = DESC_FONT;
-    ctx.fillStyle = "rgba(255,255,255,0.88)";
+    ctx.fillStyle = contentTextColorMuted;
     ctx.textBaseline = "top";
-    ctx.shadowColor = "rgba(0,0,0,0.45)";
+    ctx.shadowColor = contentShadowColor;
     ctx.shadowBlur = 12;
     for (const line of descriptionLines) {
       ctx.fillText(line, centerX, cursorY);
@@ -404,16 +489,16 @@ export async function generateEventPosterBlob(data: PosterEventData): Promise<Bl
   // footer instead of the title block just trailing off. ----
   const venueMaxWidth = qrBackingX - PADDING - 32;
   const venueLines: { text: string; font: string; color: string }[] = [
-    { text: data.placeName, font: `700 27px ${FONT_STACK}`, color: "#ffffff" },
+    { text: data.placeName, font: `700 27px ${FONT_STACK}`, color: contentTextColor },
   ];
   if (data.placeAddress) {
-    venueLines.push({ text: data.placeAddress, font: `400 21px ${FONT_STACK}`, color: "rgba(255,255,255,0.78)" });
+    venueLines.push({ text: data.placeAddress, font: `400 21px ${FONT_STACK}`, color: contentAddressColor });
   }
   if (data.placePhone) {
-    venueLines.push({ text: `Tél. ${data.placePhone}`, font: `400 21px ${FONT_STACK}`, color: "rgba(255,255,255,0.78)" });
+    venueLines.push({ text: `Tél. ${data.placePhone}`, font: `400 21px ${FONT_STACK}`, color: contentAddressColor });
   }
 
-  ctx.shadowColor = "rgba(0,0,0,0.5)";
+  ctx.shadowColor = contentShadowColor;
   ctx.shadowBlur = 10;
   let venueY = qrBackingY + QR_INNER_PAD + 4;
   for (const line of venueLines) {

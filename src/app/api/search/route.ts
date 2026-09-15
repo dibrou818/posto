@@ -87,11 +87,22 @@ export async function GET(request: NextRequest) {
   // per keystroke-debounced query for results it's never going to show.
   const includeLocations = request.nextUrl.searchParams.get("locations") !== "0";
 
+  // Optional — omitted whenever the caller has no location yet (denied
+  // geolocation, hasn't picked a city). search_all's own user_lat/user_lng
+  // default to null in that case, which is exactly the old, location-blind
+  // ranking, so nothing else here needs to branch on this.
+  const userLat = parseFloat(request.nextUrl.searchParams.get("lat") ?? "");
+  const userLng = parseFloat(request.nextUrl.searchParams.get("lng") ?? "");
+  const hasUserLocation = Number.isFinite(userLat) && Number.isFinite(userLng);
+
   const supabase = await createClient();
 
   const [tagsRes, resultsRes, cities, addresses] = await Promise.all([
     supabase.rpc("search_tags", { search_query: q }),
-    supabase.rpc("search_all", { search_query: q }),
+    supabase.rpc("search_all", {
+      search_query: q,
+      ...(hasUserLocation ? { user_lat: userLat, user_lng: userLng } : {}),
+    }),
     includeLocations ? searchCities(q) : Promise.resolve([]),
     includeLocations ? searchAddresses(q) : Promise.resolve([]),
   ]);

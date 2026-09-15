@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { PlaceWithRelations } from "@/lib/queries";
-import { isOpenNow } from "@/lib/opening-hours";
+import { getOpenStatus, formatOpenStatus } from "@/lib/opening-hours";
 import { formatDistance } from "@/lib/distance";
 import { cardClass } from "@/lib/ui";
 import { PlaceKindIcon } from "@/components/KindIcon";
@@ -13,7 +13,8 @@ export function PlaceCard({
   place: PlaceWithRelations;
   distanceKm?: number;
 }) {
-  const open = isOpenNow(place.opening_hours);
+  const openStatus = getOpenStatus(place.opening_hours);
+  const statusLabel = formatOpenStatus(openStatus);
 
   return (
     <Link
@@ -67,9 +68,9 @@ export function PlaceCard({
               <span className="text-xs whitespace-nowrap text-gray-500">{formatDistance(distanceKm)}</span>
             )}
             <span
-              className={`shrink-0 text-xs font-medium whitespace-nowrap ${open ? "text-green-600" : "text-red-500"}`}
+              className={`shrink-0 text-xs font-medium whitespace-nowrap ${openStatus.open ? "text-green-600" : "text-red-500"}`}
             >
-              {open ? "Ouvert" : "Fermé"}
+              {statusLabel}
             </span>
           </span>
         </div>

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { MapSheetItem } from "@/components/Map";
 import type { PlaceWithRelations } from "@/lib/queries";
-import { isOpenNow } from "@/lib/opening-hours";
+import { getOpenStatus, formatOpenStatus } from "@/lib/opening-hours";
 import { formatEventDateBadge } from "@/lib/eventSchedule";
 
 // Mirrors Map.tsx's marker/popup violet, so the sheet reads as the same
@@ -37,15 +37,15 @@ function hrefFor(item: MapSheetItem): string {
 }
 
 function PlaceBadge({ place }: { place: PlaceWithRelations }) {
-  const open = isOpenNow(place.opening_hours);
+  const status = getOpenStatus(place.opening_hours);
   return (
     <span
       className={`flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-        open ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+        status.open ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
       }`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${open ? "bg-green-500" : "bg-red-500"}`} />
-      {open ? "Ouvert" : "Fermé"}
+      <span className={`h-1.5 w-1.5 rounded-full ${status.open ? "bg-green-500" : "bg-red-500"}`} />
+      {formatOpenStatus(status)}
     </span>
   );
 }

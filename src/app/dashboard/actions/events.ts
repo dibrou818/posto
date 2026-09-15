@@ -162,9 +162,10 @@ export async function generateEventQrCode(placeId: string, eventId: string) {
   await assertOwnsPlace(supabase, user.id, placeId);
 
   // Same reasoning as generatePlaceQrCode: /events/<id> never changes even
-  // if the event's title/date/description get edited later.
+  // if the event's title/date/description get edited later, and ?src=qr is
+  // what lets that page count this as an actual scan (see recordQrScan).
   const origin = await getSiteOrigin();
-  const qr_code_url = await generateQrCodeDataUrl(`${origin}/events/${eventId}`);
+  const qr_code_url = await generateQrCodeDataUrl(`${origin}/events/${eventId}?src=qr`);
 
   const { error, count } = await supabase
     .from("events")

@@ -268,6 +268,27 @@ export type Database = {
         }
         Relationships: []
       }
+      qr_scans: {
+        Row: {
+          entity_id: string
+          entity_type: string
+          id: string
+          scanned_at: string
+        }
+        Insert: {
+          entity_id: string
+          entity_type: string
+          id?: string
+          scanned_at?: string
+        }
+        Update: {
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          scanned_at?: string
+        }
+        Relationships: []
+      }
       tags: {
         Row: {
           created_at: string
@@ -296,7 +317,7 @@ export type Database = {
     Functions: {
       delete_own_account: { Args: never; Returns: undefined }
       search_all: {
-        Args: { search_query: string }
+        Args: { search_query: string; user_lat?: number; user_lng?: number }
         Returns: {
           cover_photo_url: string
           id: string

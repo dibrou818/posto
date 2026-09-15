@@ -9,6 +9,8 @@ import { EventCard } from "@/components/EventCard";
 import { LocationWeather } from "@/components/LocationWeather";
 import { KindFilter } from "@/components/KindFilter";
 import { LocationFilter, LOCATION_FILTER_RADIUS_KM, type LocationFilterValue } from "@/components/LocationFilter";
+import { BudgetFilter } from "@/components/BudgetFilter";
+import { matchesBudgetFilter, type BudgetFilterValue } from "@/lib/budgetFilter";
 import { haversineKm } from "@/lib/distance";
 import { usePlacesExplorer, type UserLocation } from "@/lib/usePlacesExplorer";
 import type { ResultKindFilter } from "@/lib/resultFilter";
@@ -47,6 +49,14 @@ export function HomeExplorer({
   // the point of this filter rather than honor it. Empty here just means
   // empty, with its own message, no further fallback tier.
   const [openNowOnly, setOpenNowOnly] = useState(false);
+  // Events-only (see budgetFilter.ts — places/activities carry no price at
+  // all in this schema), and applied the same way openNowOnly is: as a hard
+  // filter after placesDisplay/eventsDisplay's own fallback logic, not
+  // folded into it. A place/event 160km away is still "the closest thing we
+  // have" and worth falling back to; an event outside the chosen budget
+  // just isn't what was asked for, and pretending otherwise would defeat
+  // the filter.
+  const [budgetFilter, setBudgetFilter] = useState<BudgetFilterValue | null>(null);
 
   // The page only ever sends the first page of each list (see app/page.tsx)
   // — everything past that grows here via "Voir plus", one bounded fetch at
@@ -240,11 +250,28 @@ export function HomeExplorer({
   }, [placesDisplay.list, openNowOnly]);
 
   const finalEventsList = useMemo(() => {
-    if (!openNowOnly) return eventsDisplay.list;
-    return eventsDisplay.list.filter((e) =>
-      isEventHappeningNow(e.start_datetime, e.end_datetime, e.duration_minutes),
-    );
-  }, [eventsDisplay.list, openNowOnly]);
+    let list = eventsDisplay.list;
+    if (openNowOnly) {
+      list = list.filter((e) => isEventHappeningNow(e.start_datetime, e.end_datetime, e.duration_minutes));
+    }
+    if (budgetFilter) {
+      list = list.filter((e) => matchesBudgetFilter(e.price_cents, budgetFilter));
+    }
+    return list;
+  }, [eventsDisplay.list, openNowOnly, budgetFilter]);
+
+  // Shared by both places the events section can go empty after filtering
+  // (its own exclusive section, and the merged "Tout" feed) — one message
+  // that names whichever combination of hard filters actually emptied it,
+  // instead of two near-duplicate ternaries drifting apart over time.
+  const emptyEventsReason =
+    openNowOnly && budgetFilter
+      ? "rien d'ouvert, en cours ou dans ce budget"
+      : openNowOnly
+        ? "rien d'ouvert ni en cours"
+        : budgetFilter
+          ? "rien dans ce budget"
+          : null;
 
   // "Tout" is one interleaved feed now, not the two sections (with their
   // own "Lieux"/"Événements" headings) stacked one above the other — a
@@ -324,6 +351,11 @@ export function HomeExplorer({
           // Same pill shape as the map's own search bar — one consistent
           // search-bar language across the app instead of two.
           inputRoundingClassName="rounded-full"
+          // Same referencePoint already driving distance-sort/radius
+          // filtering below — an explicitly chosen city wins over raw
+          // geolocation for search ranking too, for the same reason it
+          // does everywhere else on this page.
+          userLocation={referencePoint}
         />
       </LocationWeather>
 
@@ -332,6 +364,10 @@ export function HomeExplorer({
           <div className="flex flex-wrap items-center gap-2">
             <KindFilter value={kindFilter} onChange={setKindFilter} />
             <LocationFilter value={locationFilter} onChange={setLocationFilter} />
+            {/* Events-only data (see budgetFilter.ts) — hidden while
+                exclusively viewing Lieux, where it would have nothing to
+                filter and just look like a broken control. */}
+            {kindFilter !== "place" && <BudgetFilter value={budgetFilter} onChange={setBudgetFilter} />}
             <button
               type="button"
               onClick={() => setOpenNowOnly((v) => !v)}
@@ -377,8 +413,10 @@ export function HomeExplorer({
               {eventsDisplay.note && (
                 <p className="text-sm text-gray-500">{eventsDisplay.note}</p>
               )}
-              {openNowOnly && eventsDisplay.list.length > 0 && finalEventsList.length === 0 && (
-                <p className="text-sm text-gray-500">Rien en cours pour l&apos;instant.</p>
+              {emptyEventsReason && eventsDisplay.list.length > 0 && finalEventsList.length === 0 && (
+                <p className="text-sm text-gray-500">
+                  {emptyEventsReason.charAt(0).toUpperCase() + emptyEventsReason.slice(1)} pour l&apos;instant.
+                </p>
               )}
               {finalEventsList.length > 0 && (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -488,7 +526,9 @@ export function HomeExplorer({
               )}
               {mergedFeed.length === 0 && (
                 <p className="text-sm text-gray-500">
-                  {openNowOnly ? "Rien d'ouvert ni en cours pour l'instant." : "Rien à afficher pour l'instant."}
+                  {emptyEventsReason
+                    ? `${emptyEventsReason.charAt(0).toUpperCase() + emptyEventsReason.slice(1)} pour l'instant.`
+                    : "Rien à afficher pour l'instant."}
                 </p>
               )}
               {((hasMorePlaces && !loadingMorePlaces) || (hasMoreEvents && !loadingMoreEvents)) && (
