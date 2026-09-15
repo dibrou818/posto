@@ -6,6 +6,34 @@ import { formatEventDateBadge, formatPrice } from "@/lib/eventSchedule";
 import { cardClass } from "@/lib/ui";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
 
+// A calendar for an event, a pin for a place (see PlaceCard's own
+// PlaceKindIcon) — same blue, no background chip, sitting right before the
+// title instead of on the photo: the two need to read as different kinds of
+// card in a mixed "Tout" feed, but a colored circle stamped on every photo
+// read as decoration for its own sake rather than information. aria-hidden:
+// decorative, the card's own content (date badge here, address on a place)
+// already says what it is.
+function EventKindIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      width="15"
+      height="15"
+      className="shrink-0 text-blue-600"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3.5" y="4.5" width="13" height="12" rx="1.5" />
+      <path d="M3.5 8.5h13" />
+      <path d="M7 3v3M13 3v3" />
+    </svg>
+  );
+}
+
 /** Grid card for an upcoming event — same visual language as PlaceCard
  * (horizontal, image left) so the two interleave cleanly on the home page. */
 export function EventCard({
@@ -43,8 +71,13 @@ export function EventCard({
           {/* The title used to share its line with the price pill — on a
               narrow card that's the one piece of information that matters
               most, so it now gets the full first line to itself; price
-              moved down into the badge row (see below). */}
-          <h3 className="truncate font-semibold text-gray-900">{event.title}</h3>
+              moved down into the badge row (see below). The kind icon
+              sits right before it on that same line, not on the photo —
+              see EventKindIcon. */}
+          <div className="flex min-w-0 items-center gap-1.5">
+            <EventKindIcon />
+            <h3 className="min-w-0 truncate font-semibold text-gray-900">{event.title}</h3>
+          </div>
           <p className="truncate text-xs text-gray-500">{event.place.name}</p>
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">

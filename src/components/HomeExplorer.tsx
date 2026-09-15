@@ -29,6 +29,21 @@ function CalendarIcon() {
   );
 }
 
+function PinIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 18.5s-6-5.5-6-9.8a6 6 0 1 1 12 0c0 4.3-6 9.8-6 9.8Z" />
+      <circle cx="10" cy="8.5" r="1.9" />
+    </svg>
+  );
+}
+
+// A place or an event, tagged with its own kind — the shape the merged
+// "Tout" feed below is built from. Kept as a real discriminated union (not
+// just rendering two arrays back to back) so the feed can be genuinely
+// interleaved/sorted as one list instead of "all events then all places".
+type FeedItem = { kind: "place"; place: PlaceWithRelations } | { kind: "event"; event: EventWithPlace };
+
 export function HomeExplorer({
   initialPlaces,
   initialEvents,
@@ -39,7 +54,10 @@ export function HomeExplorer({
   const router = useRouter();
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locationFilter, setLocationFilter] = useState<LocationFilterValue | null>(null);
-  const [kindFilter, setKindFilter] = useState<ResultKindFilter>("all");
+  // Événements first by default (not "all") — it's what Posto actually
+  // differentiates on, so it's also what a first-time visitor should land
+  // looking at, not a mixed feed they have to filter down themselves.
+  const [kindFilter, setKindFilter] = useState<ResultKindFilter>("event");
   // Deliberately applied *after* placesDisplay/eventsDisplay below rather
   // than folded into the location/tag fallback-tier logic those compute —
   // that logic's whole point is "never show a blank section, fall back to
@@ -128,8 +146,12 @@ export function HomeExplorer({
     );
   }, [tagFilteredEvents, locationFilter]);
 
-  const showPlaces = kindFilter !== "event";
-  const showEvents = kindFilter !== "place";
+  // Exact matches now, not "everything but the other kind" — "all" gets
+  // its own merged feed (mergedFeed below) instead of these two sections
+  // stacked on top of each other.
+  const showEvents = kindFilter === "event";
+  const showPlaces = kindFilter === "place";
+  const showMerged = kindFilter === "all";
 
   // Same gate the old "Voir plus" button used (only on the normal,
   // non-fallback display tier — see placesDisplay/eventsDisplay below —
@@ -169,19 +191,15 @@ export function HomeExplorer({
   // location/tag claim the results no longer back up.
   const placesDisplay = useMemo(() => {
     if (visiblePlaces.length > 0) {
-      // No tag/location active is the default "just browsing" state — a
-      // heading like "Tous les lieux" only restates the obvious there, and
-      // in Lieux/Événements-only mode it's pure noise right under a filter
-      // pill that already says the same thing. Only show one when it's
-      // actually informative, or as a section label while both grids share
-      // the page (kindFilter "all").
+      // This section only ever renders when kindFilter is exclusively
+      // "place" (see showPlaces below) — "all" is its own merged feed
+      // now, with no per-kind heading at all — so a heading here is
+      // always shown, never conditional on kindFilter anymore.
       const heading = selectedTag
         ? `Lieux taggés ${selectedTag.label}`
         : locationFilter
           ? `Lieux près de ${locationFilter.label}`
-          : kindFilter === "all"
-            ? "Lieux"
-            : null;
+          : "Lieux";
       return { list: visiblePlaces, heading, note: null as string | null };
     }
     if (sortedPlaces.length > 0) {
@@ -199,17 +217,16 @@ export function HomeExplorer({
       };
     }
     return { list: [], heading: "Lieux", note: "Aucun lieu pour l'instant." };
-  }, [visiblePlaces, sortedPlaces, places, selectedTag, locationFilter, kindFilter, sortByDistance]);
+  }, [visiblePlaces, sortedPlaces, places, selectedTag, locationFilter, sortByDistance]);
 
   const eventsDisplay = useMemo(() => {
     if (visibleEvents.length > 0) {
+      // Same reasoning as placesDisplay's own heading above.
       const heading = selectedTag
         ? `Événements taggés ${selectedTag.label}`
         : locationFilter
           ? `Événements près de ${locationFilter.label}`
-          : kindFilter === "all"
-            ? "Événements"
-            : null;
+          : "Événements";
       return { list: visibleEvents, heading, note: null as string | null };
     }
     if (tagFilteredEvents.length > 0) {
@@ -233,7 +250,7 @@ export function HomeExplorer({
       };
     }
     return { list: [], heading: "Événements à venir", note: "Aucun événement à venir pour l'instant." };
-  }, [visibleEvents, tagFilteredEvents, events, selectedTag, locationFilter, kindFilter, sortByDistance]);
+  }, [visibleEvents, tagFilteredEvents, events, selectedTag, locationFilter, sortByDistance]);
 
   const finalPlacesList = useMemo(() => {
     if (!openNowOnly) return placesDisplay.list;
@@ -246,6 +263,56 @@ export function HomeExplorer({
       isEventHappeningNow(e.start_datetime, e.end_datetime, e.duration_minutes),
     );
   }, [eventsDisplay.list, openNowOnly]);
+
+  // "Tout" is one interleaved feed now, not the two sections (with their
+  // own "Lieux"/"Événements" headings) stacked one above the other — a
+  // place and an event aren't different *categories* to browse
+  // separately, they're both just "what you could do", so there's no
+  // heading here at all; each card carries its own kind badge (see
+  // EventCard/PlaceCard) instead. Order: closest-first once a location is
+  // known — the one ordering that genuinely applies to both kinds of card
+  // at once. Without a location, there's no shared axis to sort mixed
+  // places/events by (price and date don't both exist on a place), so
+  // this interleaves them round-robin instead of just concatenating two
+  // already-sorted lists, which would just read as "all events, then all
+  // places" — not actually mixed.
+  const mergedFeed = useMemo((): FeedItem[] => {
+    if (!showMerged) return [];
+    const placeItems: FeedItem[] = finalPlacesList.map((place) => ({ kind: "place", place }));
+    const eventItems: FeedItem[] = finalEventsList.map((event) => ({ kind: "event", event }));
+
+    if (referencePoint) {
+      const distanceOf = (item: FeedItem) =>
+        haversineKm(
+          referencePoint.lat,
+          referencePoint.lng,
+          item.kind === "place" ? item.place.lat : item.event.place.lat,
+          item.kind === "place" ? item.place.lng : item.event.place.lng,
+        );
+      return [...placeItems, ...eventItems].sort((a, b) => distanceOf(a) - distanceOf(b));
+    }
+
+    const merged: FeedItem[] = [];
+    const maxLength = Math.max(placeItems.length, eventItems.length);
+    for (let i = 0; i < maxLength; i++) {
+      if (eventItems[i]) merged.push(eventItems[i]);
+      if (placeItems[i]) merged.push(placeItems[i]);
+    }
+    return merged;
+  }, [showMerged, finalPlacesList, finalEventsList, referencePoint]);
+
+  // One sentinel driving both lists at once while "Tout" is active — each
+  // still grows independently (a place page and an event page each have
+  // their own offset/hasMore), this just fires whichever of the two can
+  // still load more.
+  const handleLoadMoreMerged = useCallback(() => {
+    if (hasMorePlaces && !loadingMorePlaces) handleLoadMorePlaces();
+    if (hasMoreEvents && !loadingMoreEvents) handleLoadMoreEvents();
+  }, [hasMorePlaces, loadingMorePlaces, handleLoadMorePlaces, hasMoreEvents, loadingMoreEvents, handleLoadMoreEvents]);
+  const mergedSentinelRef = useLoadMoreOnScroll<HTMLDivElement>(
+    handleLoadMoreMerged,
+    showMerged && ((hasMorePlaces && !loadingMorePlaces) || (hasMoreEvents && !loadingMoreEvents)),
+  );
 
   return (
     <div className="flex flex-1 flex-col">
@@ -307,12 +374,14 @@ export function HomeExplorer({
         </div>
 
         <div className="flex flex-col gap-6">
-          {/* Événements comes first: it's what Posto actually differentiates
-              on (any map app can show you bars) — a heavier, colored
-              heading treatment marks it as the featured section, not just
-              give it top position and leave both sections looking the
-              same. Lieux stays fully visible/clickable right below, just
-              visually quieter. */}
+          {/* "Tout" is a single merged feed (below) — no separate Lieux/
+              Événements sections or headings once mixed, since a place and
+              an event aren't different categories to browse, they're both
+              just "what you could do". These two only render when the
+              filter is exclusively one kind, which is also why their own
+              heading is now unconditional (see placesDisplay/eventsDisplay
+              above) instead of only showing in "all" mode — that mode
+              doesn't reach this branch anymore. */}
           {showEvents && (
             <section className="flex flex-col gap-2">
               {eventsDisplay.heading && (
@@ -360,8 +429,18 @@ export function HomeExplorer({
 
           {showPlaces && (
             <section className="flex flex-col gap-2">
+              {/* Same icon+bold treatment as the Événements heading (its
+                  own CalendarIcon chip) — now that Lieux gets its own
+                  exclusive section too (this only renders when kindFilter
+                  is precisely "place"), the pin should read just as
+                  clearly as the calendar does, not a plainer sibling. */}
               {placesDisplay.heading && (
-                <h2 className="text-sm font-semibold text-gray-900">{placesDisplay.heading}</h2>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                    <PinIcon />
+                  </span>
+                  <h2 className="text-base font-bold text-gray-900">{placesDisplay.heading}</h2>
+                </div>
               )}
               {placesDisplay.note && (
                 <p className="text-sm text-gray-500">{placesDisplay.note}</p>
@@ -387,6 +466,54 @@ export function HomeExplorer({
               {visiblePlaces.length > 0 && hasMorePlaces && (
                 <div ref={placesSentinelRef} className="flex justify-center py-2">
                   {loadingMorePlaces && <p className="text-xs text-gray-400">Chargement...</p>}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* "Tout": one interleaved grid, no heading — see mergedFeed's
+              own comment above for why. Each card's own corner badge
+              (EventKindBadge/PlaceKindBadge) is what tells a place from an
+              event here instead. */}
+          {showMerged && (
+            <section className="flex flex-col gap-2">
+              {mergedFeed.length > 0 && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {mergedFeed.map((item) =>
+                    item.kind === "event" ? (
+                      <EventCard
+                        key={`event-${item.event.id}`}
+                        event={item.event}
+                        distanceKm={
+                          referencePoint
+                            ? haversineKm(referencePoint.lat, referencePoint.lng, item.event.place.lat, item.event.place.lng)
+                            : undefined
+                        }
+                      />
+                    ) : (
+                      <PlaceCard
+                        key={`place-${item.place.id}`}
+                        place={item.place}
+                        distanceKm={
+                          referencePoint
+                            ? haversineKm(referencePoint.lat, referencePoint.lng, item.place.lat, item.place.lng)
+                            : undefined
+                        }
+                      />
+                    ),
+                  )}
+                </div>
+              )}
+              {mergedFeed.length === 0 && (
+                <p className="text-sm text-gray-500">
+                  {openNowOnly ? "Rien d'ouvert ni en cours pour l'instant." : "Rien à afficher pour l'instant."}
+                </p>
+              )}
+              {((hasMorePlaces && !loadingMorePlaces) || (hasMoreEvents && !loadingMoreEvents)) && (
+                <div ref={mergedSentinelRef} className="flex justify-center py-2">
+                  {(loadingMorePlaces || loadingMoreEvents) && (
+                    <p className="text-xs text-gray-400">Chargement...</p>
+                  )}
                 </div>
               )}
             </section>

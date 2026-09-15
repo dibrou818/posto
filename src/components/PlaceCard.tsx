@@ -5,6 +5,32 @@ import { isOpenNow } from "@/lib/opening-hours";
 import { formatDistance } from "@/lib/distance";
 import { cardClass } from "@/lib/ui";
 
+// See EventCard's own EventKindIcon for why this exists and why it sits
+// before the title rather than on the photo — same blue, no background
+// chip, so a place and an event read as visually distinct kinds of card in
+// a mixed "Tout" feed without either icon looking like decoration for its
+// own sake. aria-hidden: decorative, the card's own content (address,
+// Ouvert/Fermé) already says what it is.
+function PlaceKindIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      width="15"
+      height="15"
+      className="shrink-0 text-blue-600"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M10 18s-6-5.5-6-10a6 6 0 1 1 12 0c0 4.5-6 10-6 10Z" />
+      <circle cx="10" cy="8" r="2.2" />
+    </svg>
+  );
+}
+
 export function PlaceCard({
   place,
   distanceKm,
@@ -38,8 +64,13 @@ export function PlaceCard({
           {/* The title used to share its line with the Ouvert/Fermé status —
               same fix as EventCard's title/price: it now gets the full
               first line, and the status moves down into the badge row,
-              grouped with distance in the bottom-right corner. */}
-          <h3 className="truncate font-semibold text-gray-900">{place.name}</h3>
+              grouped with distance in the bottom-right corner. The kind
+              icon sits right before it on that same line, not on the
+              photo — see PlaceKindIcon. */}
+          <div className="flex min-w-0 items-center gap-1.5">
+            <PlaceKindIcon />
+            <h3 className="min-w-0 truncate font-semibold text-gray-900">{place.name}</h3>
+          </div>
           <p className="truncate text-xs text-gray-500">{place.address}</p>
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
