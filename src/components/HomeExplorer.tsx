@@ -323,9 +323,6 @@ export function HomeExplorer({
                   <h2 className="text-base font-bold text-gray-900">{eventsDisplay.heading}</h2>
                 </div>
               )}
-              {eventsDisplay.heading === "Événements" && (
-                <p className="text-sm text-gray-500">Ce qui se passe près de chez vous, à ne pas manquer.</p>
-              )}
               {eventsDisplay.note && (
                 <p className="text-sm text-gray-500">{eventsDisplay.note}</p>
               )}

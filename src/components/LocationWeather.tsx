@@ -182,13 +182,7 @@ export function LocationWeather({
     // absolutely-positioned dropdown is supposed to.
     <div
       className="relative w-full bg-gray-900 bg-cover bg-center px-4 pt-10 pb-12 sm:px-6 sm:pt-14 sm:pb-16"
-      // A dark scrim baked into the same background-image (not a separate
-      // overlay element) — same trick as the event poster generator's own
-      // gradient-over-photo, here as a flat wash rather than a bottom-up
-      // gradient since the whole banner (not just its lower half) needs to
-      // stay readable: the city name/button/search bar sit centered, not
-      // pinned to the bottom.
-      style={{ backgroundImage: "linear-gradient(rgba(17,24,39,0.32), rgba(17,24,39,0.45)), url('/hero-photo.png')" }}
+      style={{ backgroundImage: "url('/hero-photo.png')" }}
     >
       <div className="mx-auto flex max-w-2xl flex-col items-center gap-5">
         {state.status === "granted" ? (
