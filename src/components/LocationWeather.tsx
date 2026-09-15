@@ -180,7 +180,16 @@ export function LocationWeather({
     // overflow-hidden would clip it exactly at the hero's bottom edge
     // instead of letting it float over the page content below, the way an
     // absolutely-positioned dropdown is supposed to.
-    <div className="relative w-full bg-gradient-to-br from-gray-900 via-gray-900 to-violet-800 px-4 pt-10 pb-12 sm:px-6 sm:pt-14 sm:pb-16">
+    <div
+      className="relative w-full bg-gray-900 bg-cover bg-center px-4 pt-10 pb-12 sm:px-6 sm:pt-14 sm:pb-16"
+      // A dark scrim baked into the same background-image (not a separate
+      // overlay element) — same trick as the event poster generator's own
+      // gradient-over-photo, here as a flat wash rather than a bottom-up
+      // gradient since the whole banner (not just its lower half) needs to
+      // stay readable: the city name/button/search bar sit centered, not
+      // pinned to the bottom.
+      style={{ backgroundImage: "linear-gradient(rgba(17,24,39,0.6), rgba(17,24,39,0.72)), url('/hero-photo.png')" }}
+    >
       <div className="mx-auto flex max-w-2xl flex-col items-center gap-5">
         {state.status === "granted" ? (
           <div className="text-center">

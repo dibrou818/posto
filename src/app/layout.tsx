@@ -16,35 +16,42 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const SITE_NAME = "Posto — Découvrez des lieux et activités";
-const SITE_DESCRIPTION =
-  "Trouvez des lieux proposant des activités récurrentes et des événements ponctuels près de vous.";
+const SITE_NAME = "Posto — Sorties, activités, événements : Lille, en temps réel";
+const SITE_DESCRIPTION = "Ce qui est ouvert maintenant. Ce qui se passe ce soir. Ce qu'il ne faut pas rater.";
+
+// The site-wide share image (public/og-image.png — the branded "POSTO /
+// goposto.com" sunset photo) resolves against metadataBase below since it's
+// given as a relative path here; a place/event page's own generateMetadata
+// still points at that entity's own cover photo (a real Supabase Storage
+// URL, already absolute) instead of this one.
+const SITE_IMAGE = { url: "/og-image.png", width: 1730, height: 909 };
 
 export const metadata: Metadata = {
-  // The canonical production URL relative OpenGraph/Twitter image paths on
-  // child pages resolve against — this app's own images are always already
-  // absolute (Supabase Storage URLs), so this mostly just silences Next's
-  // "metadataBase not set" warning and gives the site a stable canonical
-  // origin, rather than anything that needs to track wherever a given
-  // deployment (localhost, a preview branch) actually runs.
+  // The canonical production URL relative OpenGraph/Twitter image paths
+  // (SITE_IMAGE above, or a page without its own images) resolve against —
+  // also silences Next's "metadataBase not set" warning and gives the site
+  // a stable canonical origin, rather than anything that needs to track
+  // wherever a given deployment (localhost, a preview branch) actually runs.
   metadataBase: new URL("https://goposto.com"),
   title: SITE_NAME,
   description: SITE_DESCRIPTION,
   // Site-wide fallback — any page without its own generateMetadata (or one
   // that returns {} because the id it looked up doesn't exist) still gets a
-  // real title/description in a shared link's preview instead of whatever a
-  // crawler guesses on its own.
+  // real title/description/image in a shared link's preview instead of
+  // whatever a crawler guesses on its own.
   openGraph: {
     type: "website",
     locale: "fr_FR",
     siteName: "Posto",
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
+    images: [SITE_IMAGE],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
+    images: [SITE_IMAGE],
   },
 };
 
