@@ -18,25 +18,7 @@ import { isEventHappeningNow } from "@/lib/eventSchedule";
 import { loadMorePlaces, loadMoreEvents } from "@/app/actions/explore";
 import { EXPLORE_PAGE_SIZE } from "@/lib/explore";
 import { useLoadMoreOnScroll } from "@/lib/useLoadMoreOnScroll";
-
-function CalendarIcon() {
-  return (
-    <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3.5" y="5" width="13" height="12" rx="1.5" />
-      <path d="M3.5 8.5h13" />
-      <path d="M7 3.5v3M13 3.5v3" />
-    </svg>
-  );
-}
-
-function PinIcon() {
-  return (
-    <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10 18.5s-6-5.5-6-9.8a6 6 0 1 1 12 0c0 4.3-6 9.8-6 9.8Z" />
-      <circle cx="10" cy="8.5" r="1.9" />
-    </svg>
-  );
-}
+import { CalendarKindIcon, PlaceKindIcon } from "@/components/KindIcon";
 
 // A place or an event, tagged with its own kind — the shape the merged
 // "Tout" feed below is built from. Kept as a real discriminated union (not
@@ -387,7 +369,7 @@ export function HomeExplorer({
               {eventsDisplay.heading && (
                 <div className="flex items-center gap-1.5">
                   <span className="shrink-0 text-gray-900">
-                    <CalendarIcon />
+                    <CalendarKindIcon />
                   </span>
                   <h2 className="text-base font-bold text-gray-900">{eventsDisplay.heading}</h2>
                 </div>
@@ -437,7 +419,7 @@ export function HomeExplorer({
               {placesDisplay.heading && (
                 <div className="flex items-center gap-1.5">
                   <span className="shrink-0 text-gray-900">
-                    <PinIcon />
+                    <PlaceKindIcon />
                   </span>
                   <h2 className="text-base font-bold text-gray-900">{placesDisplay.heading}</h2>
                 </div>
