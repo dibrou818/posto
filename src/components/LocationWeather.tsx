@@ -188,7 +188,7 @@ export function LocationWeather({
       // gradient since the whole banner (not just its lower half) needs to
       // stay readable: the city name/button/search bar sit centered, not
       // pinned to the bottom.
-      style={{ backgroundImage: "linear-gradient(rgba(17,24,39,0.6), rgba(17,24,39,0.72)), url('/hero-photo.png')" }}
+      style={{ backgroundImage: "linear-gradient(rgba(17,24,39,0.32), rgba(17,24,39,0.45)), url('/hero-photo.png')" }}
     >
       <div className="mx-auto flex max-w-2xl flex-col items-center gap-5">
         {state.status === "granted" ? (

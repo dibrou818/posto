@@ -17,6 +17,7 @@ import { isOpenNow } from "@/lib/opening-hours";
 import { isEventHappeningNow } from "@/lib/eventSchedule";
 import { loadMorePlaces, loadMoreEvents } from "@/app/actions/explore";
 import { EXPLORE_PAGE_SIZE } from "@/lib/explore";
+import { useLoadMoreOnScroll } from "@/lib/useLoadMoreOnScroll";
 
 function CalendarIcon() {
   return (
@@ -59,7 +60,15 @@ export function HomeExplorer({
   const [loadingMorePlaces, setLoadingMorePlaces] = useState(false);
   const [loadingMoreEvents, setLoadingMoreEvents] = useState(false);
 
-  async function handleLoadMorePlaces() {
+  // useCallback (not a plain function) because these are now also the
+  // effect dependency useLoadMoreOnScroll's IntersectionObserver keys off
+  // of — a fresh function identity every render would tear down and
+  // re-create that observer just as often. Depending on places.length/
+  // events.length (not an empty array) is deliberate, not an oversight:
+  // the offset each call reads has to track the real current length, and
+  // recreating the callback exactly when that length changes is correct,
+  // not wasteful.
+  const handleLoadMorePlaces = useCallback(async () => {
     setLoadingMorePlaces(true);
     try {
       const nextPage = await loadMorePlaces(places.length);
@@ -68,9 +77,9 @@ export function HomeExplorer({
     } finally {
       setLoadingMorePlaces(false);
     }
-  }
+  }, [places.length]);
 
-  async function handleLoadMoreEvents() {
+  const handleLoadMoreEvents = useCallback(async () => {
     setLoadingMoreEvents(true);
     try {
       const nextPage = await loadMoreEvents(events.length);
@@ -79,7 +88,7 @@ export function HomeExplorer({
     } finally {
       setLoadingMoreEvents(false);
     }
-  }
+  }, [events.length]);
 
   // Sorting reference: the chosen city once one is active, otherwise raw
   // geolocation if granted — either way, closest-first is more useful than
@@ -121,6 +130,21 @@ export function HomeExplorer({
 
   const showPlaces = kindFilter !== "event";
   const showEvents = kindFilter !== "place";
+
+  // Same gate the old "Voir plus" button used (only on the normal,
+  // non-fallback display tier — see placesDisplay/eventsDisplay below —
+  // and never while a page is already in flight), just triggered by
+  // scrolling near the sentinel at the bottom of each grid instead of a
+  // click. hasMorePlaces/hasMoreEvents already going false is what makes
+  // this stop calling the server once a section is exhausted.
+  const placesSentinelRef = useLoadMoreOnScroll<HTMLDivElement>(
+    handleLoadMorePlaces,
+    visiblePlaces.length > 0 && hasMorePlaces && !loadingMorePlaces,
+  );
+  const eventsSentinelRef = useLoadMoreOnScroll<HTMLDivElement>(
+    handleLoadMoreEvents,
+    visibleEvents.length > 0 && hasMoreEvents && !loadingMoreEvents,
+  );
 
   const sortByDistance = useCallback(
     <T extends { lat: number; lng: number }>(list: T[]): T[] => {
@@ -323,19 +347,16 @@ export function HomeExplorer({
                   ))}
                 </div>
               )}
-              {/* Only offered on the normal (non-fallback) tier — loading
+              {/* No button: a sentinel div instead — useLoadMoreOnScroll
+                  fires the next fetch once this scrolls near the viewport.
+                  Only armed on the normal (non-fallback) tier — loading
                   more raw events while e.g. "Aucun événement près de X" is
                   already showing a distance-sorted fallback slice would
                   just be confusing, not more useful. */}
               {visibleEvents.length > 0 && hasMoreEvents && (
-                <button
-                  type="button"
-                  onClick={handleLoadMoreEvents}
-                  disabled={loadingMoreEvents}
-                  className="mt-1 w-fit rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 disabled:opacity-50"
-                >
-                  {loadingMoreEvents ? "Chargement..." : "Voir plus d'événements"}
-                </button>
+                <div ref={eventsSentinelRef} className="flex justify-center py-2">
+                  {loadingMoreEvents && <p className="text-xs text-gray-400">Chargement...</p>}
+                </div>
               )}
             </section>
           )}
@@ -367,14 +388,9 @@ export function HomeExplorer({
                 </div>
               )}
               {visiblePlaces.length > 0 && hasMorePlaces && (
-                <button
-                  type="button"
-                  onClick={handleLoadMorePlaces}
-                  disabled={loadingMorePlaces}
-                  className="mt-1 w-fit rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 disabled:opacity-50"
-                >
-                  {loadingMorePlaces ? "Chargement..." : "Voir plus de lieux"}
-                </button>
+                <div ref={placesSentinelRef} className="flex justify-center py-2">
+                  {loadingMorePlaces && <p className="text-xs text-gray-400">Chargement...</p>}
+                </div>
               )}
             </section>
           )}
