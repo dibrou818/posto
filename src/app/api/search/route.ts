@@ -81,13 +81,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ tags: [], results: [], cities: [], addresses: [] });
   }
 
+  // The home page's search (no map to jump to there) opts out of city/
+  // address results with `?locations=0` — skipped here, not just hidden
+  // client-side, so that search doesn't cost two Nominatim geocoding calls
+  // per keystroke-debounced query for results it's never going to show.
+  const includeLocations = request.nextUrl.searchParams.get("locations") !== "0";
+
   const supabase = await createClient();
 
   const [tagsRes, resultsRes, cities, addresses] = await Promise.all([
     supabase.rpc("search_tags", { search_query: q }),
     supabase.rpc("search_all", { search_query: q }),
-    searchCities(q),
-    searchAddresses(q),
+    includeLocations ? searchCities(q) : Promise.resolve([]),
+    includeLocations ? searchAddresses(q) : Promise.resolve([]),
   ]);
 
   if (tagsRes.error) {

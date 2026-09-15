@@ -47,6 +47,13 @@ interface Props {
    * map, where it sits directly next to an equally round filter button.
    * Defaults to the same moderate rounding used everywhere else. */
   inputRoundingClassName?: string;
+  /** Whether to search/show cities and street addresses (via Nominatim)
+   * alongside places/activities/events/tags. Defaults to true for the map's
+   * own search bar, which needs them (picking one flies the map there).
+   * The home page has no map to jump to, so a raw address there is a dead
+   * end — HomeExplorer passes false to keep results scoped to what it can
+   * actually do something with. */
+  includeLocationResults?: boolean;
 }
 
 // Small, minimal icons so a result's kind is obvious at a glance without
@@ -129,6 +136,7 @@ export function SearchBar({
   filter: controlledFilter,
   onFilterChange,
   inputRoundingClassName = "rounded-lg",
+  includeLocationResults = true,
 }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -166,7 +174,10 @@ export function SearchBar({
     const handle = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal: controller.signal });
+        const locationsParam = includeLocationResults ? "" : "&locations=0";
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}${locationsParam}`, {
+          signal: controller.signal,
+        });
         const data = await res.json();
         setTags(data.tags ?? []);
         setResults(data.results ?? []);
@@ -188,7 +199,7 @@ export function SearchBar({
       clearTimeout(handle);
       controller.abort();
     };
-  }, [query, queryTooShort]);
+  }, [query, queryTooShort, includeLocationResults]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -205,20 +216,28 @@ export function SearchBar({
   const rows: Row[] = queryTooShort
     ? []
     : [
-        ...cities.map((city): Row => ({
-          kind: "city",
-          key: `city-${city.label}-${city.lat}`,
-          title: city.label,
-          subtitle: city.subtitle,
-          city,
-        })),
-        ...addresses.map((address): Row => ({
-          kind: "address",
-          key: `address-${address.label}-${address.lat}`,
-          title: address.label,
-          subtitle: address.subtitle,
-          city: address,
-        })),
+        // Defensive, not just the server-side skip in api/search — stale
+        // city/address state from a previous fetch (e.g. right after this
+        // prop flips) shouldn't leak into a bar that isn't supposed to show
+        // them.
+        ...(includeLocationResults
+          ? cities.map((city): Row => ({
+              kind: "city",
+              key: `city-${city.label}-${city.lat}`,
+              title: city.label,
+              subtitle: city.subtitle,
+              city,
+            }))
+          : []),
+        ...(includeLocationResults
+          ? addresses.map((address): Row => ({
+              kind: "address",
+              key: `address-${address.label}-${address.lat}`,
+              title: address.label,
+              subtitle: address.subtitle,
+              city: address,
+            }))
+          : []),
         ...tags.map((tag): Row => ({
           kind: "tag",
           key: `tag-${tag.id}`,
