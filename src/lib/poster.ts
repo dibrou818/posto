@@ -37,7 +37,48 @@ export type PosterEventData = {
   placeName: string;
   placeAddress: string | null;
   placePhone: string | null;
+  /** How the photo gets made legible under the text. "gradient" (default)
+   * layers a black scrim behind the text — works on any photo regardless of
+   * what's actually there, at the cost of darkening/flattening that part of
+   * it. "exposure" instead grades the whole photo (see applyExposureGrading)
+   * and skips the scrim entirely, keeping more of the photo's own look —
+   * better on a photo that's already dark/calm where the scrim isn't doing
+   * much lifting anyway, but with no per-photo guarantee of contrast the
+   * way the scrim has, so it's opt-in rather than the default. */
+  style?: "gradient" | "exposure";
 };
+
+// Exposure/offset/gamma grading applied to the whole poster photo for the
+// "exposure" style — the classic three-property tone move (see the chat
+// discussion this came from): exposure is a multiplicative stop change,
+// offset lifts/lowers the black point, gamma reshapes the midtones while
+// leaving pure black/white alone. Tuned by hand against a couple of real
+// event photos rather than derived from anything — treat these three
+// numbers as a style choice, not a formula with a right answer.
+const EXPOSURE_GRADE = { exposure: -1.14, offset: 0.0135, gamma: 0.93 };
+
+/** Per-pixel exposure/offset/gamma grading, applied in place on whatever is
+ * already drawn on `ctx`. Needs a real pixel readback (getImageData) — a
+ * CSS `filter` string can fake brightness/contrast but has no primitive for
+ * this exact three-property curve — which is real work per poster (~2M
+ * pixels at this canvas size), acceptable since a poster is generated once
+ * per click, not per render. */
+function applyExposureGrading(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  const exposureFactor = Math.pow(2, EXPOSURE_GRADE.exposure);
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const px = imageData.data;
+  for (let i = 0; i < px.length; i += 4) {
+    for (let ch = 0; ch < 3; ch++) {
+      let v = px[i + ch] / 255;
+      v = v * exposureFactor;
+      v = v + EXPOSURE_GRADE.offset;
+      v = Math.max(0, Math.min(1, v));
+      v = Math.pow(v, EXPOSURE_GRADE.gamma);
+      px[i + ch] = Math.round(Math.max(0, Math.min(1, v)) * 255);
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
 
 function loadImage(src: string, crossOrigin?: "anonymous"): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -189,6 +230,7 @@ export async function generateEventPosterBlob(data: PosterEventData): Promise<Bl
     try {
       const bg = await loadImage(data.coverPhotoUrl, "anonymous");
       drawImageCover(ctx, bg, 0, 0, WIDTH, HEIGHT);
+      if (data.style === "exposure") applyExposureGrading(ctx, WIDTH, HEIGHT);
     } catch {
       // CORS-blocked or unreachable — a fallback background beats a failed
       // poster generation entirely.
@@ -263,13 +305,17 @@ export async function generateEventPosterBlob(data: PosterEventData): Promise<Bl
   // ---- Background gradient: sized to whatever was actually measured above
   // instead of a fixed fraction, so it never comes up short under a long
   // title/description and never overshoots (washing out more of the photo
-  // than necessary) under a short one. ----
-  const gradientStartY = Math.min(contentTopY - 110, HEIGHT * 0.56);
-  const gradient = ctx.createLinearGradient(0, gradientStartY, 0, HEIGHT);
-  gradient.addColorStop(0, "rgba(0,0,0,0)");
-  gradient.addColorStop(1, "rgba(0,0,0,0.9)");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, gradientStartY, WIDTH, HEIGHT - gradientStartY);
+  // than necessary) under a short one. Skipped for the "exposure" style —
+  // that style's whole point is leaning on the photo's own (regraded) tones
+  // instead of a scrim; drawing both would just muddy the effect. ----
+  if (data.style !== "exposure") {
+    const gradientStartY = Math.min(contentTopY - 110, HEIGHT * 0.56);
+    const gradient = ctx.createLinearGradient(0, gradientStartY, 0, HEIGHT);
+    gradient.addColorStop(0, "rgba(0,0,0,0)");
+    gradient.addColorStop(1, "rgba(0,0,0,0.9)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, gradientStartY, WIDTH, HEIGHT - gradientStartY);
+  }
 
   // A soft top-down scrim too, just enough to keep the brand badge legible
   // over a bright sky/wall without needing its own solid backing.

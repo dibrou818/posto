@@ -49,6 +49,13 @@ export function PosterSection({
   const [error, setError] = useState<string | null>(null);
   const [localDownloadUrl, setLocalDownloadUrl] = useState<string | null>(null);
   const localDownloadUrlRef = useRef<string | null>(null);
+  // Not persisted on the event — this is a per-generation style choice the
+  // owner makes right before clicking, not a saved preference (nothing else
+  // here reads or depends on it), so there's nothing to round-trip: it
+  // starts unchecked (the classic, always-legible gradient) every visit,
+  // same as e.g. the cover-photo file input above never remembering last
+  // time's file either.
+  const [exposureGrading, setExposureGrading] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -72,6 +79,7 @@ export function PosterSection({
         placeName,
         placeAddress,
         placePhone,
+        style: exposureGrading ? "exposure" : "gradient",
       });
 
       const supabase = createClient();
@@ -126,6 +134,15 @@ export function PosterSection({
           Composée à partir de la photo, du titre, de la description, de la date et du prix — avec
           le code QR de l&apos;événement.
         </p>
+        <label className="flex items-center gap-2 text-xs text-gray-600">
+          <input
+            type="checkbox"
+            checked={exposureGrading}
+            onChange={(e) => setExposureGrading(e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-gray-300 text-gray-900 focus:ring-gray-900/20"
+          />
+          Réglage lumière sur la photo plutôt qu&apos;un bandeau noir en bas
+        </label>
         <div className="flex items-center gap-3">
           <button
             type="button"
