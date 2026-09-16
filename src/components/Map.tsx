@@ -5,7 +5,8 @@ import * as maplibregl from "maplibre-gl";
 import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
 import { useIsMobileViewport } from "@/lib/viewport";
 import { popupHtml, eventPopupHtml, EVENT_COLOR } from "@/lib/mapPopups";
-import { setupUserLocationLayer } from "@/lib/mapUserLocation";
+import { setupUserLocationLayer, LOCATE_ZOOM } from "@/lib/mapUserLocation";
+import { readUserLocation } from "@/lib/userLocationStore";
 
 // MapLibre computes its tile-parsing Web Worker's URL as
 // `new URL('./maplibre-gl-worker.mjs', import.meta.url)` — Webpack/Vite
@@ -392,6 +393,12 @@ export function Map({
   });
 
   const [initialView] = useState(() => readStoredView());
+  // Falls back to a location already granted elsewhere this session (the
+  // home page's own locate prompt, or an earlier map visit) — see
+  // userLocationStore.ts. Only used when there's no explicit prior camera
+  // position (initialView above) to respect instead: a deliberate pan/zoom
+  // the visitor already did on the map itself always wins.
+  const [initialUserLocation] = useState(() => (initialView ? null : readUserLocation()));
   // Set only if the map itself couldn't be created at all (most commonly
   // GPUInitializationError: the browser/GPU can't give MapLibre a WebGL2
   // context — hardware acceleration disabled, a blocklisted GPU driver,
@@ -415,14 +422,22 @@ export function Map({
   // by its own effect further down — none of this re-runs on every render,
   // unlike react-leaflet's per-child-component model.
   useEffect(() => {
-    const initialCenter: [number, number] = initialView ? [initialView.lng, initialView.lat] : LILLE_CENTER;
+    const initialCenter: [number, number] = initialView
+      ? [initialView.lng, initialView.lat]
+      : initialUserLocation
+        ? [initialUserLocation.lng, initialUserLocation.lat]
+        : LILLE_CENTER;
     let map: maplibregl.Map;
     try {
       map = new maplibregl.Map({
         container: containerRef.current!,
         style: STYLE_URL,
         center: initialCenter,
-        zoom: initialView?.zoom ?? DEFAULT_ZOOM,
+        // LOCATE_ZOOM matches what a live locate's own flyTo already uses
+        // (see mapUserLocation.ts) — opening already at that zoom reads as
+        // "the same place a locate would have taken you", not a different,
+        // unexplained framing.
+        zoom: initialView?.zoom ?? (initialUserLocation ? LOCATE_ZOOM : DEFAULT_ZOOM),
         dragRotate: false,
         pitchWithRotate: false,
         touchPitch: false,
@@ -661,7 +676,12 @@ export function Map({
     map.on("moveend", schedulePersist);
     map.on("zoomend", schedulePersist);
 
-    const removeUserLocationLayer = setupUserLocationLayer(map);
+    const removeUserLocationLayer = setupUserLocationLayer(
+      map,
+      initialUserLocation
+        ? { lat: initialUserLocation.lat, lng: initialUserLocation.lng, approximate: initialUserLocation.approximate }
+        : null,
+    );
 
     return () => {
       if (persistTimeoutId !== undefined) window.clearTimeout(persistTimeoutId);

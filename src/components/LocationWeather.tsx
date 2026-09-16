@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { UserLocation } from "@/lib/usePlacesExplorer";
 import { weatherKind } from "@/lib/weatherIcon";
 import { fetchIpLocation } from "@/lib/ipGeolocation";
+import { readUserLocation, writeUserLocation } from "@/lib/userLocationStore";
 
 type State =
   | { status: "idle" }
@@ -151,6 +152,11 @@ export function LocationWeather({
       const data = await res.json();
       const city = typeof data.city === "string" ? data.city : fallbackCity;
       onCityResolved?.(city, location);
+      // Shared with every other page that can locate the visitor (the
+      // map's own locate button) — see userLocationStore.ts. Written once
+      // resolved, not before, so a stored value always carries the best
+      // city name actually known at the time.
+      writeUserLocation({ lat: location.lat, lng: location.lng, city, approximate });
       setState({
         status: "granted",
         city: city ?? "Votre position",
@@ -161,6 +167,7 @@ export function LocationWeather({
       });
     } catch {
       onCityResolved?.(fallbackCity, location);
+      writeUserLocation({ lat: location.lat, lng: location.lng, city: fallbackCity, approximate });
       setState({
         status: "granted",
         city: fallbackCity ?? "Votre position",
@@ -171,6 +178,26 @@ export function LocationWeather({
       });
     }
   }
+
+  // Already located elsewhere this session — the map's own locate button,
+  // or this same banner on an earlier page load — reuse it immediately
+  // instead of showing the "Cliquer pour activer" prompt again. Runs once
+  // on mount; requestLocation() below (the button) still works exactly the
+  // same way whenever there's nothing stored yet.
+  useEffect(() => {
+    const stored = readUserLocation();
+    if (!stored) return;
+    // Deferred a tick (react-hooks/set-state-in-effect): setState must not
+    // run synchronously inside an effect body, only from a callback — same
+    // reasoning as Map.tsx's own setInitError. resolveAndSetGranted sets
+    // state itself (eventually, after its own await), so it has to move
+    // into the same deferred callback, not just the "loading" state.
+    queueMicrotask(() => {
+      setState({ status: "loading" });
+      void resolveAndSetGranted({ lat: stored.lat, lng: stored.lng }, stored.approximate, stored.city);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // The one real dead end this banner used to have: deny the browser's
   // permission prompt (or have no geolocation API at all — some in-app

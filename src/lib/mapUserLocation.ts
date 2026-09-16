@@ -1,4 +1,5 @@
 import * as maplibregl from "maplibre-gl";
+import { writeUserLocation } from "@/lib/userLocationStore";
 
 // Split out of Map.tsx (which was pushing 1000+ lines) — self-contained:
 // this only ever touches the `map` instance handed to it and its own
@@ -6,6 +7,12 @@ import * as maplibregl from "maplibre-gl";
 // behavior, just its own file.
 
 type LocateStatus = "idle" | "locating" | "active" | "denied";
+
+// How close a "recenter on me" (button click, or an auto-started live fix —
+// see setupUserLocationLayer's `seed` param) zooms in. Wide enough to still
+// see the surrounding streets/venues at a glance, not so tight it reads as
+// dropped into one single block.
+export const LOCATE_ZOOM = 13;
 
 // The classic "recenter on me" navigation arrow used by most map apps
 // (Google Maps, Apple Maps, etc.) — a simple filled arrowhead pointing
@@ -64,8 +71,23 @@ class LocateControl implements maplibregl.IControl {
 /** Plain pulsing "you are here" blue dot — no heading/direction indicator,
  * just the position itself — plus an accuracy circle. Live via
  * watchPosition; first fix auto-centers, later updates just follow. Returns
- * a cleanup function. */
-export function setupUserLocationLayer(map: maplibregl.Map): () => void {
+ * a cleanup function.
+ *
+ * `seed`, when given, is a location already known from elsewhere in the app
+ * this session (see userLocationStore.ts — typically granted on the home
+ * page) — the dot is drawn there immediately on mount, before any
+ * geolocation call, and the camera is treated as already centered (Map.tsx
+ * sets the map's *initial* center to the same seed, so there's nothing left
+ * to fly to). When the seed came from real browser geolocation rather than
+ * the IP fallback (`approximate: false`), live tracking also starts right
+ * away — permission is already granted in that case, so this resolves
+ * silently, no fresh prompt. An approximate (IP-based) seed never
+ * auto-starts real geolocation on its own; the dot just stays put until the
+ * visitor taps the button themselves. */
+export function setupUserLocationLayer(
+  map: maplibregl.Map,
+  seed?: { lat: number; lng: number; approximate: boolean } | null,
+): () => void {
   let marker: maplibregl.Marker | null = null;
   let watchId: number | null = null;
   let hasCentered = false;
@@ -141,9 +163,15 @@ export function setupUserLocationLayer(map: maplibregl.Map): () => void {
         const { latitude, longitude, accuracy } = position.coords;
         control.setStatus("active");
         updatePosition(latitude, longitude, accuracy);
+        // Shared with every other page that can locate the visitor (see
+        // userLocationStore.ts) — a real GPS/Wi-Fi fix always overwrites
+        // whatever was there before (even an earlier approximate one),
+        // city left as-is since this layer has no reverse-geocode of its
+        // own; the next page that reads this re-resolves the city itself.
+        writeUserLocation({ lat: latitude, lng: longitude, city: null, approximate: false });
         if (!hasCentered) {
           hasCentered = true;
-          map.flyTo({ center: [longitude, latitude], zoom: Math.max(map.getZoom(), 15) });
+          map.flyTo({ center: [longitude, latitude], zoom: Math.max(map.getZoom(), LOCATE_ZOOM) });
         }
       },
       () => control.setStatus("denied"),
@@ -157,13 +185,25 @@ export function setupUserLocationLayer(map: maplibregl.Map): () => void {
       return;
     }
     if (marker) {
-      map.flyTo({ center: marker.getLngLat(), zoom: Math.max(map.getZoom(), 15) });
+      map.flyTo({ center: marker.getLngLat(), zoom: Math.max(map.getZoom(), LOCATE_ZOOM) });
       return;
     }
     startWatching();
   });
 
   map.on("zoom", updateAccuracyCircleRadius);
+
+  if (seed) {
+    // Draw the dot immediately — Map.tsx already opened the camera centered
+    // here (see its own initialCenter), so there's no fly-to needed.
+    hasCentered = true;
+    control.setStatus("active");
+    updatePosition(seed.lat, seed.lng, 0);
+    // Real geolocation, not the IP fallback: permission is already granted
+    // from wherever this seed came from, so this resolves silently — no
+    // fresh prompt — and upgrades the static seed into a live, accurate dot.
+    if (!seed.approximate && navigator.geolocation) startWatching();
+  }
 
   return () => {
     if (watchId !== null) navigator.geolocation.clearWatch(watchId);
