@@ -19,6 +19,8 @@ import { placeShareText } from "@/lib/share";
 import { recordQrScan } from "@/lib/qrScans";
 import { localBusinessJsonLd, jsonLdScriptContent } from "@/lib/structuredData";
 import { getSiteOrigin } from "@/lib/site";
+import { LocationMiniMap } from "@/components/LocationMiniMap";
+import { PLACE_COLOR } from "@/lib/mapPopups";
 
 const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
   weekday: "long",
@@ -297,6 +299,15 @@ export default async function PlacePage({
           </ul>
         </section>
       )}
+
+      {/* Right before the "related events" list below — a small, contained
+          preview of exactly where this place is, in the same visual style
+          as the full /map, not the full explorer itself (no search, no
+          other pins, no clustering — there's only ever one point here). */}
+      <section className="mt-8">
+        <h2 className="mb-2 text-lg font-semibold text-gray-900">Localisation</h2>
+        <LocationMiniMap lat={place.lat} lng={place.lng} color={PLACE_COLOR} />
+      </section>
 
       {events.length > 0 && (
         <section className="mt-8">

@@ -15,6 +15,8 @@ import { AddToCalendarButton } from "@/components/ui/AddToCalendarButton";
 import { getSiteOrigin } from "@/lib/site";
 import { recordQrScan } from "@/lib/qrScans";
 import { eventJsonLd, jsonLdScriptContent } from "@/lib/structuredData";
+import { LocationMiniMap } from "@/components/LocationMiniMap";
+import { EVENT_COLOR } from "@/lib/mapPopups";
 
 // Wrapped in React's cache() so generateMetadata and the page body below —
 // both called for the same request — share one DB round trip instead of
@@ -195,6 +197,16 @@ export default async function EventPage({
           <RestrictionsBadge text={event.restrictions} />
         </div>
       )}
+
+      {/* Right before the "Lieu" card below — a small, contained preview of
+          exactly where this event is (its venue's own point — an event has
+          no location beyond that), same visual style as the full /map. In
+          EVENT_COLOR, not the place's usual dark dot: this page is about
+          the event, not the venue itself. */}
+      <section className="mt-8">
+        <h2 className="mb-2 text-lg font-semibold text-gray-900">Localisation</h2>
+        <LocationMiniMap lat={place.lat} lng={place.lng} color={EVENT_COLOR} />
+      </section>
 
       <section className="mt-8">
         <h2 className="mb-2 text-lg font-semibold text-gray-900">Lieu</h2>

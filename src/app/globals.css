@@ -96,6 +96,32 @@ body {
   border-radius: 12px;
 }
 
+/* MapLibre's default close button sits flush at the content box's own
+   (0,0) corner — fine with the padding this used to have, but zeroed out
+   above it landed right on top of the now-adjacent rounded corner +
+   overflow:hidden, clipping it down to a barely-there, barely-clickable
+   sliver. Inset a few px so it sits fully inside the curve, and give it its
+   own small dark pill (matching PhotoCarousel's arrow buttons) so it reads
+   clearly as "close" against a cover photo or any card color, instead of
+   MapLibre's plain "×" that a light photo could wash out entirely. */
+.maplibregl-popup-close-button {
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: rgba(17, 24, 39, 0.55);
+  color: #ffffff;
+  font-size: 15px;
+  line-height: 1;
+}
+.maplibregl-popup-close-button:hover {
+  background: rgba(17, 24, 39, 0.75);
+}
+
 /* "You are here" pulsing dot for the map's live geolocation marker. */
 @keyframes posto-locate-pulse {
   0% {

@@ -12,6 +12,11 @@ import { formatEventDateBadge } from "@/lib/eventSchedule";
 // used by Map.tsx itself for the events layer's paint color, so this is the
 // one place that actually owns the value.
 export const EVENT_COLOR = "#7c3aed";
+// Same reasoning as EVENT_COLOR above — Map.tsx's own place-marker paint
+// color, exported so anything else that needs to draw "this is a place, in
+// Posto's own colors" (LocationMiniMapCanvas included) never has to
+// re-guess the hex value.
+export const PLACE_COLOR = "#111827";
 
 // Leaflet's bindPopup(string)/MapLibre's Popup#setHTML(string) both inject
 // the string as raw HTML with no escaping of their own — place.name/
