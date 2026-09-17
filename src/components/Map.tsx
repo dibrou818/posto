@@ -100,7 +100,11 @@ function placesToFeatureCollection(places: PlaceWithRelations[]): GeoJSON.Featur
     features: places.map((place) => ({
       type: "Feature",
       geometry: { type: "Point", coordinates: [place.lng, place.lat] },
-      properties: { id: place.id },
+      // `name`: only read by the unclustered-label layer below, so a place
+      // and an event marker can share the exact same text-field expression
+      // ([\"get\",\"name\"]) instead of one saying "name" and the other
+      // "title".
+      properties: { id: place.id, name: place.name },
     })),
   };
 }
@@ -111,7 +115,7 @@ function eventsToFeatureCollection(events: EventWithPlace[]): GeoJSON.FeatureCol
     features: events.map((event) => ({
       type: "Feature",
       geometry: { type: "Point", coordinates: [event.place.lng, event.place.lat] },
-      properties: { id: event.id },
+      properties: { id: event.id, name: event.title },
     })),
   };
 }
@@ -134,6 +138,12 @@ const CLUSTER_CORE_RADIUS_STEPS = ["step", ["get", "point_count"], 10, 10, 13, 5
 // for individual pins — see the constant comment above.
 const UNCLUSTERED_RING_RADIUS = 15;
 const UNCLUSTERED_CORE_RADIUS = 10;
+// Matches clusterMaxZoom above: below this, a pin might still be standing in
+// for several places/events merged into one cluster, so labeling it with
+// just one of their names would be misleading rather than helpful. Once
+// clusters have fully broken apart, every dot on screen really is the one
+// thing its name would claim it is.
+const LABEL_MIN_ZOOM = 16;
 
 function addClusteredLayer(
   map: maplibregl.Map,
@@ -257,6 +267,44 @@ function addClusteredLayer(
       "icon-image": opts.iconId,
       "icon-allow-overlap": true,
       "icon-ignore-placement": true,
+    },
+  });
+
+  // The place/event's own name, shown right under its pin once zoomed in
+  // close enough to actually read it — the same "labelled pin" pattern
+  // Google Maps uses, rather than making someone tap every single dot to
+  // find out what it is. minzoom is a real cutoff (this layer does nothing
+  // at all below it, not just invisible), and the short opacity ramp right
+  // above that just softens the pop-in as you cross the threshold instead
+  // of it snapping on. Left OUT of allow-overlap/ignore-placement on
+  // purpose, unlike the cluster count above: a name label is a nice-to-have
+  // once there's room for it, not essential information that should shove
+  // aside a street name or a neighboring pin's own label to force its way
+  // onto the screen.
+  map.addLayer({
+    id: `${opts.id}-unclustered-label`,
+    type: "symbol",
+    source: opts.id,
+    filter: ["!", ["has", "point_count"]],
+    minzoom: LABEL_MIN_ZOOM,
+    layout: {
+      "text-field": ["get", "name"],
+      "text-font": ["Noto Sans Bold"],
+      "text-size": 12,
+      "text-anchor": "top",
+      "text-offset": [0, 1.3],
+      "text-max-width": 8,
+    },
+    paint: {
+      "text-color": "#000000",
+      "text-halo-color": "#ffffff",
+      // 1.4px is enough to fully ring every character (the actual ask —
+      // "une bordure blanche qui fait le tour de tous les caractères") at
+      // this text-size without the halo itself starting to swallow the
+      // glyphs' own counters (the enclosed space inside an "a" or "o").
+      "text-halo-width": 1.4,
+      "text-halo-blur": 0.3,
+      "text-opacity": ["interpolate", ["linear"], ["zoom"], LABEL_MIN_ZOOM, 0, LABEL_MIN_ZOOM + 0.8, 1],
     },
   });
 }
@@ -523,10 +571,20 @@ export function Map({
       "places-cluster-core",
       "places-unclustered-ring",
       "places-unclustered-core",
+      // The name label (see addClusteredLayer) sits offset *below* its pin,
+      // over pixels the ring/core circles don't cover — unlike the icon
+      // glyph, which is drawn exactly on top of the core circle and so
+      // never needed its own entry here (a click there already lands on
+      // the circle underneath at that same point). Missing this meant
+      // tapping directly on a place/event's own readable name — the exact
+      // thing a visitor zoomed in far enough to read it would reasonably
+      // try — silently did nothing.
+      "places-unclustered-label",
       "events-cluster-ring",
       "events-cluster-core",
       "events-unclustered-ring",
       "events-unclustered-core",
+      "events-unclustered-label",
     ];
 
     map.on("click", (e: maplibregl.MapMouseEvent) => {
@@ -559,7 +617,11 @@ export function Map({
         expandCluster(map, "events", feature);
         return;
       }
-      if (layerId === "places-unclustered-ring" || layerId === "places-unclustered-core") {
+      if (
+        layerId === "places-unclustered-ring" ||
+        layerId === "places-unclustered-core" ||
+        layerId === "places-unclustered-label"
+      ) {
         const place = placesByIdRef.current[String(feature.properties?.id)];
         if (!place) return;
         // Same recenter animation as expandCluster's own easeTo — clicking a
@@ -576,7 +638,11 @@ export function Map({
         }
         return;
       }
-      if (layerId === "events-unclustered-ring" || layerId === "events-unclustered-core") {
+      if (
+        layerId === "events-unclustered-ring" ||
+        layerId === "events-unclustered-core" ||
+        layerId === "events-unclustered-label"
+      ) {
         const event = eventsByIdRef.current[String(feature.properties?.id)];
         if (!event) return;
         map.easeTo({ center: coordinates });
