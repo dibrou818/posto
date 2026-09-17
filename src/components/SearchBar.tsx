@@ -225,9 +225,35 @@ export function SearchBar({
 
   // Stale results from a previous longer query shouldn't show once the
   // query is cleared back down, so gate on length instead of clearing state.
+  //
+  // Tags, then places/activities/events, *then* cities/addresses — not the
+  // other order this used to be in. Someone typing into this bar is almost
+  // always looking for somewhere to go (a bar, an event, a category), not a
+  // raw geocoded address; putting Nominatim's city/street matches first
+  // meant the one thing this app is actually *for* could get pushed below
+  // the fold by a bunch of unrelated French towns/streets that happen to
+  // share a few letters with the query. City/address search stays fully
+  // available (see includeLocationResults) — this only changes where it
+  // ranks, not whether it's there.
   const rows: Row[] = queryTooShort
     ? []
     : [
+        ...tags.map((tag): Row => ({
+          kind: "tag",
+          key: `tag-${tag.id}`,
+          title: tag.label,
+          subtitle: null,
+          tag,
+        })),
+        ...results
+          .filter((result) => matchesResultKind(result.result_type, filter))
+          .map((result): Row => ({
+            kind: result.result_type,
+            key: `${result.result_type}-${result.id}`,
+            title: result.title,
+            subtitle: result.subtitle,
+            result,
+          })),
         // Defensive, not just the server-side skip in api/search — stale
         // city/address state from a previous fetch (e.g. right after this
         // prop flips) shouldn't leak into a bar that isn't supposed to show
@@ -250,22 +276,6 @@ export function SearchBar({
               city: address,
             }))
           : []),
-        ...tags.map((tag): Row => ({
-          kind: "tag",
-          key: `tag-${tag.id}`,
-          title: tag.label,
-          subtitle: null,
-          tag,
-        })),
-        ...results
-          .filter((result) => matchesResultKind(result.result_type, filter))
-          .map((result): Row => ({
-            kind: result.result_type,
-            key: `${result.result_type}-${result.id}`,
-            title: result.title,
-            subtitle: result.subtitle,
-            result,
-          })),
       ];
 
   function selectRow(row: Row) {

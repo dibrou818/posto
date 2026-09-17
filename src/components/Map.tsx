@@ -310,6 +310,31 @@ export function Map({
   const navControlRef = useRef<maplibregl.NavigationControl | null>(null);
   const focusPopupRef = useRef<maplibregl.Popup | null>(null);
 
+  // Whether this map instance has finished its *one-time* initial setup —
+  // sources added, icons registered — not to be confused with MapLibre's
+  // own `map.isStyleLoaded()`, which several other effects below used to
+  // check instead. That was the actual bug behind filters silently no-op'ing
+  // on the map (reported: picking a date/budget/kind filter sometimes did
+  // nothing at all): `isStyleLoaded()` is a *live* reading that goes back to
+  // false any time a source has tiles in flight (mid-pan, mid-zoom, or just
+  // after any camera move), not a one-time "has the map ever finished
+  // loading" flag — so an effect that found it false took the "wait for the
+  // next 'load' event" branch, but MapLibre's `'load'` event itself only
+  // ever fires once per map instance. Once real init had already happened,
+  // every one of those `map.once("load", ...)` registrations was waiting on
+  // an event that would never come again, silently dropping that update
+  // forever. This ref+queue is a plain one-time-ready flag instead: once
+  // true, it stays true for the rest of this map instance's life, and
+  // anything that arrives before it's ready gets queued and flushed the
+  // moment it does — see onceMapReady below and its one setter in the mount
+  // effect's own "load" handler.
+  const mapReadyRef = useRef(false);
+  const mapReadyCallbacksRef = useRef<(() => void)[]>([]);
+  function onceMapReady(callback: () => void) {
+    if (mapReadyRef.current) callback();
+    else mapReadyCallbacksRef.current.push(callback);
+  }
+
   const placesByIdRef = useRef<Record<string, PlaceWithRelations>>({});
   const eventsByIdRef = useRef<Record<string, EventWithPlace>>({});
 
@@ -359,6 +384,14 @@ export function Map({
   // by its own effect further down — none of this re-runs on every render,
   // unlike react-leaflet's per-child-component model.
   useEffect(() => {
+    // A fresh map instance (first mount, or a remount via the retry button
+    // after a WebGL failure) starts not-ready — a stale `true` left over
+    // from a *previous* instance would make onceMapReady below fire
+    // immediately against a map that hasn't actually finished its own setup
+    // yet.
+    mapReadyRef.current = false;
+    mapReadyCallbacksRef.current = [];
+
     const initialCenter: [number, number] = initialView
       ? [initialView.lng, initialView.lat]
       : initialUserLocation
@@ -468,6 +501,17 @@ export function Map({
           updateMinZoom();
 
           onMapReady?.(map);
+
+          // The one true moment this map instance becomes "ready" — sources
+          // exist, so any places/events/nav-control/focus update queued via
+          // onceMapReady while this was still in flight can safely run now,
+          // and everything from here on just runs immediately (see
+          // onceMapReady's own comment for why this exists instead of each
+          // effect re-checking MapLibre's own live isStyleLoaded()).
+          mapReadyRef.current = true;
+          const queued = mapReadyCallbacksRef.current;
+          mapReadyCallbacksRef.current = [];
+          queued.forEach((callback) => callback());
         });
     });
 
@@ -674,18 +718,14 @@ export function Map({
     function applyData() {
       // Guards against this exact `map` instance having been torn down
       // (Strict Mode double-invoke, or a real unmount) by the time a
-      // deferred "load" callback below actually fires.
+      // queued onceMapReady callback below actually fires.
       if (mapRef.current !== map) return;
       const source = map!.getSource("places") as maplibregl.GeoJSONSource | undefined;
       if (!source) return;
       source.setData(placesToFeatureCollection(places));
     }
 
-    if (map.isStyleLoaded() && map.getSource("places")) {
-      applyData();
-    } else {
-      map.once("load", applyData);
-    }
+    onceMapReady(applyData);
   }, [places]);
 
   useEffect(() => {
@@ -699,11 +739,7 @@ export function Map({
       source?.setData(eventsToFeatureCollection(events));
     }
 
-    if (map.isStyleLoaded() && map.getSource("events")) {
-      applyData();
-    } else {
-      map.once("load", applyData);
-    }
+    onceMapReady(applyData);
   }, [events]);
 
   // The zoom/+- control isn't needed on mobile (pinch-to-zoom already
@@ -736,8 +772,7 @@ export function Map({
     // Adding/removing a control before the map has finished its own initial
     // setup is what was crashing here (removeControl reading a property off
     // a control whose internal _map wiring wasn't fully established yet).
-    if (map.isStyleLoaded()) syncNavControl();
-    else map.once("load", syncNavControl);
+    onceMapReady(syncNavControl);
   }, [isMobile]);
 
   // Search result / city selection: MapFocusTarget always already carries
@@ -768,8 +803,7 @@ export function Map({
       });
     }
 
-    if (map.isStyleLoaded()) fly();
-    else map.once("load", fly);
+    onceMapReady(fly);
   }, [focusTarget]);
 
   if (initError) {

@@ -45,8 +45,22 @@ export function applyCleanTheme(map: maplibregl.Map) {
   // because the ask was "nothing except street/city/district names and my
   // own data". Street names, city/town/district labels (label_*,
   // highway-name-*) are deliberately left alone — those are the labels
-  // that make a map still usable, not clutter.
-  for (const layerId of ["poi_r1", "poi_r7", "poi_r20", "poi_transit", "airport"]) {
+  // that make a map still usable, not clutter. The numbered road-shield
+  // badges (A1, A23...) are a separate ask, on top: useful on a road atlas,
+  // not on a "find a bar nearby" map, and it's these three layers
+  // specifically that draw them (found by fetching the Liberty style JSON
+  // directly and filtering for "shield" — OpenMapTiles' own naming, not a
+  // guess).
+  for (const layerId of [
+    "poi_r1",
+    "poi_r7",
+    "poi_r20",
+    "poi_transit",
+    "airport",
+    "highway-shield-non-us",
+    "highway-shield-us-interstate",
+    "road_shield_us",
+  ]) {
     if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", "none");
   }
 
@@ -67,11 +81,37 @@ export function applyCleanTheme(map: maplibregl.Map) {
   // Parks: Liberty's default is a ~70%-transparent pale sage that barely
   // reads as green. The one thing a park color needs to communicate is
   // "there's green space here" — so make it an actually vivid, saturated
-  // green instead of a wash.
-  setPaint("park", { "fill-color": "#7bc96f", "fill-opacity": 0.85, "fill-outline-color": "#5aab4e" });
-  setPaint("park_outline", { "line-color": "#5aab4e" });
-  setPaint("landcover_wood", { "fill-color": "#8fce7c", "fill-opacity": 0.35 });
+  // green instead of a wash — but only once "a park" actually means a real
+  // city park, not a national-park-scale nature reserve. OpenMapTiles'
+  // `park` source-layer has no size/class filter of its own: a corner
+  // playground in Lille and, say, the Forêt d'Orléans nature reserve are
+  // both plain "park" features, so a flat vivid-green override painted huge
+  // regional conservation areas the same saturated color and turned them
+  // into a wall-to-wall green stain the moment anyone zoomed out past the
+  // city (reported: "d'énormes zones vertes" around Centre-Val de Loire).
+  // A zoom-interpolated color is the fix that actually holds at both ends:
+  // vivid at the city zoom this app is actually meant to be browsed at,
+  // fading back to Liberty's own quiet default by the time a park-sized
+  // polygon has become a country-sized one on screen — one color scale, not
+  // a class allow-list that would need to guess every OSM tag a giant
+  // reserve might carry.
+  const PARK_FILL_COLOR = ["interpolate", ["linear"], ["zoom"], 9, "#d8e8c8", 13, "#7bc96f"] as unknown as string;
+  const PARK_FILL_OPACITY = ["interpolate", ["linear"], ["zoom"], 9, 0.7, 13, 0.85] as unknown as number;
+  const PARK_OUTLINE_COLOR = ["interpolate", ["linear"], ["zoom"], 9, "#e4f1d7", 13, "#5aab4e"] as unknown as string;
+  setPaint("park", {
+    "fill-color": PARK_FILL_COLOR,
+    "fill-opacity": PARK_FILL_OPACITY,
+    "fill-outline-color": PARK_OUTLINE_COLOR,
+  });
+  setPaint("park_outline", { "line-color": PARK_OUTLINE_COLOR });
   setPaint("landcover_grass", { "fill-color": "#a9dd93", "fill-opacity": 0.35 });
+
+  // Forests (landcover_wood): dropped entirely, on request — a big flat
+  // green blob covering the outskirts read as a rendering smudge rather
+  // than useful geography on a map about bars/activities/events inside
+  // Lille itself, not a hiking app. Hidden outright rather than just
+  // recolored, same treatment as the POI/shield layers above.
+  if (map.getLayer("landcover_wood")) map.setLayoutProperty("landcover_wood", "visibility", "none");
 
   // Roads: Liberty colors every class above "minor" in amber/orange
   // (motorway/trunk/primary/secondary/tertiary and their link/ramp
