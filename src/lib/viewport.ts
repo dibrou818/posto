@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 // Same breakpoint as Tailwind's own `md`, and the rest of the app's mobile/
 // desktop split (BottomNav, Map's marker-tap popup-vs-sheet choice,
-// ShareButton's native-share-vs-copy choice, MapFilterButton's panel style).
+// ShareButton's native-share-vs-copy choice).
 export const MOBILE_BREAKPOINT_QUERY = "(max-width: 767px)";
 
 export function useIsMobileViewport(): boolean {

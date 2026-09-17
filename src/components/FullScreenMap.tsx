@@ -6,11 +6,14 @@ import { useSearchParams } from "next/navigation";
 import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
 import type { MapFocusTarget, MapSheetItem } from "@/components/Map";
 import { SearchBar, type SearchResult, type CityResult } from "@/components/SearchBar";
-import { MapFilterButton } from "@/components/MapFilterButton";
+import { KindFilter } from "@/components/KindFilter";
+import { DateFilter } from "@/components/DateFilter";
+import { BudgetFilter } from "@/components/BudgetFilter";
 import { MapBottomSheet } from "@/components/MapBottomSheet";
 import { usePlacesExplorer } from "@/lib/usePlacesExplorer";
 import type { ResultKindFilter } from "@/lib/resultFilter";
 import { matchesEventDateFilter, ALL_EVENT_DATES, type EventDateFilterValue } from "@/lib/eventDateFilter";
+import { matchesBudgetFilter, type BudgetFilterValue } from "@/lib/budgetFilter";
 import { eventMatchesTag } from "@/lib/eventTags";
 
 const CITY_ZOOM = 12;
@@ -69,10 +72,10 @@ export function FullScreenMap({
   const [focusTarget, setFocusTarget] = useState<MapFocusTarget | null>(useInitialCityFocus());
   const [kindFilter, setKindFilter] = useState<ResultKindFilter>("all");
   const [dateFilter, setDateFilter] = useState<EventDateFilterValue>(ALL_EVENT_DATES);
-  // Lifted out of MapFilterButton (controlled, see its own props) so the map
-  // itself can close the panel the moment it starts moving — see Map's
-  // onInteractionStart doc comment.
-  const [filterOpen, setFilterOpen] = useState(false);
+  // Same filter, same component, as the home page's own Budget chip (see
+  // BudgetFilter.tsx and HomeExplorer.tsx) — events-only, hidden below
+  // alongside DateFilter whenever kindFilter is exclusively "place".
+  const [budgetFilter, setBudgetFilter] = useState<BudgetFilterValue | null>(null);
   // Mobile-only: which pin's preview the bottom sheet is showing (see
   // Map.tsx's onSelectPlace/onSelectEvent — desktop never sets this, it
   // keeps using Leaflet's own popup instead).
@@ -88,8 +91,10 @@ export function FullScreenMap({
   const visiblePlaces = kindFilter === "event" ? [] : filteredPlaces;
   const visibleEvents = useMemo(() => {
     if (kindFilter === "place") return [];
-    return tagFilteredEvents.filter((e) => matchesEventDateFilter(e.start_datetime, dateFilter));
-  }, [tagFilteredEvents, kindFilter, dateFilter]);
+    return tagFilteredEvents.filter(
+      (e) => matchesEventDateFilter(e.start_datetime, dateFilter) && matchesBudgetFilter(e.price_cents, budgetFilter),
+    );
+  }, [tagFilteredEvents, kindFilter, dateFilter, budgetFilter]);
 
   function handleSelectResult(result: SearchResult) {
     // Events are keyed by their own id on the map (see EventClusteredMarkers),
@@ -119,7 +124,6 @@ export function FullScreenMap({
           onSelectPlace={(place) => setSheetItem({ kind: "place", place })}
           onSelectEvent={(event) => setSheetItem({ kind: "event", event })}
           onDismissSelection={() => setSheetItem(null)}
-          onInteractionStart={() => setFilterOpen(false)}
         />
       </div>
 
@@ -138,16 +142,22 @@ export function FullScreenMap({
               inputRoundingClassName="rounded-full"
             />
           </div>
-          <div className="pointer-events-auto shrink-0">
-            <MapFilterButton
-              kindFilter={kindFilter}
-              onKindFilterChange={setKindFilter}
-              dateFilter={dateFilter}
-              onDateFilterChange={setDateFilter}
-              open={filterOpen}
-              onOpenChange={setFilterOpen}
-            />
+        </div>
+        {/* The literal same filter row as the home page (KindFilter/
+            DateFilter/BudgetFilter — see HomeExplorer.tsx), not a
+            different funnel-icon panel that used to hide the exact same
+            three choices behind an extra tap and its own bespoke layout.
+            A visitor who's learned these chips on the home page recognizes
+            them here immediately, because they *are* the same chips. Same
+            mobile-grid/desktop-flex responsive split as the home page's own
+            row too (see its own comment) — full-width, evenly-filled chips
+            on a narrow screen instead of a ragged content-sized wrap. */}
+        <div className="pointer-events-auto grid w-full max-w-xl grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <div className="col-span-2 sm:contents">
+            <KindFilter value={kindFilter} onChange={setKindFilter} />
           </div>
+          {kindFilter !== "place" && <DateFilter value={dateFilter} onChange={setDateFilter} />}
+          {kindFilter !== "place" && <BudgetFilter value={budgetFilter} onChange={setBudgetFilter} />}
         </div>
         {selectedTag && (
           <button

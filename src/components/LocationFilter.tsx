@@ -122,16 +122,24 @@ export function LocationFilter({
           KindFilter right next to this, so the two chips match in height
           instead of this one reading shorter. The inner button stays fully
           rounded (rounded-md) rather than only-on-the-left, matching how
-          KindFilter's own pills are rounded all the way around. */}
+          KindFilter's own pills are rounded all the way around.
+          flex-1/justify-between on the button (and min-w-0 straight down
+          the label chain) — same reasoning as FilterChip's own trigger
+          button: lets this chip actually fill a wider slot when one's
+          handed to it (the mobile grid row — see HomeExplorer.tsx) instead
+          of sitting content-sized inside a stretched box with dead space
+          next to it. */}
       <div className="flex min-w-0 items-center gap-1 rounded-lg border border-gray-300 bg-white p-1 text-xs">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex min-w-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+          className="flex min-w-0 flex-1 items-center justify-between gap-1.5 rounded-md px-2.5 py-1.5 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
         >
-          <PinIcon />
-          <span className="min-w-0 max-w-[7rem] truncate sm:max-w-[9rem]">
-            {value ? `${value.label} · ${RADIUS_KM} km` : "Choisir une ville"}
+          <span className="flex min-w-0 items-center gap-1.5">
+            <PinIcon />
+            <span className="min-w-0 truncate">
+              {value ? `${value.label} · ${RADIUS_KM} km` : "Choisir une ville"}
+            </span>
           </span>
           <ChevronIcon />
         </button>

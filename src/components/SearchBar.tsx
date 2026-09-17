@@ -316,7 +316,7 @@ export function SearchBar({
         // min(24rem, ...) — 24rem (max-h-96) is the usual cap; the
         // viewport-relative half of the min() is what actually guarantees
         // this never reaches past the bottom of a short/locked-scroll
-        // viewport (see MapFilterButton's panel for the same reasoning).
+        // viewport.
         // z-50: above this app's persistent chrome (Header z-40, BottomNav
         // z-30), not just above ordinary page content — see QrCodeSection's
         // tooltip for the full reasoning. On the homepage both of those

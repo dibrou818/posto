@@ -14,12 +14,31 @@ function ChevronIcon({ direction }: { direction: "left" | "right" }) {
 const ARROW_BUTTON_CLASS =
   "absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70";
 
-/** Fills its parent (a `relative h-64 ...` box on the place page) with a
+/** Fills its parent (a `relative h-64 ...` box on the place page, or the map
+ * popup's much smaller photo slot — see lib/mapPopupContent.tsx) with a
  * swipeable photo carousel — arrow buttons for desktop, a one-finger drag
  * for mobile, both driving the same `index` state so they always agree
  * on position. Renders nothing for zero photos, and a single plain image
- * (no arrows/dots/touch handling to fight over one photo) for exactly one. */
-export function PhotoCarousel({ photos, alt }: { photos: string[]; alt: string }) {
+ * (no arrows/dots/touch handling to fight over one photo) for exactly one.
+ *
+ * The exact same component both places, deliberately — a lieu with several
+ * photos should navigate them the same way whether you're on its full page
+ * or just glanced at its pin's popup, not two separate carousel
+ * implementations that could drift apart. `sizes`/`imagePriority` are the
+ * only two things that should ever differ by caller (a ~200px popup has no
+ * business requesting the same 768px-wide image the full page does, and
+ * only the full page's photo is plausibly this load's LCP element). */
+export function PhotoCarousel({
+  photos,
+  alt,
+  sizes = "768px",
+  imagePriority = true,
+}: {
+  photos: string[];
+  alt: string;
+  sizes?: string;
+  imagePriority?: boolean;
+}) {
   const [index, setIndex] = useState(0);
   const [dragOffset, setDragOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -57,7 +76,7 @@ export function PhotoCarousel({ photos, alt }: { photos: string[]; alt: string }
   }
 
   if (photos.length === 1) {
-    return <Image src={photos[0]} alt={alt} fill sizes="768px" className="object-cover" priority />;
+    return <Image src={photos[0]} alt={alt} fill sizes={sizes} className="object-cover" priority={imagePriority} />;
   }
 
   return (
@@ -74,7 +93,14 @@ export function PhotoCarousel({ photos, alt }: { photos: string[]; alt: string }
       >
         {photos.map((url, i) => (
           <div key={url} className="relative h-full w-full shrink-0">
-            <Image src={url} alt={`${alt} — photo ${i + 1}`} fill sizes="768px" className="object-cover" priority={i === 0} />
+            <Image
+              src={url}
+              alt={`${alt} — photo ${i + 1}`}
+              fill
+              sizes={sizes}
+              className="object-cover"
+              priority={imagePriority && i === 0}
+            />
           </div>
         ))}
       </div>

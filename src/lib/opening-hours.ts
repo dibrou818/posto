@@ -32,12 +32,15 @@ function withinRange(nowMinutes: number, openM: number, closeM: number): boolean
 // A place can now also carry named sub-schedules (see listZoneNames below) —
 // e.g. "Bassin extérieur" open fewer hours than the place's general hours.
 // Whether the *place itself* reads as open only ever depends on its general
-// schedule (zone_name null); a zone being closed doesn't close the place.
-export function isOpenNow(hours: OpeningHour[], now: Date = new Date()) {
-  const generalHours = hours.filter((h) => h.zone_name === null);
+// schedule (zone_name null, the default here); a zone being closed doesn't
+// close the place — pass that zone's own name to check *its* status
+// instead (see OpeningHoursAccordion, which does exactly that for its own
+// zone-scoped accordion).
+export function isOpenNow(hours: OpeningHour[], zoneName: string | null = null, now: Date = new Date()) {
+  const scopedHours = hours.filter((h) => h.zone_name === zoneName);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-  const today = generalHours.find((h) => h.day_of_week === now.getDay());
+  const today = scopedHours.find((h) => h.day_of_week === now.getDay());
   if (today && withinRange(nowMinutes, toMinutes(today.open_time), toMinutes(today.close_time))) {
     return true;
   }
@@ -46,7 +49,7 @@ export function isOpenNow(hours: OpeningHour[], now: Date = new Date()) {
   // *started* — a bar open Friday 22:00-02:00 is still "Friday" in the
   // database, so Saturday 00:30 has to check Friday's row too, not just
   // Saturday's own (which may not even exist, or may start later that day).
-  const yesterday = generalHours.find((h) => h.day_of_week === (now.getDay() + 6) % 7);
+  const yesterday = scopedHours.find((h) => h.day_of_week === (now.getDay() + 6) % 7);
   if (yesterday) {
     const openM = toMinutes(yesterday.open_time);
     const closeM = toMinutes(yesterday.close_time);
@@ -67,14 +70,18 @@ export type OpenStatus =
  * looks as far as today/yesterday/tomorrow's general-hours rows (no full
  * week traversal) — good enough to catch every near-term transition, and
  * keeps this a cheap, synchronous read of data callers already have. */
-export function getOpenStatus(hours: OpeningHour[], now: Date = new Date()): OpenStatus {
-  const generalHours = hours.filter((h) => h.zone_name === null);
+export function getOpenStatus(
+  hours: OpeningHour[],
+  zoneName: string | null = null,
+  now: Date = new Date(),
+): OpenStatus {
+  const scopedHours = hours.filter((h) => h.zone_name === zoneName);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const todayDow = now.getDay();
   const yesterdayDow = (todayDow + 6) % 7;
 
-  const today = generalHours.find((h) => h.day_of_week === todayDow);
-  const yesterday = generalHours.find((h) => h.day_of_week === yesterdayDow);
+  const today = scopedHours.find((h) => h.day_of_week === todayDow);
+  const yesterday = scopedHours.find((h) => h.day_of_week === yesterdayDow);
 
   // Open via today's own row.
   if (today) {
@@ -105,7 +112,7 @@ export function getOpenStatus(hours: OpeningHour[], now: Date = new Date()): Ope
   }
 
   // Closed, nothing left today — does it open tomorrow?
-  const tomorrow = generalHours.find((h) => h.day_of_week === (todayDow + 1) % 7);
+  const tomorrow = scopedHours.find((h) => h.day_of_week === (todayDow + 1) % 7);
   if (tomorrow) {
     const opensInMinutes = 24 * 60 - nowMinutes + toMinutes(tomorrow.open_time);
     return { open: false, opensInMinutes };

@@ -4,10 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
 import { useIsMobileViewport } from "@/lib/viewport";
-import { popupHtml, eventPopupHtml, EVENT_COLOR, PLACE_COLOR } from "@/lib/mapPopups";
+import { EVENT_COLOR, PLACE_COLOR } from "@/lib/mapPopups";
+import { placePopupContent, eventPopupContent, type PopupContent } from "@/lib/mapPopupContent";
 import { applyFrenchLabels, applyCleanTheme, simplifyAttribution } from "@/lib/mapTheme";
 import { setupUserLocationLayer, LOCATE_ZOOM } from "@/lib/mapUserLocation";
 import { readUserLocation } from "@/lib/userLocationStore";
+import { registerMarkerIcons, PLACE_ICON_ID, EVENT_ICON_ID } from "@/lib/mapMarkerIcons";
 
 // MapLibre computes its tile-parsing Web Worker's URL as
 // `new URL('./maplibre-gl-worker.mjs', import.meta.url)` — Webpack/Vite
@@ -135,7 +137,7 @@ const UNCLUSTERED_CORE_RADIUS = 10;
 
 function addClusteredLayer(
   map: maplibregl.Map,
-  opts: { id: string; data: GeoJSON.FeatureCollection<GeoJSON.Point>; color: string },
+  opts: { id: string; data: GeoJSON.FeatureCollection<GeoJSON.Point>; color: string; iconId: string },
 ) {
   map.addSource(opts.id, {
     type: "geojson",
@@ -235,6 +237,26 @@ function addClusteredLayer(
       "circle-color": opts.color,
       "circle-stroke-width": 2,
       "circle-stroke-color": "#ffffff",
+    },
+  });
+
+  // The same calendar/pin glyph the home page uses (KindIcon.tsx via
+  // mapMarkerIcons.ts) drawn on top of the core dot — a place and an event
+  // used to be told apart only by color (dark vs purple), which meant
+  // checking the legend/popup to be sure. Purely decorative: not in
+  // `interactiveLayers` below, clicks still land on the circle layer
+  // underneath it at the exact same point. Silently draws nothing if the
+  // icon failed to register (see registerMarkerIcons's own doc comment) —
+  // MapLibre just skips a symbol whose icon-image id isn't found.
+  map.addLayer({
+    id: `${opts.id}-unclustered-icon`,
+    type: "symbol",
+    source: opts.id,
+    filter: ["!", ["has", "point_count"]],
+    layout: {
+      "icon-image": opts.iconId,
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": true,
     },
   });
 }
@@ -412,22 +434,41 @@ export function Map({
       applyFrenchLabels(map);
       applyCleanTheme(map);
 
-      addClusteredLayer(map, {
-        id: "places",
-        data: placesToFeatureCollection(places),
-        color: PLACE_COLOR,
-      });
-      addClusteredLayer(map, {
-        id: "events",
-        data: eventsToFeatureCollection(events),
-        color: EVENT_COLOR,
-      });
+      // Rasterizing the marker glyphs is a few milliseconds of canvas work,
+      // but it's still async (Image.onload) — awaited here so the symbol
+      // layers below are created with a real icon to reference from their
+      // very first frame instead of an empty one that only appears a beat
+      // later. If it fails for any reason, markers still render (as a plain
+      // colored dot, same as before this feature) — see the layer's own
+      // comment.
+      registerMarkerIcons(map)
+        .catch(() => {
+          // See addClusteredLayer's unclustered-icon layer comment: a
+          // missing icon id just means that layer draws nothing, not a
+          // crash, so there's nothing else to do here.
+        })
+        .finally(() => {
+          if (mapRef.current !== map) return;
 
-      // Now safe to run — see updateMinZoom's own isStyleLoaded guard below
-      // for why it can't run any earlier than this.
-      updateMinZoom();
+          addClusteredLayer(map, {
+            id: "places",
+            data: placesToFeatureCollection(places),
+            color: PLACE_COLOR,
+            iconId: PLACE_ICON_ID,
+          });
+          addClusteredLayer(map, {
+            id: "events",
+            data: eventsToFeatureCollection(events),
+            color: EVENT_COLOR,
+            iconId: EVENT_ICON_ID,
+          });
 
-      onMapReady?.(map);
+          // Now safe to run — see updateMinZoom's own isStyleLoaded guard
+          // below for why it can't run any earlier than this.
+          updateMinZoom();
+
+          onMapReady?.(map);
+        });
     });
 
     // Single delegated click handler for every interactive layer — clicking
@@ -487,7 +528,7 @@ export function Map({
         if (isMobileRef.current) {
           onSelectPlaceRef.current?.(place);
         } else {
-          showPopup(map, focusPopupRef, coordinates, popupHtml(place));
+          showPopup(map, focusPopupRef, coordinates, placePopupContent(place));
         }
         return;
       }
@@ -498,7 +539,7 @@ export function Map({
         if (isMobileRef.current) {
           onSelectEventRef.current?.(event);
         } else {
-          showPopup(map, focusPopupRef, coordinates, eventPopupHtml(event));
+          showPopup(map, focusPopupRef, coordinates, eventPopupContent(event));
         }
       }
     });
@@ -601,6 +642,17 @@ export function Map({
       resizeObserver.disconnect();
       if (resizeFrameId !== undefined) cancelAnimationFrame(resizeFrameId);
       removeUserLocationLayer();
+      // Explicitly, before map.remove(): a popup's content can now hold a
+      // live React root (see showPopup/mapPopupContent.tsx's PhotoCarousel),
+      // and map.remove() just tears down the map's own DOM container — it
+      // doesn't know to unmount that root along with it. Popup#remove()
+      // fires 'close', which is what actually calls the root's destroy().
+      // focusPopupRef is a plain imperative handle (the currently-open
+      // Popup instance, if any), not a ref tied to a React-rendered DOM
+      // node — its live `.current` here is exactly what's wanted, not a
+      // stale value, despite what the lint rule below assumes.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      focusPopupRef.current?.remove();
       map.remove();
       mapRef.current = null;
     };
@@ -710,8 +762,8 @@ export function Map({
           if (place) onSelectPlaceRef.current?.(place);
           else if (event) onSelectEventRef.current?.(event);
         } else {
-          const html = place ? popupHtml(place) : eventPopupHtml(event!);
-          showPopup(map!, focusPopupRef, [focusTarget!.lng, focusTarget!.lat], html);
+          const content = place ? placePopupContent(place) : eventPopupContent(event!);
+          showPopup(map!, focusPopupRef, [focusTarget!.lng, focusTarget!.lat], content);
         }
       });
     }
@@ -753,12 +805,17 @@ export function Map({
   );
 }
 
-function showPopup(map: maplibregl.Map, popupRef: { current: maplibregl.Popup | null }, lngLat: [number, number], html: string) {
+function showPopup(map: maplibregl.Map, popupRef: { current: maplibregl.Popup | null }, lngLat: [number, number], content: PopupContent) {
+  // Removing the previous popup fires its own 'close' listener below,
+  // unmounting whatever PhotoCarousel React root it was holding before this
+  // one takes its place — never two live roots (or one leaked) at once.
   popupRef.current?.remove();
-  popupRef.current = new maplibregl.Popup({ offset: 14, closeButton: true, closeOnClick: false, maxWidth: "none" })
+  const popup = new maplibregl.Popup({ offset: 14, closeButton: true, closeOnClick: false, maxWidth: "none" })
     .setLngLat(lngLat)
-    .setHTML(html)
+    .setDOMContent(content.element)
     .addTo(map);
+  popup.on("close", content.destroy);
+  popupRef.current = popup;
 }
 
 function expandCluster(map: maplibregl.Map, sourceId: string, feature: maplibregl.MapGeoJSONFeature) {

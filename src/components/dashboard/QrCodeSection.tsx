@@ -42,7 +42,7 @@ export function QrCodeSection({
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  // Same click-outside-closes pattern as SearchBar/MapFilterButton's own
+  // Same click-outside-closes pattern as SearchBar/FilterChip's own
   // popovers — only listening while actually open, not on every render.
   useEffect(() => {
     if (!tooltipOpen) return;

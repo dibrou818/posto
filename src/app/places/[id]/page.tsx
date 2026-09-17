@@ -8,13 +8,14 @@ import {
   getActivitiesForPlace,
   getUpcomingEventsForPlace,
 } from "@/lib/queries";
-import { getOpenStatus, formatOpenStatus, scheduleByDay, listZoneNames } from "@/lib/opening-hours";
+import { getOpenStatus, formatOpenStatus, listZoneNames } from "@/lib/opening-hours";
 import { formatDuration, formatPrice } from "@/lib/eventSchedule";
 import { OpeningHoursAccordion } from "@/components/OpeningHoursAccordion";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
 import { BackButton } from "@/components/ui/BackButton";
 import { ShareButton } from "@/components/ui/ShareButton";
 import { PhotoCarousel } from "@/components/PhotoCarousel";
+import { placePhotos } from "@/lib/photos";
 import { placeShareText } from "@/lib/share";
 import { recordQrScan } from "@/lib/qrScans";
 import { localBusinessJsonLd, jsonLdScriptContent } from "@/lib/structuredData";
@@ -100,12 +101,13 @@ export default async function PlacePage({
 
   // Cover photo first (if set), then the gallery — one ordered set the
   // carousel cycles through, rather than a static cover plus a separate
-  // scroll strip for the rest.
-  const photos = [place.cover_photo_url, ...place.photo_urls].filter((url): url is string => Boolean(url));
+  // scroll strip for the rest. Shared with the map popup's own mini
+  // carousel (see lib/mapPopupContent.tsx) via lib/photos.ts, so both agree
+  // on the same photo list for the same place.
+  const photos = placePhotos(place);
 
   const openStatus = getOpenStatus(place.opening_hours);
   const open = openStatus.open;
-  const schedule = scheduleByDay(place.opening_hours);
   const zoneNames = listZoneNames(place.opening_hours);
   const hasUrgentMessage =
     !!place.urgent_message &&
@@ -250,14 +252,15 @@ export default async function PlacePage({
 
       <section className="mt-8">
         <h2 className="mb-2 text-lg font-semibold text-gray-900">Horaires</h2>
-        <OpeningHoursAccordion schedule={schedule} todayIndex={new Date().getDay()} />
+        <OpeningHoursAccordion hours={place.opening_hours} todayIndex={new Date().getDay()} />
         {zoneNames.length > 0 && (
           <div className="mt-3 flex flex-col gap-3">
             {zoneNames.map((zoneName) => (
               <div key={zoneName}>
                 <p className="mb-1.5 text-sm font-medium text-gray-700">{zoneName}</p>
                 <OpeningHoursAccordion
-                  schedule={scheduleByDay(place.opening_hours, zoneName)}
+                  hours={place.opening_hours}
+                  zoneName={zoneName}
                   todayIndex={new Date().getDay()}
                 />
               </div>
@@ -318,9 +321,17 @@ export default async function PlacePage({
               const priceLabel = formatPrice(event.price_cents, event.price_unit);
               return (
                 <li key={event.id}>
+                  {/* Fixed height so every card in this list lines up the same
+                      regardless of how long a given event's description is —
+                      a description that used to run to several lines used to
+                      stretch just its own card, breaking the row's rhythm.
+                      overflow-hidden on the card is the real backstop (nothing
+                      can ever push the box taller); line-clamp-2 below is what
+                      keeps the cut looking deliberate (ends in "…") instead of
+                      a hard, mid-character clip. */}
                   <Link
                     href={`/events/${event.id}`}
-                    className="flex overflow-hidden rounded-xl border border-gray-200 bg-white text-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+                    className="flex h-32 overflow-hidden rounded-xl border border-gray-200 bg-white text-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
                   >
                     <div className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 border-r border-gray-100 bg-gray-50 px-1 text-center">
                       <span className="text-[11px] font-medium uppercase text-gray-500">
@@ -333,9 +344,9 @@ export default async function PlacePage({
                         {badgeMonthFormatter.format(start)}
                       </span>
                     </div>
-                    <div className="flex-1 p-3">
+                    <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 overflow-hidden p-3">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="font-medium text-gray-900">{event.title}</p>
+                        <p className="truncate font-medium text-gray-900">{event.title}</p>
                         {priceLabel && (
                           <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
                             {priceLabel}
@@ -343,16 +354,14 @@ export default async function PlacePage({
                         )}
                       </div>
                       {event.description && (
-                        <p className="mt-1 text-gray-600">{event.description}</p>
+                        <p className="line-clamp-2 text-gray-600">{event.description}</p>
                       )}
-                      {event.restrictions && (
-                        <div className="mt-1.5">
-                          <RestrictionsBadge text={event.restrictions} />
-                        </div>
-                      )}
-                      <p className="mt-1 text-xs text-gray-500">
-                        {eventDateFormatter.format(start)}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {event.restrictions && <RestrictionsBadge text={event.restrictions} />}
+                        <p className="text-xs text-gray-500">
+                          {eventDateFormatter.format(start)}
+                        </p>
+                      </div>
                     </div>
                   </Link>
                 </li>

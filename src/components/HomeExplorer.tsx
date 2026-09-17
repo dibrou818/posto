@@ -11,6 +11,8 @@ import { KindFilter } from "@/components/KindFilter";
 import { LocationFilter, LOCATION_FILTER_RADIUS_KM, type LocationFilterValue } from "@/components/LocationFilter";
 import { BudgetFilter } from "@/components/BudgetFilter";
 import { matchesBudgetFilter, type BudgetFilterValue } from "@/lib/budgetFilter";
+import { DateFilter } from "@/components/DateFilter";
+import { matchesEventDateFilter, ALL_EVENT_DATES, type EventDateFilterValue } from "@/lib/eventDateFilter";
 import { haversineKm } from "@/lib/distance";
 import { usePlacesExplorer, type UserLocation } from "@/lib/usePlacesExplorer";
 import type { ResultKindFilter } from "@/lib/resultFilter";
@@ -57,6 +59,10 @@ export function HomeExplorer({
   // just isn't what was asked for, and pretending otherwise would defeat
   // the filter.
   const [budgetFilter, setBudgetFilter] = useState<BudgetFilterValue | null>(null);
+  // Same reasoning/placement as budgetFilter right above — events-only
+  // (places have no date of their own to filter by), applied as a hard
+  // filter after the fallback tiers below, same as openNowOnly/budgetFilter.
+  const [dateFilter, setDateFilter] = useState<EventDateFilterValue>(ALL_EVENT_DATES);
 
   // The page only ever sends the first page of each list (see app/page.tsx)
   // — everything past that grows here via "Voir plus", one bounded fetch at
@@ -254,24 +260,36 @@ export function HomeExplorer({
     if (openNowOnly) {
       list = list.filter((e) => isEventHappeningNow(e.start_datetime, e.end_datetime, e.duration_minutes));
     }
+    if (dateFilter.kind !== "all") {
+      list = list.filter((e) => matchesEventDateFilter(e.start_datetime, dateFilter));
+    }
     if (budgetFilter) {
       list = list.filter((e) => matchesBudgetFilter(e.price_cents, budgetFilter));
     }
     return list;
-  }, [eventsDisplay.list, openNowOnly, budgetFilter]);
+  }, [eventsDisplay.list, openNowOnly, dateFilter, budgetFilter]);
 
   // Shared by both places the events section can go empty after filtering
   // (its own exclusive section, and the merged "Tout" feed) — one message
   // that names whichever combination of hard filters actually emptied it,
-  // instead of two near-duplicate ternaries drifting apart over time.
+  // instead of near-duplicate ternaries drifting apart over time. Each
+  // filter alone gets its own precise phrasing (matching the existing
+  // wording below); two or more active at once fall back to one generic
+  // phrase rather than trying to grammatically stitch mismatched clauses
+  // ("d'ouvert" vs "dans ce budget") into a single sentence.
+  const activeHardFilterCount = [openNowOnly, dateFilter.kind !== "all", Boolean(budgetFilter)].filter(
+    Boolean,
+  ).length;
   const emptyEventsReason =
-    openNowOnly && budgetFilter
-      ? "rien d'ouvert, en cours ou dans ce budget"
-      : openNowOnly
-        ? "rien d'ouvert ni en cours"
-        : budgetFilter
-          ? "rien dans ce budget"
-          : null;
+    activeHardFilterCount === 0
+      ? null
+      : activeHardFilterCount > 1
+        ? "rien ne correspond à ces filtres"
+        : openNowOnly
+          ? "rien d'ouvert ni en cours"
+          : dateFilter.kind !== "all"
+            ? "rien à cette période"
+            : "rien dans ce budget";
 
   // "Tout" is one interleaved feed now, not the two sections (with their
   // own "Lieux"/"Événements" headings) stacked one above the other — a
@@ -361,25 +379,45 @@ export function HomeExplorer({
 
       <div className="flex flex-1 flex-col gap-4 p-4">
         <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <KindFilter value={kindFilter} onChange={setKindFilter} />
+          {/* grid on mobile (2 even columns, however many rows that takes —
+              KindFilter spanning both so it reads as the primary control on
+              its own full-width row) so every chip actually fills the
+              screen's width instead of hugging its own content and leaving
+              dead space in a ragged wrap; sm:flex reverts to the plain
+              inline row once there's enough width for chips to just sit at
+              their natural size side by side. Each chip's own flex-1/
+              justify-between trigger (see FilterChip.tsx, LocationFilter.tsx,
+              KindFilter.tsx) is what actually lets it fill the wider grid
+              cell — this container just decides how much room each one
+              gets. */}
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <div className="col-span-2 sm:contents">
+              <KindFilter value={kindFilter} onChange={setKindFilter} />
+            </div>
             <LocationFilter value={locationFilter} onChange={setLocationFilter} />
-            {/* Events-only data (see budgetFilter.ts) — hidden while
-                exclusively viewing Lieux, where it would have nothing to
-                filter and just look like a broken control. */}
+            {/* Events-only data (see eventDateFilter.ts/budgetFilter.ts) —
+                both hidden while exclusively viewing Lieux, where they'd
+                have nothing to filter and just look like broken controls. */}
+            {kindFilter !== "place" && <DateFilter value={dateFilter} onChange={setDateFilter} />}
             {kindFilter !== "place" && <BudgetFilter value={budgetFilter} onChange={setBudgetFilter} />}
-            <button
-              type="button"
-              onClick={() => setOpenNowOnly((v) => !v)}
-              aria-pressed={openNowOnly}
-              className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
-                openNowOnly
-                  ? "border-gray-900 bg-gray-900 text-white"
-                  : "border-gray-300 bg-white text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              Ouvert maintenant
-            </button>
+            {/* Same p-1-outer/px-2.5-py-1.5-inner two-layer shell as every
+                dropdown chip next to it (see ui/FilterChip.tsx) — a single
+                border+padding layer here rendered 8px shorter than the
+                others (measured: 30px vs. their 38px), which is exactly
+                the kind of "looks about right" mismatch that doesn't show
+                up until it's sitting directly next to the real thing. */}
+            <div className="rounded-lg border border-gray-300 bg-white p-1 sm:shrink-0">
+              <button
+                type="button"
+                onClick={() => setOpenNowOnly((v) => !v)}
+                aria-pressed={openNowOnly}
+                className={`w-full rounded-md px-2.5 py-1.5 text-center text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
+                  openNowOnly ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                Ouvert maintenant
+              </button>
+            </div>
           </div>
           {selectedTag && (
             <button
