@@ -61,6 +61,8 @@ function UserIcon({ active }: { active: boolean }) {
 
 export function BottomNav({ user }: { user: User | null }) {
   const pathname = usePathname();
+  // Same reasoning as Header's own early return — see there.
+  if (pathname === "/landing") return null;
 
   const items = user
     ? [

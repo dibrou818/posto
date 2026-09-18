@@ -10,6 +10,10 @@ const navLinkClass =
 
 export function Header({ user }: { user: User | null }) {
   const pathname = usePathname();
+  // /landing is a walled-off page (see proxy.ts) with no way back into the
+  // rest of the app on purpose — showing this nav here would undo that the
+  // moment someone tapped "Accueil"/"Carte".
+  if (pathname === "/landing") return null;
   // The full-screen map is meant to reach the very top of the viewport on
   // mobile, so the header only shows there from md upward.
   const isFullScreenMap = pathname === "/map";

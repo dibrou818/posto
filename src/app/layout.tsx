@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
+import { MainContent } from "@/components/MainContent";
 import { createClient } from "@/lib/supabase/server";
 
 const geistSans = Geist({
@@ -87,16 +88,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
         <Header user={user} />
-        {/* This padding exists purely to keep content from sitting under the
-            fixed BottomNav — it must match that nav's real rendered height
-            exactly, or a page whose content fills to the very bottom (like
-            /map) leaves a visible gap of bare background. BottomNav is
-            `min-h-14` (3.5rem) plus the device's safe-area inset plus its
-            own extra 4px (see BottomNav.tsx), so this mirrors all three
-            terms rather than a flat guess like `pb-16`. */}
-        <main className="flex-1 flex flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom)+4px)] md:pb-0">
-          {children}
-        </main>
+        {/* Bottom padding to clear the fixed BottomNav — matches its real
+            rendered height, and skips itself on /landing where there's no
+            BottomNav to clear (see MainContent.tsx's own comment). */}
+        <MainContent>{children}</MainContent>
         <BottomNav user={user} />
       </body>
     </html>
