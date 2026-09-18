@@ -22,6 +22,7 @@ import { localBusinessJsonLd, jsonLdScriptContent } from "@/lib/structuredData";
 import { getSiteOrigin } from "@/lib/site";
 import { LocationMiniMap } from "@/components/LocationMiniMap";
 import { PLACE_COLOR } from "@/lib/mapPopups";
+import { FollowPlaceButton } from "@/components/consumer/FollowPlaceButton";
 
 const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
   weekday: "long",
@@ -94,9 +95,21 @@ export default async function PlacePage({
   // itself still swallows its own errors so this never fails the page.
   await recordQrScan(supabase, "place", id, src);
 
-  const [activities, events] = await Promise.all([
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const [activities, events, followResult] = await Promise.all([
     getActivitiesForPlace(supabase, place.id),
     getUpcomingEventsForPlace(supabase, place.id),
+    user
+      ? supabase
+          .from("place_follows")
+          .select("place_id")
+          .eq("user_id", user.id)
+          .eq("place_id", place.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
 
   // Cover photo first (if set), then the gallery — one ordered set the
@@ -167,6 +180,11 @@ export default async function PlacePage({
       <p className="mt-1 text-sm text-gray-500">{place.address}</p>
 
       <div className="mt-3 flex flex-wrap gap-2">
+        <FollowPlaceButton
+          placeId={place.id}
+          userId={user?.id ?? null}
+          initialFollowing={Boolean(followResult.data)}
+        />
         {place.phone && (
           <a
             href={`tel:${place.phone}`}

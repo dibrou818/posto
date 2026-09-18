@@ -42,8 +42,8 @@ export function Header({ user }: { user: User | null }) {
             Carte
           </Link>
           {user ? (
-            <Link href="/dashboard" className={linkClass("/dashboard")}>
-              Mon espace
+            <Link href="/account" className={linkClass("/account")}>
+              Profil
             </Link>
           ) : (
             <>
@@ -51,7 +51,7 @@ export function Header({ user }: { user: User | null }) {
                 Connexion
               </Link>
               <Link href="/signup" className={buttonClass("compact")}>
-                Créer un compte
+                S’inscrire
               </Link>
             </>
           )}

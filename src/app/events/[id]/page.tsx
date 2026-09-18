@@ -17,6 +17,7 @@ import { recordQrScan } from "@/lib/qrScans";
 import { eventJsonLd, jsonLdScriptContent } from "@/lib/structuredData";
 import { LocationMiniMap } from "@/components/LocationMiniMap";
 import { EVENT_COLOR } from "@/lib/mapPopups";
+import { SaveEventButton } from "@/components/consumer/SaveEventButton";
 
 // Wrapped in React's cache() so generateMetadata and the page body below —
 // both called for the same request — share one DB round trip instead of
@@ -78,6 +79,17 @@ export default async function EventPage({
   // fast insert, errors swallowed inside recordQrScan itself.
   const supabase = await createClient();
   await recordQrScan(supabase, "event", id, src);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: savedEvent } = user
+    ? await supabase
+        .from("event_saves")
+        .select("event_id")
+        .eq("user_id", user.id)
+        .eq("event_id", event.id)
+        .maybeSingle()
+    : { data: null };
 
   const { place } = event;
   const start = new Date(event.start_datetime);
@@ -145,6 +157,11 @@ export default async function EventPage({
       <p className="mt-1 text-sm text-gray-500">{dateLabel}</p>
 
       <div className="mt-3 flex flex-wrap gap-2">
+        <SaveEventButton
+          eventId={event.id}
+          userId={user?.id ?? null}
+          initialSaved={Boolean(savedEvent)}
+        />
         {place.phone && (
           <a
             href={`tel:${place.phone}`}

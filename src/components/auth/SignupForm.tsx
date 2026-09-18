@@ -38,7 +38,7 @@ export function SignupForm() {
     }
 
     if (data.session) {
-      router.push("/dashboard");
+      router.push("/account");
       router.refresh();
       return;
     }

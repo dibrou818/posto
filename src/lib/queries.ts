@@ -215,3 +215,37 @@ export async function getAllTags(
   if (error) throw new Error(error.message);
   return data;
 }
+
+export async function getFollowedPlaces(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+): Promise<PlaceWithRelations[]> {
+  const { data, error } = await supabase
+    .from("place_follows")
+    .select(`created_at, place:places(${PLACE_SELECT})`)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data as unknown as { place: RawPlace | null }[])
+    .map((row) => row.place)
+    .filter((place): place is RawPlace => place !== null)
+    .map(normalizePlace);
+}
+
+export async function getSavedEvents(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+): Promise<EventWithPlace[]> {
+  const { data, error } = await supabase
+    .from("event_saves")
+    .select(`created_at, event:events(${EVENT_SELECT})`)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data as unknown as { event: RawEventWithPlace | null }[])
+    .map((row) => row.event)
+    .filter((event): event is RawEventWithPlace => event !== null)
+    .map(normalizeEvent);
+}

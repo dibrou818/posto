@@ -68,7 +68,7 @@ export function BottomNav({ user }: { user: User | null }) {
     ? [
         { href: "/", label: "Accueil", icon: HomeIcon },
         { href: "/map", label: "Carte", icon: MapIcon },
-        { href: "/dashboard", label: "Mon espace", icon: UserIcon },
+        { href: "/account", label: "Profil", icon: UserIcon },
       ]
     : [
         { href: "/", label: "Accueil", icon: HomeIcon },

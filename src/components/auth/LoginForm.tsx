@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 
-export function LoginForm() {
+export function LoginForm({ nextPath = "/account" }: { nextPath?: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export function LoginForm() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push(nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/account");
     router.refresh();
   }
 
