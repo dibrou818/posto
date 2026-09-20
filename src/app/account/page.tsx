@@ -17,9 +17,9 @@ export default async function AccountPage() {
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8">
       <div className="flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <p className="text-sm text-gray-500">Mon compte</p>
-          <h1 className="mt-1 text-xl font-bold text-gray-900">{user.email}</h1>
+          <h1 className="mt-1 break-all text-xl font-bold text-gray-900">{user.email}</h1>
         </div>
         <Link href="/dashboard/parametres" className="text-sm font-medium text-gray-700 underline underline-offset-4">
           Paramètres
@@ -27,14 +27,21 @@ export default async function AccountPage() {
       </div>
 
       {managedPlaces.length > 0 ? (
-        <section className="mt-8 rounded-2xl bg-gray-900 p-5 text-white">
-          <p className="text-xs font-semibold tracking-[0.16em] text-gray-300 uppercase">Posto Pro</p>
-          <h2 className="mt-2 text-lg font-semibold">Votre espace professionnel</h2>
-          <p className="mt-1 text-sm text-gray-300">
-            Gérez {managedPlaces.length === 1 ? managedPlaces[0].name : `vos ${managedPlaces.length} établissements`}, vos événements et vos horaires.
-          </p>
-          <Link href="/dashboard" className={buttonClass("default", "mt-4 inline-flex bg-white text-gray-900 hover:bg-gray-100")}>
-            Ouvrir l’espace pro
+        <section className="mt-6 flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-sm font-bold text-gray-900">
+            PRO
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-semibold text-gray-900">Espace professionnel</h2>
+            <p className="truncate text-xs text-gray-500">
+              {managedPlaces.length === 1 ? managedPlaces[0].name : `${managedPlaces.length} établissements`}
+            </p>
+          </div>
+          <Link
+            href="/dashboard"
+            className="shrink-0 rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 focus-visible:ring-offset-2"
+          >
+            Accéder →
           </Link>
         </section>
       ) : (

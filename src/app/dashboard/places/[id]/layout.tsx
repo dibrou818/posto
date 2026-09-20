@@ -5,9 +5,6 @@ import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { getPlaceById } from "@/lib/queries";
 import { getOpenStatus, formatOpenStatus } from "@/lib/opening-hours";
-import { BackButton } from "@/components/ui/BackButton";
-import { PlaceDashboardTabs } from "@/components/dashboard/PlaceDashboardTabs";
-import { buttonClass } from "@/lib/ui";
 
 // Shared by every /dashboard/places/[id]/* sub-page: the "which place am I
 // editing" header (photo, name, open/closed status, link to its public
@@ -31,26 +28,16 @@ export default async function PlaceDashboardLayout({
   const openStatus = getOpenStatus(place.opening_hours);
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8">
-      <div className="mb-4 flex items-center gap-3">
-        <BackButton fallbackHref="/dashboard" />
-        <Link
-          href="/dashboard"
-          className="text-sm text-gray-500 transition-colors hover:text-gray-900 focus:outline-none focus-visible:underline"
-        >
-          Mes lieux
-        </Link>
-      </div>
-
-      <div className="mb-6 flex items-center gap-3">
-        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mb-6 flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 sm:p-4">
+        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:h-14 sm:w-14">
           {place.cover_photo_url && (
             <Image src={place.cover_photo_url} alt="" fill sizes="56px" className="object-cover" />
           )}
         </div>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-bold text-gray-900">{place.name}</h1>
-          <div className="flex items-center gap-2 text-xs">
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
             <span className={openStatus.open ? "font-medium text-green-600" : "font-medium text-red-500"}>
               {formatOpenStatus(openStatus)}
             </span>
@@ -63,13 +50,6 @@ export default async function PlaceDashboardLayout({
             </Link>
           </div>
         </div>
-        <Link href="/dashboard" className={buttonClass("compact")}>
-          Terminé
-        </Link>
-      </div>
-
-      <div className="mb-6">
-        <PlaceDashboardTabs placeId={id} />
       </div>
 
       {children}

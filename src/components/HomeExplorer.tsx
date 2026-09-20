@@ -343,11 +343,6 @@ export function HomeExplorer({
 
   return (
     <div className="flex flex-1 flex-col">
-      {/* Visually hidden — LocationWeather's own heading (city name or a
-          locate CTA) is dynamic and isn't really "the page title", and
-          without a real h1 anywhere the homepage gave a screen reader
-          nothing to land on and no page-level SEO signal. */}
-      <h1 className="sr-only">Posto — Découvrez des lieux et activités à Lille</h1>
       {/* Full-bleed to the screen edges — deliberately outside the p-4 the
           rest of the page content below uses, so this banner reads as one
           big block rather than a card floating in the page's own margins. */}

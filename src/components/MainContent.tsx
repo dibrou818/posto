@@ -13,10 +13,11 @@ import { usePathname } from "next/navigation";
 export function MainContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isLanding = pathname === "/landing";
+  const isDashboard = pathname.startsWith("/dashboard");
 
   return (
     <main
-      className={`flex-1 flex flex-col ${isLanding ? "" : "pb-[calc(3.5rem+env(safe-area-inset-bottom)+4px)] md:pb-0"}`}
+      className={`flex-1 flex flex-col ${isLanding || isDashboard ? "" : "pb-[calc(3.5rem+env(safe-area-inset-bottom)+4px)] md:pb-0"}`}
     >
       {children}
     </main>

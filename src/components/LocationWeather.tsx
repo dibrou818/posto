@@ -256,7 +256,20 @@ export function LocationWeather({
       className="relative w-full bg-gray-900 bg-cover bg-center px-4 pt-7 pb-8 sm:px-6 sm:pt-9 sm:pb-10"
       style={{ backgroundImage: "url('/hero-photo.png')" }}
     >
-      <div className="mx-auto flex max-w-2xl flex-col items-center gap-4">
+      {/* The gradient keeps the product promise readable over every part of
+          the photo while preserving the warm atmosphere of the image. */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/45" />
+
+      <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-4">
+        <div className="max-w-xl text-center text-white">
+          <h1 className="text-3xl leading-tight font-bold tracking-tight text-balance sm:text-5xl">
+            On fait quoi à Lille aujourd’hui&nbsp;?
+          </h1>
+          <p className="mt-2 text-sm font-medium text-white/80 sm:text-base">
+            Événements et activités disponibles près de vous.
+          </p>
+        </div>
+
         {state.status === "granted" ? (
           <div className="text-center">
             <p className="text-xs font-medium tracking-wide text-white/60 uppercase">
@@ -284,7 +297,7 @@ export function LocationWeather({
       </div>
 
       {state.status === "granted" && state.temperatureC !== null && (
-        <div className="absolute right-4 bottom-3 flex items-center gap-1.5 text-white/75 sm:right-6 sm:bottom-4">
+        <div className="absolute right-4 bottom-3 z-10 flex items-center gap-1.5 text-white/75 sm:right-6 sm:bottom-4">
           <WeatherIcon code={state.weatherCode} isDay={state.isDay} />
           <span className="text-xs font-medium sm:text-sm">{Math.round(state.temperatureC)}°C</span>
         </div>
