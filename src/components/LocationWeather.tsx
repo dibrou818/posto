@@ -239,7 +239,7 @@ export function LocationWeather({
       ? "Localisation en cours..."
       : state.status === "denied"
         ? "Localisation indisponible — cliquez pour réessayer"
-        : "Cliquer pour activer la localisation";
+        : "Explorer autour de moi";
 
   return (
     // No overflow-hidden here: this hero has nothing decorative overflowing
@@ -253,7 +253,7 @@ export function LocationWeather({
       // untouched, so shrinking it just shows less of the photo's vertical
       // extent (still fully cropped-to-fill, never stretched); a taller
       // value here later would simply reveal more of the same photo again.
-      className="relative w-full bg-gray-900 bg-cover bg-center px-4 pt-7 pb-8 sm:px-6 sm:pt-9 sm:pb-10"
+      className="relative w-full bg-gray-900 bg-cover bg-center px-4 pt-8 pb-8 sm:px-6 sm:pt-12 sm:pb-12"
       style={{ backgroundImage: "url('/hero-photo.png')" }}
     >
       {/* The gradient keeps the product promise readable over every part of
@@ -263,10 +263,10 @@ export function LocationWeather({
       <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-4">
         <div className="max-w-xl text-center text-white">
           <h1 className="text-3xl leading-tight font-bold tracking-tight text-balance sm:text-5xl">
-            On fait quoi à Lille aujourd’hui&nbsp;?
+            On fait quoi aujourd’hui&nbsp;?
           </h1>
           <p className="mt-2 text-sm font-medium text-white/80 sm:text-base">
-            Événements et activités disponibles près de vous.
+            Découvrez les lieux et événements autour de Lille.
           </p>
         </div>
 
@@ -277,16 +277,16 @@ export function LocationWeather({
                   plainly rather than presented with the same confidence as
                   a real "Votre position", so nobody assumes this pinpoints
                   them. */}
-              {state.approximate ? "Votre position (approximative)" : "Votre position"}
+              {state.approximate ? "Autour de vous · position approximative" : "Votre position"}
             </p>
-            <p className="mt-1 text-3xl font-bold text-white sm:text-4xl">{state.city}</p>
+            <p className="mt-1 text-base font-semibold text-white">{state.city}</p>
           </div>
         ) : (
           <button
             type="button"
             onClick={requestLocation}
             disabled={state.status === "loading"}
-            className="flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-white/90 transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:opacity-60"
+            className="flex min-h-11 items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-white/90 transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:opacity-60"
           >
             <LocationIcon />
             <span className="text-sm font-medium">{label}</span>

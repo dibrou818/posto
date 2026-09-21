@@ -14,23 +14,24 @@ export function PlaceCard({
   distanceKm?: number;
 }) {
   const openStatus = getOpenStatus(place.opening_hours);
-  const statusLabel = formatOpenStatus(openStatus);
+  const hasHours = place.opening_hours.some((hour) => hour.zone_name === null);
+  const statusLabel = hasHours ? formatOpenStatus(openStatus) : "Horaires non renseignés";
 
   return (
     <Link
       href={`/places/${place.id}`}
-      className={`flex gap-3 p-2.5 focus:outline-none focus:ring-2 focus:ring-gray-900/20 ${cardClass}`}
+      className={`flex gap-3.5 p-3 focus:outline-none focus:ring-2 focus:ring-gray-900/20 ${cardClass}`}
     >
-      <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+      <div className="relative flex h-28 w-24 items-center justify-center shrink-0 overflow-hidden rounded-lg bg-gray-100">
         {place.cover_photo_url ? (
           <Image
             src={place.cover_photo_url}
-            alt={place.name}
+            alt=""
             fill
             sizes="96px"
             className="object-cover"
           />
-        ) : null}
+        ) : <span aria-hidden="true" className="text-gray-400"><PlaceKindIcon /></span>}
       </div>
       {/* min-w-0 on the row below (not just here) is what lets `truncate`
           on the title actually shrink instead of overflowing — see
@@ -50,9 +51,9 @@ export function PlaceCard({
             <span aria-hidden="true" className="shrink-0 text-gray-900">
               <PlaceKindIcon />
             </span>
-            <h3 className="min-w-0 truncate font-semibold text-gray-900">{place.name}</h3>
+            <h3 className="min-w-0 line-clamp-2 text-base leading-snug font-semibold text-gray-900">{place.name}</h3>
           </div>
-          <p className="truncate text-xs text-gray-500">{place.address}</p>
+          <p className="line-clamp-2 text-sm text-gray-600">{place.address}</p>
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {place.tags.map((tag) => (
@@ -68,7 +69,7 @@ export function PlaceCard({
               <span className="text-xs whitespace-nowrap text-gray-500">{formatDistance(distanceKm)}</span>
             )}
             <span
-              className={`shrink-0 text-xs font-medium whitespace-nowrap ${openStatus.open ? "text-green-600" : "text-red-500"}`}
+              className={`shrink-0 text-xs font-medium whitespace-nowrap ${!hasHours ? "text-gray-500" : openStatus.open ? "text-green-700" : "text-gray-600"}`}
             >
               {statusLabel}
             </span>

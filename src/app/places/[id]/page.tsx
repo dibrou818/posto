@@ -130,7 +130,7 @@ export default async function PlacePage({
   const jsonLd = localBusinessJsonLd(place, `${siteOrigin}/places/${place.id}`);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6">
+    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:py-10">
       {/* Structured data only — invisible to a visitor, read by search
           engines (and, increasingly, AI answer engines) to understand
           "what is this place, where, when it's open" without scraping the
@@ -156,7 +156,7 @@ export default async function PlacePage({
           tops out at 24px), so this is an arbitrary value rather than an
           approximation — the whole point here was an exact match, not "close
           enough". */}
-      <div className="relative mb-4 h-64 w-full overflow-hidden rounded-[30px] bg-gray-100">
+      <div className="relative mb-4 h-64 w-full overflow-hidden rounded-2xl sm:h-80 bg-gray-100">
         <PhotoCarousel photos={photos} alt={place.name} />
         <div className="absolute top-3 left-3 z-10">
           <BackButton fallbackHref="/" />
@@ -164,7 +164,7 @@ export default async function PlacePage({
       </div>
 
       <div className="flex items-start justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">{place.name}</h1>
+        <h1 className="posto-title min-w-0 break-words text-gray-900">{place.name}</h1>
         <span
           className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
             open ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
@@ -179,7 +179,7 @@ export default async function PlacePage({
       </div>
       <p className="mt-1 text-sm text-gray-500">{place.address}</p>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap gap-2">
         <FollowPlaceButton
           placeId={place.id}
           userId={user?.id ?? null}
@@ -188,7 +188,7 @@ export default async function PlacePage({
         {place.phone && (
           <a
             href={`tel:${place.phone}`}
-            className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 focus-visible:ring-offset-2"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 focus-visible:ring-offset-2"
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
               <path d="M3.654 1.328a.678.678 0 0 1 1.015-.063l2.008 2.008a.678.678 0 0 1 .166.685l-.622 2.072a.678.678 0 0 0 .166.685l4.898 4.898a.678.678 0 0 0 .685.166l2.072-.622a.678.678 0 0 1 .685.166l2.008 2.008a.678.678 0 0 1-.063 1.015l-1.462 1.146a1.678 1.678 0 0 1-1.665.229C10.4 14.34 5.66 9.6 4.279 6.455a1.678 1.678 0 0 1 .23-1.665l1.145-1.462Z" />
@@ -200,7 +200,7 @@ export default async function PlacePage({
           href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
         >
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
             <path d="M10 18s6-5.5 6-10a6 6 0 1 0-12 0c0 4.5 6 10 6 10Z" strokeLinecap="round" strokeLinejoin="round" />
@@ -213,7 +213,7 @@ export default async function PlacePage({
             href={place.website_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
           >
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
               <circle cx="10" cy="10" r="7.5" />
@@ -228,7 +228,7 @@ export default async function PlacePage({
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Instagram"
-            className="inline-flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
           >
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
               <rect x="2.5" y="2.5" width="15" height="15" rx="4" />
@@ -243,7 +243,7 @@ export default async function PlacePage({
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Facebook"
-            className="inline-flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
           >
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
               <path d="M12.5 6.5h-1.3c-.9 0-1.2.4-1.2 1.2v1.8h2.4l-.3 2.4h-2.1v6.1H7.4v-6.1H5.5V9.5h1.9V7.4c0-2 1.1-3.4 3.2-3.4h1.9v2.5Z" />

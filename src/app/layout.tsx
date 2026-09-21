@@ -87,6 +87,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <link rel="dns-prefetch" href="https://tiles.openfreemap.org" />
       </head>
       <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[9999] focus:rounded-xl focus:bg-white focus:p-4">Aller au contenu</a>
         <Header user={user} />
         {/* Bottom padding to clear the fixed BottomNav — matches its real
             rendered height, and skips itself on /landing where there's no

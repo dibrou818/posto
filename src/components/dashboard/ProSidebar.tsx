@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type ManagedPlace = {
   id: string;
@@ -68,7 +68,7 @@ function SidebarContent({
   const router = useRouter();
 
   const navClass = (active: boolean) =>
-    `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
+    `flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
       active ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
     }`;
 
@@ -93,7 +93,7 @@ function SidebarContent({
           <div className="mt-6">
             <p className="mb-2 px-3 text-[11px] font-semibold tracking-[0.12em] text-gray-400 uppercase">Établissement</p>
             <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-2">
-              <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+              <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-gray-100">
                 {currentPlace?.coverPhotoUrl && <Image src={currentPlace.coverPhotoUrl} alt="" fill sizes="36px" className="object-cover" />}
               </div>
               <select
@@ -158,6 +158,7 @@ function SidebarContent({
 export function ProSidebar({ places }: { places: ManagedPlace[] }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const placeId = pathname.match(/^\/dashboard\/places\/([^/]+)/)?.[1];
   const currentPlace = places.find((place) => place.id === placeId) ?? null;
 
@@ -168,13 +169,15 @@ export function ProSidebar({ places }: { places: ManagedPlace[] }) {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", closeOnEscape);
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.showModal();
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const closeOnDesktop = () => { if (desktop.matches) setOpen(false); };
+    desktop.addEventListener("change", closeOnDesktop);
     return () => {
       document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
+      desktop.removeEventListener("change", closeOnDesktop);
+      previouslyFocused?.focus();
     };
   }, [open]);
 
@@ -185,7 +188,7 @@ export function ProSidebar({ places }: { places: ManagedPlace[] }) {
       </aside>
 
       <header className="sticky top-0 z-40 flex min-h-14 w-full shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 pt-[env(safe-area-inset-top)] lg:hidden">
-        <button type="button" onClick={() => setOpen(true)} aria-label="Ouvrir le menu professionnel" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-700">
+        <button type="button" onClick={() => setOpen(true)} aria-label="Ouvrir le menu professionnel" className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 text-gray-700">
           <MenuIcon />
         </button>
         <span className="flex items-center gap-2 text-sm font-bold text-gray-900">Posto <span className="rounded bg-gray-900 px-1.5 py-0.5 text-[9px] tracking-wider text-white">PRO</span></span>
@@ -193,15 +196,15 @@ export function ProSidebar({ places }: { places: ManagedPlace[] }) {
       </header>
 
       {open && (
-        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu professionnel">
-          <button type="button" aria-label="Fermer le menu" onClick={() => setOpen(false)} className="absolute inset-0 bg-black/35" />
-          <aside className="relative h-full w-[min(19rem,88vw)] overflow-hidden bg-white pt-[env(safe-area-inset-top)] shadow-2xl">
-            <button type="button" onClick={() => setOpen(false)} aria-label="Fermer le menu" className="absolute top-[calc(env(safe-area-inset-top)+0.75rem)] right-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100">
+        <dialog ref={dialogRef} onCancel={() => setOpen(false)} className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none border-0 bg-transparent p-0 backdrop:bg-black/35" aria-label="Menu professionnel">
+          <button type="button" aria-label="Fermer le menu" onClick={() => setOpen(false)} className="absolute inset-0" tabIndex={-1} />
+          <aside className="relative h-full w-[min(19rem,88vw)] overflow-hidden bg-white pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl">
+            <button type="button" onClick={() => setOpen(false)} aria-label="Fermer le menu" className="absolute top-[calc(env(safe-area-inset-top)+0.75rem)] right-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100">
               <CloseIcon />
             </button>
             <SidebarContent places={places} currentPlace={currentPlace} onNavigate={() => setOpen(false)} />
           </aside>
-        </div>
+        </dialog>
       )}
     </>
   );

@@ -22,18 +22,18 @@ export function EventCard({
   return (
     <Link
       href={`/events/${event.id}`}
-      className={`flex gap-3 p-2.5 focus:outline-none focus:ring-2 focus:ring-gray-900/20 ${cardClass}`}
+      className={`flex gap-3.5 p-3 focus:outline-none focus:ring-2 focus:ring-gray-900/20 ${cardClass}`}
     >
-      <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+      <div className="relative flex h-28 w-24 items-center justify-center shrink-0 overflow-hidden rounded-lg bg-gray-100">
         {coverPhotoUrl ? (
           <Image
             src={coverPhotoUrl}
-            alt={event.title}
+            alt=""
             fill
             sizes="96px"
             className="object-cover"
           />
-        ) : null}
+        ) : <span aria-hidden="true" className="text-gray-400"><CalendarKindIcon /></span>}
       </div>
       {/* min-w-0 here (not just on the row above) is what lets `truncate`
           on the title actually do its job: a flex item's default min-width
@@ -55,9 +55,9 @@ export function EventCard({
             <span aria-hidden="true" className="shrink-0 text-gray-900">
               <CalendarKindIcon />
             </span>
-            <h3 className="min-w-0 truncate font-semibold text-gray-900">{event.title}</h3>
+            <h3 className="min-w-0 line-clamp-2 text-base leading-snug font-semibold text-gray-900">{event.title}</h3>
           </div>
-          <p className="truncate text-xs text-gray-500">{event.place.name}</p>
+          <p className="line-clamp-2 text-sm text-gray-600">{event.place.name}</p>
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {/* shrink-0 + whitespace-nowrap: this pill is one line of text —

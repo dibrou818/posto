@@ -133,7 +133,7 @@ export function LocationFilter({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex min-w-0 flex-1 items-center justify-between gap-1.5 rounded-md px-2.5 py-1.5 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+          className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-1.5 rounded-md px-2.5 py-1.5 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
         >
           <span className="flex min-w-0 items-center gap-1.5">
             <PinIcon />
@@ -149,7 +149,7 @@ export function LocationFilter({
             onClick={() => onChange(null)}
             aria-label="Réinitialiser le filtre de ville"
             title="Réinitialiser"
-            className="shrink-0 rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+            className="min-h-11 min-w-11 shrink-0 rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
           >
             ✕
           </button>

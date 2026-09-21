@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { useId, useState, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { inputClass } from "@/lib/ui";
 
 // Shared by TextField and TextareaField: a small "N/max" counter next to the
@@ -35,6 +35,8 @@ type TextFieldProps = {
  * normally); the counter is a side-effect listener on top, not a rewrite of
  * the input into a controlled one. */
 export function TextField({ label, maxLength, className = "", onChange, defaultValue, value, ...props }: TextFieldProps) {
+  const generatedId = useId();
+  const fieldId = props.id ?? generatedId;
   const [count, setCount] = useCharCount(value ?? defaultValue);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -46,7 +48,7 @@ export function TextField({ label, maxLength, className = "", onChange, defaultV
     <div>
       {(label !== undefined || maxLength !== undefined) && (
         <div className="mb-1 flex items-baseline justify-between gap-2">
-          {label !== undefined ? <label className="text-sm font-medium text-gray-700">{label}</label> : <span />}
+          {label !== undefined ? <label htmlFor={fieldId} className="text-sm font-medium text-gray-700">{label}</label> : <span />}
           {maxLength !== undefined && <CharCounter count={count} max={maxLength} />}
         </div>
       )}
@@ -57,6 +59,7 @@ export function TextField({ label, maxLength, className = "", onChange, defaultV
         value={value}
         onChange={handleChange}
         {...props}
+        id={fieldId}
       />
     </div>
   );
@@ -70,6 +73,8 @@ type TextareaFieldProps = {
 /** Labeled textarea, same visual style and maxLength/counter behavior as
  * {@link TextField}. */
 export function TextareaField({ label, maxLength, className = "", onChange, defaultValue, value, ...props }: TextareaFieldProps) {
+  const generatedId = useId();
+  const fieldId = props.id ?? generatedId;
   const [count, setCount] = useCharCount(value ?? defaultValue);
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
@@ -81,7 +86,7 @@ export function TextareaField({ label, maxLength, className = "", onChange, defa
     <div>
       {(label !== undefined || maxLength !== undefined) && (
         <div className="mb-1 flex items-baseline justify-between gap-2">
-          {label !== undefined ? <label className="text-sm font-medium text-gray-700">{label}</label> : <span />}
+          {label !== undefined ? <label htmlFor={fieldId} className="text-sm font-medium text-gray-700">{label}</label> : <span />}
           {maxLength !== undefined && <CharCounter count={count} max={maxLength} />}
         </div>
       )}
@@ -92,6 +97,7 @@ export function TextareaField({ label, maxLength, className = "", onChange, defa
         value={value}
         onChange={handleChange}
         {...props}
+        id={fieldId}
       />
     </div>
   );

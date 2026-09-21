@@ -73,6 +73,7 @@ export function HomeExplorer({
   const [events, setEvents] = useState(initialEvents);
   const [hasMorePlaces, setHasMorePlaces] = useState(initialPlaces.length >= EXPLORE_PAGE_SIZE);
   const [hasMoreEvents, setHasMoreEvents] = useState(initialEvents.length >= EXPLORE_PAGE_SIZE);
+  const [paginationError, setPaginationError] = useState(false);
   const [loadingMorePlaces, setLoadingMorePlaces] = useState(false);
   const [loadingMoreEvents, setLoadingMoreEvents] = useState(false);
 
@@ -85,22 +86,28 @@ export function HomeExplorer({
   // recreating the callback exactly when that length changes is correct,
   // not wasteful.
   const handleLoadMorePlaces = useCallback(async () => {
+    setPaginationError(false);
     setLoadingMorePlaces(true);
     try {
       const nextPage = await loadMorePlaces(places.length);
       setPlaces((prev) => [...prev, ...nextPage]);
       setHasMorePlaces(nextPage.length >= EXPLORE_PAGE_SIZE);
+    } catch {
+      setPaginationError(true);
     } finally {
       setLoadingMorePlaces(false);
     }
   }, [places.length]);
 
   const handleLoadMoreEvents = useCallback(async () => {
+    setPaginationError(false);
     setLoadingMoreEvents(true);
     try {
       const nextPage = await loadMoreEvents(events.length);
       setEvents((prev) => [...prev, ...nextPage]);
       setHasMoreEvents(nextPage.length >= EXPLORE_PAGE_SIZE);
+    } catch {
+      setPaginationError(true);
     } finally {
       setLoadingMoreEvents(false);
     }
@@ -159,11 +166,11 @@ export function HomeExplorer({
   // this stop calling the server once a section is exhausted.
   const placesSentinelRef = useLoadMoreOnScroll<HTMLDivElement>(
     handleLoadMorePlaces,
-    visiblePlaces.length > 0 && hasMorePlaces && !loadingMorePlaces,
+    !paginationError && hasMorePlaces && !loadingMorePlaces,
   );
   const eventsSentinelRef = useLoadMoreOnScroll<HTMLDivElement>(
     handleLoadMoreEvents,
-    visibleEvents.length > 0 && hasMoreEvents && !loadingMoreEvents,
+    !paginationError && hasMoreEvents && !loadingMoreEvents,
   );
 
   const sortByDistance = useCallback(
@@ -338,7 +345,7 @@ export function HomeExplorer({
   }, [hasMorePlaces, loadingMorePlaces, handleLoadMorePlaces, hasMoreEvents, loadingMoreEvents, handleLoadMoreEvents]);
   const mergedSentinelRef = useLoadMoreOnScroll<HTMLDivElement>(
     handleLoadMoreMerged,
-    showMerged && ((hasMorePlaces && !loadingMorePlaces) || (hasMoreEvents && !loadingMoreEvents)),
+    !paginationError && showMerged && ((hasMorePlaces && !loadingMorePlaces) || (hasMoreEvents && !loadingMoreEvents)),
   );
 
   return (
@@ -372,7 +379,7 @@ export function HomeExplorer({
         />
       </LocationWeather>
 
-      <div className="flex flex-1 flex-col gap-4 p-4">
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
         <div className="flex flex-col gap-2">
           {/* grid on mobile (2 even columns, however many rows that takes —
               KindFilter spanning both so it reads as the primary control on
@@ -406,7 +413,7 @@ export function HomeExplorer({
                 type="button"
                 onClick={() => setOpenNowOnly((v) => !v)}
                 aria-pressed={openNowOnly}
-                className={`w-full rounded-md px-2.5 py-1.5 text-center text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
+                className={`min-h-11 w-full rounded-lg px-2.5 py-2 text-center text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
                   openNowOnly ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"
                 }`}
               >
@@ -424,6 +431,10 @@ export function HomeExplorer({
           )}
         </div>
 
+        {paginationError && <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          La suite des résultats n’a pas pu être chargée.
+          <button type="button" className="ml-2 min-h-11 px-2 font-semibold underline" onClick={() => { if (kindFilter !== "place" && hasMoreEvents) void handleLoadMoreEvents(); if (kindFilter !== "event" && hasMorePlaces) void handleLoadMorePlaces(); }}>Réessayer</button>
+        </div>}
         <div className="flex flex-col gap-6">
           {/* "Tout" is a single merged feed (below) — no separate Lieux/
               Événements sections or headings once mixed, since a place and
@@ -472,7 +483,7 @@ export function HomeExplorer({
                   more raw events while e.g. "Aucun événement près de X" is
                   already showing a distance-sorted fallback slice would
                   just be confusing, not more useful. */}
-              {visibleEvents.length > 0 && hasMoreEvents && (
+              {hasMoreEvents && (
                 <div ref={eventsSentinelRef} className="flex justify-center py-2">
                   {loadingMoreEvents && <p className="text-xs text-gray-400">Chargement...</p>}
                 </div>
@@ -516,7 +527,7 @@ export function HomeExplorer({
                   ))}
                 </div>
               )}
-              {visiblePlaces.length > 0 && hasMorePlaces && (
+              {hasMorePlaces && (
                 <div ref={placesSentinelRef} className="flex justify-center py-2">
                   {loadingMorePlaces && <p className="text-xs text-gray-400">Chargement...</p>}
                 </div>

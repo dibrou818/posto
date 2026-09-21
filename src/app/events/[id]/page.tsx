@@ -1,3 +1,4 @@
+import { eventStatus } from "@/lib/eventStatus";
 import { cache } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -92,9 +93,8 @@ export default async function EventPage({
     : { data: null };
 
   const { place } = event;
-  const start = new Date(event.start_datetime);
-  const end = event.end_datetime ? new Date(event.end_datetime) : null;
-  const isPast = (end ?? start).getTime() < new Date().getTime();
+  const status = eventStatus(event.start_datetime, event.end_datetime);
+  const isPast = status === "Terminé" || status === "Début passé";
   const dateLabel = formatEventSchedule(event.start_datetime, event.end_datetime);
   const priceLabel = formatPrice(event.price_cents, event.price_unit);
 
@@ -117,7 +117,7 @@ export default async function EventPage({
   const jsonLd = eventJsonLd(event, `${siteOrigin}/events/${event.id}`);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6">
+    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:py-10">
       {/* Structured data only — see the matching comment on the place
           page / structuredData.ts. */}
       <script
@@ -127,7 +127,7 @@ export default async function EventPage({
       {/* rounded-[30px] — see the matching comment on the place page's own
           hero photo (same BackButton-over-corner pairing, same exact-match
           derivation: 12px offset + 18px button radius). */}
-      <div className="relative mb-4 h-64 w-full overflow-hidden rounded-[30px] bg-gray-100">
+      <div className="relative mb-4 h-64 w-full overflow-hidden rounded-2xl sm:h-80 bg-gray-100">
         {coverPhotoUrl && (
           <Image
             src={coverPhotoUrl}
@@ -144,19 +144,19 @@ export default async function EventPage({
       </div>
 
       <div className="flex items-start justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
+        <h1 className="posto-title min-w-0 break-words text-gray-900">{event.title}</h1>
         <span
           className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
             isPast ? "bg-gray-100 text-gray-500" : "bg-green-100 text-green-700"
           }`}
         >
-          {isPast ? "Terminé" : "À venir"}
+          {status}
         </span>
       </div>
 
       <p className="mt-1 text-sm text-gray-500">{dateLabel}</p>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap gap-2">
         <SaveEventButton
           eventId={event.id}
           userId={user?.id ?? null}
@@ -165,7 +165,7 @@ export default async function EventPage({
         {place.phone && (
           <a
             href={`tel:${place.phone}`}
-            className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 focus-visible:ring-offset-2"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 focus-visible:ring-offset-2"
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
               <path d="M3.654 1.328a.678.678 0 0 1 1.015-.063l2.008 2.008a.678.678 0 0 1 .166.685l-.622 2.072a.678.678 0 0 0 .166.685l4.898 4.898a.678.678 0 0 0 .685.166l2.072-.622a.678.678 0 0 1 .685.166l2.008 2.008a.678.678 0 0 1-.063 1.015l-1.462 1.146a1.678 1.678 0 0 1-1.665.229C10.4 14.34 5.66 9.6 4.279 6.455a1.678 1.678 0 0 1 .23-1.665l1.145-1.462Z" />
@@ -177,7 +177,7 @@ export default async function EventPage({
           href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
         >
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
             <path d="M10 18s6-5.5 6-10a6 6 0 1 0-12 0c0 4.5 6 10 6 10Z" strokeLinecap="round" strokeLinejoin="round" />

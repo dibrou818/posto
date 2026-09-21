@@ -59,22 +59,21 @@ function UserIcon({ active }: { active: boolean }) {
   );
 }
 
+function BookmarkIcon({ active }: { active: boolean }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8}><path d="M6 4h12v17l-6-4-6 4V4Z" strokeLinejoin="round" /></svg>;
+}
+
 export function BottomNav({ user }: { user: User | null }) {
   const pathname = usePathname();
   // Same reasoning as Header's own early return — see there.
   if (pathname === "/landing" || pathname.startsWith("/dashboard")) return null;
 
-  const items = user
-    ? [
-        { href: "/", label: "Accueil", icon: HomeIcon },
-        { href: "/map", label: "Carte", icon: MapIcon },
-        { href: "/account", label: "Profil", icon: UserIcon },
-      ]
-    : [
-        { href: "/", label: "Accueil", icon: HomeIcon },
-        { href: "/map", label: "Carte", icon: MapIcon },
-        { href: "/login", label: "Connexion", icon: UserIcon },
-      ];
+  const items = [
+    { href: "/", label: "Découvrir", icon: HomeIcon },
+    { href: "/map", label: "Carte", icon: MapIcon },
+    { href: "/favorites", label: "Favoris", icon: BookmarkIcon },
+    { href: user ? "/account" : "/login", label: "Compte", icon: UserIcon },
+  ];
 
   return (
     <nav
@@ -98,12 +97,13 @@ export function BottomNav({ user }: { user: User | null }) {
               href={item.href}
               aria-label={item.label}
               title={item.label}
-              className="flex min-h-14 flex-1 items-center justify-center transition-colors focus:outline-none focus-visible:bg-gray-50"
+              className="flex min-h-14 flex-1 flex-col gap-1 items-center justify-center transition-colors focus:outline-none focus-visible:bg-gray-50"
               aria-current={active ? "page" : undefined}
             >
               <span className={active ? "text-gray-900" : "text-gray-500"}>
                 <Icon active={active} />
               </span>
+              <span className={`text-[11px] ${active ? "font-semibold text-gray-900" : "text-gray-600"}`}>{item.label}</span>
             </Link>
           );
         })}

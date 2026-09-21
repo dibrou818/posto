@@ -7,8 +7,8 @@ import type { ReactNode } from "react";
  * free, in one shared component instead of repeating it everywhere. */
 export function DashboardSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="mb-6 rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
-      <h2 className="mb-3 text-sm font-semibold tracking-wide text-gray-500 uppercase">{title}</h2>
+    <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+      <h2 className="mb-5 text-lg font-semibold tracking-tight text-gray-900">{title}</h2>
       {children}
     </section>
   );

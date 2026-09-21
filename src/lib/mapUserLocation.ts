@@ -47,7 +47,7 @@ class LocateControl implements maplibregl.IControl {
     button.type = "button";
     button.setAttribute("aria-label", "Me localiser");
     button.style.cssText =
-      "width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:#fff;border:none;border-radius:9999px;cursor:pointer;";
+      "width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#fff;border:none;border-radius:9999px;cursor:pointer;";
     button.innerHTML = locateButtonIcon("idle");
     button.addEventListener("click", () => this.onClickHandler?.());
     this.button = button;

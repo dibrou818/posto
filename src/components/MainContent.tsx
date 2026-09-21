@@ -17,6 +17,8 @@ export function MainContent({ children }: { children: React.ReactNode }) {
 
   return (
     <main
+      id="main-content"
+      tabIndex={-1}
       className={`flex-1 flex flex-col ${isLanding || isDashboard ? "" : "pb-[calc(3.5rem+env(safe-area-inset-bottom)+4px)] md:pb-0"}`}
     >
       {children}

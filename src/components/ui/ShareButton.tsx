@@ -54,7 +54,7 @@ export function ShareButton({ title, text }: { title: string; text: string }) {
     <button
       type="button"
       onClick={handleShare}
-      className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+      className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
     >
       <ShareIcon />
       {copied ? "Lien copié !" : "Partager"}

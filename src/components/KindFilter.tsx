@@ -42,7 +42,7 @@ export function KindFilter({
           type="button"
           onClick={() => onChange(option.value)}
           aria-pressed={value === option.value}
-          className={`flex-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
+          className={`min-h-11 flex-1 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
             value === option.value
               ? "bg-gray-900 text-white"
               : "text-gray-600 hover:bg-gray-100"

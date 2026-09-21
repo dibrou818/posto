@@ -32,7 +32,7 @@ export function BackButton({
       onClick={handleClick}
       aria-label={label}
       title={label}
-      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${className}`.trim()}
+      className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${className}`.trim()}
     >
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
         <path d="M12.5 4.5 6 11l6.5 6.5" strokeLinecap="round" strokeLinejoin="round" />

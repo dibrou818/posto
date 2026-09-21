@@ -52,6 +52,7 @@ export function FilterChip({
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   // Left-aligned (under the button's own left edge) by default, same as
   // this shell always was — flipped to right-aligned only when the panel,
@@ -70,8 +71,12 @@ export function FilterChip({
         setOpen(false);
       }
     }
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") { setOpen(false); triggerRef.current?.focus(); }
+    }
+    document.addEventListener("keydown", handleKey);
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => { document.removeEventListener("mousedown", handleClickOutside); document.removeEventListener("keydown", handleKey); };
   }, [open]);
 
   useLayoutEffect(() => {
@@ -106,9 +111,10 @@ export function FilterChip({
       <div className="flex min-w-0 items-center gap-1 rounded-lg border border-gray-300 bg-white p-1 text-xs">
         <button
           type="button"
+          ref={triggerRef}
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="flex min-w-0 flex-1 items-center justify-between gap-1.5 rounded-md px-2.5 py-1.5 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+          className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-1.5 rounded-md px-2.5 py-1.5 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
         >
           <span className="flex min-w-0 items-center gap-1.5">
             {icon}
@@ -122,7 +128,7 @@ export function FilterChip({
             onClick={onClear}
             aria-label={clearLabel}
             title="Réinitialiser"
-            className="shrink-0 rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+            className="min-h-11 min-w-11 shrink-0 rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
           >
             ✕
           </button>
@@ -158,7 +164,7 @@ export function FilterChipOption({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`w-full rounded-md px-3 py-1.5 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:bg-gray-50 ${
+      className={`min-h-11 w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:bg-gray-50 ${
         selected ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-50"
       }`}
     >

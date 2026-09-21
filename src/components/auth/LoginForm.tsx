@@ -1,5 +1,6 @@
 "use client";
 
+import { safeAuthRedirect } from "@/lib/authRedirect";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -20,23 +21,27 @@ export function LoginForm({ nextPath = "/account" }: { nextPath?: string }) {
     setError(null);
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    let result;
+    try { result = await supabase.auth.signInWithPassword({ email, password }); }
+    catch { setError("Connexion impossible. Vérifiez votre réseau et réessayez."); setLoading(false); return; }
+    const { error } = result;
 
     setLoading(false);
     if (error) {
-      setError(error.message);
+      setError(error.code === "invalid_credentials" ? "Email ou mot de passe incorrect." : "Connexion impossible. Vérifiez la confirmation de votre email puis réessayez.");
       return;
     }
 
-    router.push(nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/account");
+    router.push(safeAuthRedirect(nextPath));
     router.refresh();
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col gap-3">
+    <form onSubmit={handleSubmit} className="flex w-full max-w-md flex-col gap-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-[var(--shadow-card)] sm:p-8">
       <TextField
         label="Email"
         type="email"
+        autoComplete="email"
         required
         value={email}
         onChange={(e) => setEmail(e.target.value)}
@@ -44,17 +49,18 @@ export function LoginForm({ nextPath = "/account" }: { nextPath?: string }) {
       <TextField
         label="Mot de passe"
         type="password"
+        autoComplete="current-password"
         required
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <Button type="submit" disabled={loading} className="mt-1">
         {loading ? "Connexion..." : "Se connecter"}
       </Button>
       <p className="text-sm text-gray-500">
         Pas encore de compte ?{" "}
-        <Link href="/signup" className="font-medium text-gray-900 underline">
+        <Link href={`/signup?next=${encodeURIComponent(safeAuthRedirect(nextPath))}`} className="font-medium text-gray-900 underline">
           Créer un compte
         </Link>
       </p>

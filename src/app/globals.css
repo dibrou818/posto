@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: #f8f9fa;
+  --foreground: #17212b;
+  --surface: #ffffff;
+  --border: #e2e6ea;
+  --brand: #17212b;
+  --muted: #526171;
+  --radius-control: 0.75rem;
+  --radius-card: 1rem;
+  --shadow-card: 0 2px 8px rgb(23 33 43 / 4%);
 }
 
 @theme inline {
@@ -12,12 +20,18 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* A complete dark palette is required before enabling automatic dark mode. */
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 4px; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button:not(:disabled), select { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+::selection { background: #dce7e2; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+.posto-page { width: 100%; max-width: 72rem; margin-inline: auto; padding: 2rem 1rem 3rem; }
+.posto-title { font-size: clamp(1.75rem, 4vw, 2.25rem); font-weight: 700; line-height: 1.2; letter-spacing: -0.035em; }
+@media (min-width: 768px) { .posto-page { padding: 2.5rem 1.5rem 4rem; } }
 
 /* Systemic safety net: no element (a long untruncated city/place name, a
    dropdown positioned slightly off, etc.) should ever be able to make the
@@ -37,7 +51,7 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
 /* iOS Safari auto-zooms the page when focusing a text input smaller than
@@ -55,10 +69,10 @@ body {
    chrome. */
 .maplibregl-ctrl-attrib {
   padding: 1px 4px !important;
-  font-size: 8px !important;
+  font-size: 11px !important;
   line-height: 1.4 !important;
   background: rgba(255, 255, 255, 0.4) !important;
-  opacity: 0.55;
+  opacity: 1;
   transition: opacity 0.15s ease;
 }
 .maplibregl-ctrl-attrib:hover {
@@ -107,8 +121,8 @@ body {
 .maplibregl-popup-close-button {
   top: 6px;
   right: 6px;
-  width: 22px;
-  height: 22px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -126,7 +140,7 @@ body {
 @keyframes posto-locate-pulse {
   0% {
     transform: scale(0.6);
-    opacity: 0.55;
+    opacity: 1;
   }
   100% {
     transform: scale(2.2);

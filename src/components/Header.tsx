@@ -6,7 +6,7 @@ import type { User } from "@supabase/supabase-js";
 import { buttonClass } from "@/lib/ui";
 
 const navLinkClass =
-  "rounded-md px-1 py-0.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20";
+  "inline-flex min-h-11 items-center rounded-xl px-3 py-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20";
 
 export function Header({ user }: { user: User | null }) {
   const pathname = usePathname();
@@ -20,7 +20,7 @@ export function Header({ user }: { user: User | null }) {
 
   function linkClass(href: string) {
     const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-    return `${navLinkClass} ${active ? "font-medium text-gray-900" : "text-gray-700 hover:text-gray-900"}`;
+    return `${navLinkClass} ${active ? "font-semibold bg-gray-100 text-gray-900" : "text-gray-700 hover:text-gray-900"}`;
   }
 
   return (
@@ -34,16 +34,17 @@ export function Header({ user }: { user: User | null }) {
         >
           Posto
         </Link>
-        <nav className="hidden items-center gap-6 text-sm md:flex">
+        <nav className="hidden items-center gap-2 text-sm md:flex">
           <Link href="/" className={linkClass("/")}>
-            Accueil
+            Découvrir
           </Link>
           <Link href="/map" className={linkClass("/map")}>
             Carte
           </Link>
+          <Link href="/favorites" className={linkClass("/favorites")}>Favoris</Link>
           {user ? (
             <Link href="/account" className={linkClass("/account")}>
-              Profil
+              Mon compte
             </Link>
           ) : (
             <>
