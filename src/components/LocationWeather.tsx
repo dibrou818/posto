@@ -26,8 +26,8 @@ function LocationIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="20"
-      height="20"
+      width="14"
+      height="14"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
@@ -238,8 +238,8 @@ export function LocationWeather({
     state.status === "loading"
       ? "Localisation en cours..."
       : state.status === "denied"
-        ? "Localisation indisponible — cliquez pour réessayer"
-        : "Explorer autour de moi";
+        ? "Localisation indisponible · réessayer"
+        : "Autour de moi";
 
   return (
     // No overflow-hidden here: this hero has nothing decorative overflowing
@@ -253,7 +253,7 @@ export function LocationWeather({
       // untouched, so shrinking it just shows less of the photo's vertical
       // extent (still fully cropped-to-fill, never stretched); a taller
       // value here later would simply reveal more of the same photo again.
-      className="relative w-full bg-gray-900 bg-cover bg-center px-4 pt-8 pb-8 sm:px-6 sm:pt-12 sm:pb-12"
+      className="relative w-full bg-gray-900 bg-cover bg-center px-4 pt-8 pb-12 sm:px-6 sm:pt-12 sm:pb-14"
       style={{ backgroundImage: "url('/hero-photo.png')" }}
     >
       {/* The gradient keeps the product promise readable over every part of
@@ -261,46 +261,37 @@ export function LocationWeather({
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/45" />
 
       <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-4">
-        <div className="max-w-xl text-center text-white">
-          <h1 className="text-3xl leading-tight font-bold tracking-tight text-balance sm:text-5xl">
-            On fait quoi aujourd’hui&nbsp;?
-          </h1>
-          <p className="mt-2 text-sm font-medium text-white/80 sm:text-base">
-            Découvrez les lieux et événements autour de Lille.
-          </p>
-        </div>
-
-        {state.status === "granted" ? (
-          <div className="text-center">
-            <p className="text-xs font-medium tracking-wide text-white/60 uppercase">
-              {/* IP-based location is city-level, not GPS-precise — said
-                  plainly rather than presented with the same confidence as
-                  a real "Votre position", so nobody assumes this pinpoints
-                  them. */}
-              {state.approximate ? "Autour de vous · position approximative" : "Votre position"}
-            </p>
-            <p className="mt-1 text-base font-semibold text-white">{state.city}</p>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={requestLocation}
-            disabled={state.status === "loading"}
-            className="flex min-h-11 items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-white/90 transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:opacity-60"
-          >
-            <LocationIcon />
-            <span className="text-sm font-medium">{label}</span>
-          </button>
-        )}
+        <h1 className="text-center text-3xl leading-tight font-bold tracking-tight text-balance text-white sm:text-5xl">
+          On fait quoi aujourd’hui&nbsp;?
+        </h1>
 
         {children && <div className="w-full">{children}</div>}
       </div>
 
-      {state.status === "granted" && state.temperatureC !== null && (
-        <div className="absolute right-4 bottom-3 z-10 flex items-center gap-1.5 text-white/75 sm:right-6 sm:bottom-4">
-          <WeatherIcon code={state.weatherCode} isDay={state.isDay} />
-          <span className="text-xs font-medium sm:text-sm">{Math.round(state.temperatureC)}°C</span>
-        </div>
+      {/* One quiet line in the corner instead of a block of location copy:
+          the city itself is already the chip right under the search bar, so
+          this only adds what that chip doesn't — the weather — or, before
+          the visitor is located, the single button to get located. */}
+      {state.status === "granted" ? (
+        state.temperatureC !== null && (
+          <div
+            className="absolute right-4 bottom-3 z-10 flex items-center gap-1.5 text-white/80 sm:right-6 sm:bottom-4"
+            title={state.approximate ? "Position approximative" : undefined}
+          >
+            <WeatherIcon code={state.weatherCode} isDay={state.isDay} />
+            <span className="text-xs font-medium sm:text-sm">{Math.round(state.temperatureC)}°C</span>
+          </div>
+        )
+      ) : (
+        <button
+          type="button"
+          onClick={requestLocation}
+          disabled={state.status === "loading"}
+          className="absolute right-4 bottom-3 z-10 flex min-h-8 items-center gap-1.5 rounded-full border border-white/25 bg-black/20 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm transition-colors hover:bg-black/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:opacity-60 sm:right-6 sm:bottom-4"
+        >
+          <LocationIcon />
+          {label}
+        </button>
       )}
     </div>
   );

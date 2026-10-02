@@ -19,6 +19,8 @@ import { eventJsonLd, jsonLdScriptContent } from "@/lib/structuredData";
 import { LocationMiniMap } from "@/components/LocationMiniMap";
 import { EVENT_COLOR } from "@/lib/mapPopups";
 import { SaveEventButton } from "@/components/consumer/SaveEventButton";
+import { ContactList } from "@/components/ContactList";
+import { DirectionsButton } from "@/components/DirectionsButton";
 
 // Wrapped in React's cache() so generateMetadata and the page body below —
 // both called for the same request — share one DB round trip instead of
@@ -141,6 +143,9 @@ export default async function EventPage({
         <div className="absolute top-3 left-3">
           <BackButton fallbackHref="/" />
         </div>
+        <div className="absolute top-3 right-3 z-10">
+          <ShareButton title={event.title} text={eventShareText(event.title, dateLabel, place.address)} />
+        </div>
       </div>
 
       <div className="flex items-start justify-between gap-3">
@@ -156,37 +161,13 @@ export default async function EventPage({
 
       <p className="mt-1 text-sm text-gray-500">{dateLabel}</p>
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap items-start gap-2">
         <SaveEventButton
           eventId={event.id}
           userId={user?.id ?? null}
           initialSaved={Boolean(savedEvent)}
         />
-        {place.phone && (
-          <a
-            href={`tel:${place.phone}`}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-              <path d="M3.654 1.328a.678.678 0 0 1 1.015-.063l2.008 2.008a.678.678 0 0 1 .166.685l-.622 2.072a.678.678 0 0 0 .166.685l4.898 4.898a.678.678 0 0 0 .685.166l2.072-.622a.678.678 0 0 1 .685.166l2.008 2.008a.678.678 0 0 1-.063 1.015l-1.462 1.146a1.678 1.678 0 0 1-1.665.229C10.4 14.34 5.66 9.6 4.279 6.455a1.678 1.678 0 0 1 .23-1.665l1.145-1.462Z" />
-            </svg>
-            Appeler {place.phone}
-          </a>
-        )}
-        <a
-          href={`https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
-        >
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
-            <path d="M10 18s6-5.5 6-10a6 6 0 1 0-12 0c0 4.5 6 10 6 10Z" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="10" cy="8" r="2.2" />
-          </svg>
-          Itinéraire
-        </a>
         <AddToCalendarButton event={calendarEvent} />
-        <ShareButton title={event.title} text={eventShareText(event.title, dateLabel, place.address)} />
       </div>
 
       {(priceLabel || event.recurrence_rule || event.duration_minutes) && (
@@ -221,7 +202,10 @@ export default async function EventPage({
           EVENT_COLOR, not the place's usual dark dot: this page is about
           the event, not the venue itself. */}
       <section className="mt-8">
-        <h2 className="mb-2 text-lg font-semibold text-gray-900">Localisation</h2>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">Localisation</h2>
+          <DirectionsButton lat={place.lat} lng={place.lng} />
+        </div>
         <LocationMiniMap lat={place.lat} lng={place.lng} color={EVENT_COLOR} />
       </section>
 
@@ -247,6 +231,8 @@ export default async function EventPage({
           </svg>
         </Link>
       </section>
+
+      <ContactList place={place} />
     </div>
   );
 }

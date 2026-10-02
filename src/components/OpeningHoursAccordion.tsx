@@ -36,10 +36,14 @@ export function OpeningHoursAccordion({
   hours,
   zoneName = null,
   todayIndex,
+  showStatus = true,
 }: {
   hours: OpeningHour[];
   zoneName?: string | null;
   todayIndex: number;
+  /** Off for the place's general hours, whose live status is already the
+   * loud badge under the page title — repeating it here would be noise. */
+  showStatus?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const panelId = useId();
@@ -59,7 +63,9 @@ export function OpeningHoursAccordion({
       >
         <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <span className="font-medium text-gray-900">Aujourd&apos;hui · {today.label}</span>
-          <span className={`font-medium ${openLabelClass(openNow)}`}>{openNow ? "Ouvert" : "Fermé"}</span>
+          {showStatus && (
+            <span className={`font-medium ${openLabelClass(openNow)}`}>{openNow ? "Ouvert" : "Fermé"}</span>
+          )}
           {todayHours && <span className="text-gray-600">{todayHours}</span>}
         </span>
         <svg
