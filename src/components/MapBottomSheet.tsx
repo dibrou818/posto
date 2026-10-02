@@ -8,9 +8,9 @@ import type { PlaceWithRelations } from "@/lib/queries";
 import { getOpenStatus, formatOpenStatus } from "@/lib/opening-hours";
 import { formatEventDateBadge } from "@/lib/eventSchedule";
 
-// Mirrors Map.tsx's marker/popup violet, so the sheet reads as the same
+// Mirrors Map.tsx's marker/popup blue, so the sheet reads as the same
 // object as the pin the user just tapped.
-const EVENT_COLOR = "#7c3aed";
+const EVENT_COLOR = "#1b4ef5";
 
 function PinIcon() {
   return (
@@ -83,7 +83,7 @@ function SheetContent({ item }: { item: MapSheetItem }) {
         ) : (
           <span
             className="flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
-            style={{ background: "#ede9fe", color: EVENT_COLOR }}
+            style={{ background: "#e7e9ed", color: EVENT_COLOR }}
           >
             <CalendarIcon />
             {formatEventDateBadge(item.event.start_datetime)}

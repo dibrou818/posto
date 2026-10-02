@@ -87,5 +87,5 @@ export function LocationMiniMapCanvas({ lat, lng, color }: { lat: number; lng: n
     };
   }, [lat, lng, color]);
 
-  return <div ref={containerRef} className="h-52 w-full" />;
+  return <div ref={containerRef} className="location-mini-map h-52 w-full" />;
 }

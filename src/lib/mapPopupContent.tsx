@@ -22,7 +22,7 @@ const PHOTO_HEIGHT = 92;
 
 function photoBoxElement(): HTMLDivElement {
   const el = document.createElement("div");
-  el.style.cssText = `position:relative;width:100%;height:${PHOTO_HEIGHT}px;background:#e5e7eb;overflow:hidden;`;
+  el.style.cssText = `position:relative;width:100%;height:${PHOTO_HEIGHT}px;background:#dce3ee;overflow:hidden;`;
   return el;
 }
 
@@ -96,7 +96,7 @@ export function eventPopupContent(event: EventWithPlace): PopupContent {
     subtitle: event.place.name,
     badge: {
       label: formatEventDateBadge(event.start_datetime),
-      bg: "#ede9fe",
+      bg: "#e7e9ed",
       fg: EVENT_COLOR,
       icon: CALENDAR_ICON_SVG,
     },

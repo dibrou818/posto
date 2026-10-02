@@ -77,13 +77,12 @@ export function BottomNav({ user }: { user: User | null }) {
 
   return (
     <nav
-      // Extra padding on top of the device's own safe-area inset (which
-      // already covers the home-indicator curve on modern iPhones/many
-      // Android phones) — halved from 8px to 4px, the inset alone plus 8
-      // more had the icons sitting further from the bottom edge than
-      // actually made sense once compared against the curve it was meant
-      // to clear.
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white pb-[calc(env(safe-area-inset-bottom)+4px)] md:hidden"
+      // The device's own safe-area inset alone — it already covers the
+      // home-indicator curve on modern iPhones/many Android phones, so
+      // no extra hand-picked buffer on top of it (a prior +4/+8px made the
+      // icons sit further from the bottom edge than the curve it was
+      // meant to clear actually needs).
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
       aria-label="Navigation principale"
     >
       <div className="mx-auto flex max-w-6xl">

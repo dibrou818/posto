@@ -874,7 +874,7 @@ export function Map({
 
   if (initError) {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gray-50 px-6 text-center">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-white px-6 text-center">
         <p className="text-sm font-medium text-gray-900">La carte n&apos;a pas pu s&apos;afficher</p>
         <p className="max-w-sm text-sm text-gray-500">
           Votre navigateur n&apos;a pas pu activer l&apos;accélération graphique (WebGL2) nécessaire à la
@@ -888,7 +888,7 @@ export function Map({
             setInitError(null);
             setRetryKey((k) => k + 1);
           }}
-          className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
+          className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
         >
           Réessayer
         </button>

@@ -18,7 +18,7 @@ export const LOCATE_ZOOM = 13;
 // (Google Maps, Apple Maps, etc.) — a simple filled arrowhead pointing
 // up-right, rather than a crosshair.
 function locateButtonIcon(status: LocateStatus) {
-  const color = status === "active" ? "#2563eb" : status === "denied" ? "#dc2626" : "#374151";
+  const color = status === "active" ? "#1b4ef5" : status === "denied" ? "#dc2626" : "#4d5973";
   return `
     <svg viewBox="0 0 24 24" width="18" height="18" fill="${color}" stroke="${color}" stroke-width="1" stroke-linejoin="round">
       <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
@@ -97,8 +97,8 @@ export function setupUserLocationLayer(
   const el = document.createElement("div");
   el.style.cssText = "position:relative;width:18px;height:18px;";
   el.innerHTML = `
-    <div class="posto-locate-pulse" style="position:absolute;inset:0;border-radius:50%;background:#2563eb;"></div>
-    <div style="position:absolute;inset:0;border-radius:50%;background:#2563eb;border:3px solid #ffffff;box-shadow:0 0 0 1px rgba(37,99,235,0.4),0 1px 4px rgba(0,0,0,0.35);"></div>
+    <div class="posto-locate-pulse" style="position:absolute;inset:0;border-radius:50%;background:#1b4ef5;"></div>
+    <div style="position:absolute;inset:0;border-radius:50%;background:#1b4ef5;border:3px solid #ffffff;box-shadow:0 0 0 1px rgba(27,78,245,0.4),0 1px 4px rgba(0,0,0,0.35);"></div>
   `;
 
   function updateAccuracyCircleRadius() {
@@ -125,10 +125,10 @@ export function setupUserLocationLayer(
       source: "user-accuracy",
       paint: {
         "circle-radius": 0,
-        "circle-color": "#2563eb",
+        "circle-color": "#1b4ef5",
         "circle-opacity": 0.1,
         "circle-stroke-width": 1,
-        "circle-stroke-color": "#2563eb",
+        "circle-stroke-color": "#1b4ef5",
       },
     });
   }

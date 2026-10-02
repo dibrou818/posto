@@ -408,12 +408,12 @@ export function HomeExplorer({
                 others (measured: 30px vs. their 38px), which is exactly
                 the kind of "looks about right" mismatch that doesn't show
                 up until it's sitting directly next to the real thing. */}
-            <div className="rounded-lg border border-gray-300 bg-white p-1 sm:shrink-0">
+            <div className="rounded-lg border border-gray-300 bg-white p-0.5 sm:shrink-0">
               <button
                 type="button"
                 onClick={() => setOpenNowOnly((v) => !v)}
                 aria-pressed={openNowOnly}
-                className={`min-h-11 w-full rounded-lg px-2.5 py-2 text-center text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
+                className={`min-h-8 w-full whitespace-nowrap rounded-md px-2.5 py-1 text-center text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
                   openNowOnly ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"
                 }`}
               >

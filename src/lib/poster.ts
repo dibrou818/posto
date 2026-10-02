@@ -10,10 +10,10 @@ const WIDTH = 1240;
 const HEIGHT = 1754; // A4 ratio at ~150dpi — sharp enough to print, not huge to upload
 const PADDING = 72;
 const FONT_STACK = "system-ui, -apple-system, 'Segoe UI', sans-serif";
-// Same violet used for event pins/markers elsewhere (Map.tsx's EVENT_COLOR)
+// Same blue used for event pins/markers elsewhere (Map.tsx's EVENT_COLOR)
 // — the poster should read as unmistakably "Posto" at a glance, not a
 // generic flyer.
-const ACCENT = "#7c3aed";
+const ACCENT = "#1b4ef5";
 
 export type PosterEventData = {
   title: string;
@@ -176,8 +176,8 @@ function drawFallbackBackground(ctx: CanvasRenderingContext2D) {
   // No cover photo — a plain dark gradient (matching the app's own dark
   // accent) reads as an intentional design choice, not a broken image.
   const gradient = ctx.createLinearGradient(0, 0, WIDTH, HEIGHT);
-  gradient.addColorStop(0, "#111827");
-  gradient.addColorStop(1, "#1f2937");
+  gradient.addColorStop(0, "#17213b");
+  gradient.addColorStop(1, "#1b2a52");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 }

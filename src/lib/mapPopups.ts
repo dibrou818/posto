@@ -9,16 +9,16 @@
 // photos gets the exact same swipe/arrow navigation in its popup as on its
 // full page instead of a second, plain-<img> reimplementation.
 
-// Violet, distinct from the dark place dot — a glance at the map (or a
+// Bleu principal, distinct from the navy place dot — a glance at the map (or a
 // popup) tells places and events apart even before opening anything. Also
 // used by Map.tsx itself for the events layer's paint color, so this is the
 // one place that actually owns the value.
-export const EVENT_COLOR = "#7c3aed";
+export const EVENT_COLOR = "#1b4ef5";
 // Same reasoning as EVENT_COLOR above — Map.tsx's own place-marker paint
 // color, exported so anything else that needs to draw "this is a place, in
 // Posto's own colors" (LocationMiniMapCanvas included) never has to
 // re-guess the hex value.
-export const PLACE_COLOR = "#111827";
+export const PLACE_COLOR = "#17213b";
 
 // Leaflet's bindPopup(string)/MapLibre's Popup#setHTML(string) both inject
 // the string as raw HTML with no escaping of their own — place.name/
@@ -54,10 +54,10 @@ export function popupBodyHtml(opts: {
 }) {
   return `
     <div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;">
-      <span style="font-weight:600;font-size:14px;line-height:1.25;color:#111827;">${escapeHtml(opts.title)}</span>
+      <span style="font-weight:600;font-size:14px;line-height:1.25;color:#17213b;">${escapeHtml(opts.title)}</span>
       ${
         opts.subtitle
-          ? `<span style="display:flex;align-items:center;gap:4px;font-size:12px;color:#6b7280;overflow:hidden;">
+          ? `<span style="display:flex;align-items:center;gap:4px;font-size:12px;color:#667089;overflow:hidden;">
                <span style="flex-shrink:0;display:flex;">${PIN_ICON_SVG}</span>
                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(opts.subtitle)}</span>
              </span>`
@@ -68,7 +68,7 @@ export function popupBodyHtml(opts: {
         ${opts.badge.icon ? `<span style="display:flex;">${opts.badge.icon}</span>` : ""}
         ${escapeHtml(opts.badge.label)}
       </span>
-      <a href="${opts.href}" style="margin-top:2px;display:block;text-align:center;padding:7px 10px;border-radius:8px;background:#111827;color:#ffffff;font-size:12px;font-weight:600;text-decoration:none;">
+      <a href="${opts.href}" style="margin-top:2px;display:block;text-align:center;padding:7px 10px;border-radius:8px;background:#17213b;color:#ffffff;font-size:12px;font-weight:600;text-decoration:none;">
         ${escapeHtml(opts.cta)}
       </a>
     </div>

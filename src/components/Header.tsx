@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { buttonClass } from "@/lib/ui";
+import { Logo } from "@/components/Logo";
 
 const navLinkClass =
   "inline-flex min-h-11 items-center rounded-xl px-3 py-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20";
@@ -14,9 +15,8 @@ export function Header({ user }: { user: User | null }) {
   // rest of the app on purpose — showing this nav here would undo that the
   // moment someone tapped "Accueil"/"Carte".
   if (pathname === "/landing" || pathname.startsWith("/dashboard")) return null;
-  // The full-screen map is meant to reach the very top of the viewport on
-  // mobile, so the header only shows there from md upward.
-  const isFullScreenMap = pathname === "/map";
+  // The logo lives only in this header, and the header is desktop-only: on
+  // mobile the bottom nav is the navigation, so there's no top bar at all.
 
   function linkClass(href: string) {
     const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -25,14 +25,15 @@ export function Header({ user }: { user: User | null }) {
 
   return (
     <header
-      className={`sticky top-0 z-40 border-b border-gray-200 bg-white pt-[env(safe-area-inset-top)] ${isFullScreenMap ? "hidden md:block" : ""}`}
+      className={`sticky top-0 z-40 border-b border-gray-200 bg-white pt-[env(safe-area-inset-top)] hidden md:block`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link
           href="/"
-          className="rounded-md text-lg font-bold text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+          aria-label="Posto, accueil"
+          className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
         >
-          Posto
+          <Logo size={32} />
         </Link>
         <nav className="hidden items-center gap-2 text-sm md:flex">
           <Link href="/" className={linkClass("/")}>

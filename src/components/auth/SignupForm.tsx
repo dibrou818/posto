@@ -31,7 +31,18 @@ export function SignupForm({ nextPath = "/account" }: { nextPath?: string }) {
     setLoading(true);
 
     let result;
-    try { result = await supabase.auth.signUp({ email, password }); }
+    try {
+      result = await supabase.auth.signUp({
+        email,
+        password,
+        // Hardcoded to production, not the current request's own origin
+        // (unlike getSiteOrigin() elsewhere in this app): this link is
+        // opened later, from the confirmation email, often on a different
+        // device — pointing it at whatever localhost the signup happened
+        // on would be unreachable by the time anyone clicks it.
+        options: { emailRedirectTo: "https://goposto.com/login" },
+      });
+    }
     catch { setError("Création impossible. Vérifiez votre réseau et réessayez."); setLoading(false); return; }
     const { data, error } = result;
 

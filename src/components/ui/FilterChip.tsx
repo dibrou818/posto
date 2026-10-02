@@ -108,13 +108,13 @@ export function FilterChip({
           content-sized button in an otherwise-wide box; on desktop, where
           the row never forces a chip wider than its own content, flex-1
           has nothing to grow into and this renders exactly as before. */}
-      <div className="flex min-w-0 items-center gap-1 rounded-lg border border-gray-300 bg-white p-1 text-xs">
+      <div className="flex min-w-0 items-center gap-1 rounded-lg border border-gray-300 bg-white p-0.5 text-xs">
         <button
           type="button"
           ref={triggerRef}
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-1.5 rounded-md px-2.5 py-1.5 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+          className="flex min-h-8 min-w-0 flex-1 items-center justify-between gap-1.5 rounded-md px-2.5 py-1 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
         >
           <span className="flex min-w-0 items-center gap-1.5">
             {icon}
@@ -128,7 +128,7 @@ export function FilterChip({
             onClick={onClear}
             aria-label={clearLabel}
             title="Réinitialiser"
-            className="min-h-11 min-w-11 shrink-0 rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+            className="min-h-8 min-w-8 shrink-0 rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
           >
             ✕
           </button>

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Bricolage_Grotesque } from "next/font/google";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 import { Header } from "@/components/Header";
@@ -10,6 +10,12 @@ import { createClient } from "@/lib/supabase/server";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+});
+
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
+  subsets: ["latin"],
+  weight: ["700", "800"],
 });
 
 const geistMono = Geist_Mono({
@@ -76,7 +82,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="fr"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${bricolage.variable} h-full antialiased`}
     >
       <head>
         {/* Warms up the DNS/TLS handshake to the map tile host ahead of
@@ -86,7 +92,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <link rel="preconnect" href="https://tiles.openfreemap.org" />
         <link rel="dns-prefetch" href="https://tiles.openfreemap.org" />
       </head>
-      <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
+      <body className="min-h-full flex flex-col bg-white text-gray-900">
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[9999] focus:rounded-xl focus:bg-white focus:p-4">Aller au contenu</a>
         <Header user={user} />
         {/* Bottom padding to clear the fixed BottomNav — matches its real
