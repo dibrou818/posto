@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { getPlaceById, getActivitiesForPlace, getAllTags } from "@/lib/queries";
 import { ActivitiesManager } from "@/components/dashboard/ActivitiesManager";
-import { DashboardSection } from "@/components/dashboard/DashboardSection";
 import { createActivity, updateActivity, deleteActivity } from "@/app/dashboard/actions";
 
 export default async function PlaceActivitiesPage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,14 +18,12 @@ export default async function PlaceActivitiesPage({ params }: { params: Promise<
   ]);
 
   return (
-    <DashboardSection title="Activités récurrentes">
-      <ActivitiesManager
-        activities={activities}
-        allTags={allTags}
-        onCreate={createActivity.bind(null, id)}
-        onUpdate={updateActivity.bind(null, id)}
-        onDelete={deleteActivity.bind(null, id)}
-      />
-    </DashboardSection>
+    <ActivitiesManager
+      activities={activities}
+      allTags={allTags}
+      onCreate={createActivity.bind(null, id)}
+      onUpdate={updateActivity.bind(null, id)}
+      onDelete={deleteActivity.bind(null, id)}
+    />
   );
 }

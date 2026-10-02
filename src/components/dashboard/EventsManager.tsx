@@ -37,11 +37,13 @@ function EventRow({
   event,
   scanStats,
   onDelete,
+  onDuplicate,
 }: {
   placeId: string;
   event: Event;
   scanStats: QrScanStats | undefined;
   onDelete: (eventId: string) => Promise<void>;
+  onDuplicate: (eventId: string) => Promise<void>;
 }) {
   const status = getEventStatus(event);
   const priceLabel = formatPrice(event.price_cents, event.price_unit);
@@ -107,7 +109,12 @@ function EventRow({
           Affiche
           {!hasPoster && <span className="text-xs font-normal text-gray-500">à créer</span>}
         </Link>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <form action={onDuplicate.bind(null, event.id)}>
+            <button type="submit" className={`${quickActionClass} border-gray-300 bg-white text-gray-900 hover:bg-gray-50`}>
+              Dupliquer
+            </button>
+          </form>
           <LinkButton href={`/events/${event.id}`} icon="external">
             Voir
           </LinkButton>
@@ -134,6 +141,7 @@ export function EventsManager({
   scanStatsById,
   onCreate,
   onDelete,
+  onDuplicate,
 }: {
   placeId: string;
   events: Event[];
@@ -142,6 +150,7 @@ export function EventsManager({
   scanStatsById: Record<string, QrScanStats>;
   onCreate: (formData: FormData) => Promise<void>;
   onDelete: (eventId: string) => Promise<void>;
+  onDuplicate: (eventId: string) => Promise<void>;
 }) {
   const now = new Date();
   const active: Event[] = [];
@@ -176,7 +185,7 @@ export function EventsManager({
       {active.length > 0 && (
         <ul className="flex flex-col gap-3">
           {active.map((event) => (
-            <EventRow key={event.id} placeId={placeId} event={event} scanStats={scanStatsById[event.id]} onDelete={onDelete} />
+            <EventRow key={event.id} placeId={placeId} event={event} scanStats={scanStatsById[event.id]} onDelete={onDelete} onDuplicate={onDuplicate} />
           ))}
         </ul>
       )}
@@ -192,7 +201,7 @@ export function EventsManager({
           </summary>
           <ul className="mt-3 flex flex-col gap-3">
             {past.map((event) => (
-              <EventRow key={event.id} placeId={placeId} event={event} scanStats={undefined} onDelete={onDelete} />
+              <EventRow key={event.id} placeId={placeId} event={event} scanStats={undefined} onDelete={onDelete} onDuplicate={onDuplicate} />
             ))}
           </ul>
         </details>

@@ -3,59 +3,109 @@
 import { useState } from "react";
 import type { OpeningHour } from "@/lib/queries";
 import { dayLabel, listZoneNames } from "@/lib/opening-hours";
-import { compactInputClass } from "@/lib/ui";
 import { SaveButton } from "@/components/ui/SaveButton";
+import { FormSection, FormActions } from "@/components/dashboard/FormSection";
+import { UnsavedChangesGuard } from "@/components/dashboard/UnsavedChangesGuard";
 
-/** One zone's 7-day grid. `zoneIndex` becomes the field-name suffix the
+// Monday first, as people read a week in France; the stored day numbers
+// (0 = Sunday) are unchanged.
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
+type DayState = { open: boolean; from: string; to: string };
+
+const timeClass =
+  "min-h-10 w-[6.5rem] rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10 disabled:opacity-40";
+
+const toolButtonClass =
+  "inline-flex min-h-10 items-center rounded-full border border-gray-300 bg-white px-3 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50";
+
+/** One zone's week: a switch per day with its opening and closing time on
+ * the same line, plus shortcuts for the common cases (same hours every day,
+ * open all day, closed). `zoneIndex` becomes the field-name suffix the
  * server action reads (open_<zoneIndex>_<day>, etc.) — 0 is always the
- * place's general hours, 1+ are named sub-schedules. Keyed by the caller on
- * the zone's *name*, not this index, so removing an earlier zone doesn't
- * reset a later one's checkboxes even though its index shifts down. */
-function DayRows({ zoneIndex, hoursByDay }: { zoneIndex: number; hoursByDay: (OpeningHour | undefined)[] }) {
-  const [openDays, setOpenDays] = useState(hoursByDay.map((h) => h !== undefined));
+ * place's general hours, 1+ are named sub-schedules. */
+function ZoneHours({ zoneIndex, hoursByDay }: { zoneIndex: number; hoursByDay: (OpeningHour | undefined)[] }) {
+  const [days, setDays] = useState<DayState[]>(() =>
+    hoursByDay.map((h) => ({
+      open: h !== undefined,
+      from: h?.open_time.slice(0, 5) ?? "10:00",
+      to: h?.close_time.slice(0, 5) ?? "19:00",
+    })),
+  );
+
+  const update = (day: number, patch: Partial<DayState>) =>
+    setDays((prev) => prev.map((d, i) => (i === day ? { ...d, ...patch } : d)));
+
+  function sameEveryDay() {
+    const reference = DAY_ORDER.map((d) => days[d]).find((d) => d.open) ?? days[1];
+    setDays(days.map(() => ({ open: true, from: reference.from, to: reference.to })));
+  }
 
   return (
-    <>
-      {Array.from({ length: 7 }, (_, day) => day).map((day) => (
-        <div key={day} className="flex flex-wrap items-center gap-2 rounded-md border border-gray-200 px-3 py-2">
-          <label className="flex w-24 shrink-0 items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              name={`open_${zoneIndex}_${day}`}
-              defaultChecked={openDays[day]}
-              onChange={(e) =>
-                setOpenDays((prev) => prev.map((v, i) => (i === day ? e.target.checked : v)))
-              }
-            />
-            {dayLabel(day)}
-          </label>
-          {/* Grouped as one flex item, with a real minimum width (not
-              min-w-0), so the *whole* time range wraps onto its own line
-              below the day label on a narrow screen once it can no longer
-              fit comfortably — rather than every input just compressing
-              indefinitely to stay on the same line as the label, which is
-              what a min-w-0 group here would do and is what was cramming
-              two native time pickers into a sliver too narrow to read. */}
-          <div className="flex min-w-[13rem] flex-1 items-center gap-2">
-            <input
-              type="time"
-              name={`open_time_${zoneIndex}_${day}`}
-              defaultValue={hoursByDay[day]?.open_time.slice(0, 5) ?? "10:00"}
-              disabled={!openDays[day]}
-              className="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm disabled:opacity-40"
-            />
-            <span className="shrink-0 text-gray-500">à</span>
-            <input
-              type="time"
-              name={`close_time_${zoneIndex}_${day}`}
-              defaultValue={hoursByDay[day]?.close_time.slice(0, 5) ?? "19:00"}
-              disabled={!openDays[day]}
-              className="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm disabled:opacity-40"
-            />
-          </div>
-        </div>
-      ))}
-    </>
+    <div>
+      <div className="mb-2 flex flex-wrap gap-2">
+        <button type="button" onClick={sameEveryDay} className={toolButtonClass}>
+          Même horaire chaque jour
+        </button>
+        <button
+          type="button"
+          onClick={() => setDays(days.map(() => ({ open: true, from: "00:00", to: "23:59" })))}
+          className={toolButtonClass}
+        >
+          Ouvert 24 h/24
+        </button>
+        <button type="button" onClick={() => setDays(days.map((d) => ({ ...d, open: false })))} className={toolButtonClass}>
+          Tout fermer
+        </button>
+      </div>
+
+      <ul className="divide-y divide-gray-200 border-y border-gray-200">
+        {DAY_ORDER.map((day) => {
+          const state = days[day];
+          return (
+            <li key={day} className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 py-2">
+              <label className="flex min-h-10 w-32 shrink-0 cursor-pointer items-center gap-3 text-sm font-medium text-gray-900">
+                <input
+                  type="checkbox"
+                  name={`open_${zoneIndex}_${day}`}
+                  checked={state.open}
+                  onChange={(e) => update(day, { open: e.target.checked })}
+                  className="peer sr-only"
+                />
+                <span
+                  aria-hidden="true"
+                  className="relative h-6 w-10 shrink-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-gray-900 peer-focus-visible:ring-2 peer-focus-visible:ring-gray-900/30 peer-focus-visible:ring-offset-2 after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-4"
+                />
+                {dayLabel(day)}
+              </label>
+              {state.open ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    name={`open_time_${zoneIndex}_${day}`}
+                    value={state.from}
+                    onChange={(e) => update(day, { from: e.target.value })}
+                    aria-label={`${dayLabel(day)} : ouverture`}
+                    className={timeClass}
+                  />
+                  <span className="text-sm text-gray-500">à</span>
+                  <input
+                    type="time"
+                    name={`close_time_${zoneIndex}_${day}`}
+                    value={state.to}
+                    onChange={(e) => update(day, { to: e.target.value })}
+                    aria-label={`${dayLabel(day)} : fermeture`}
+                    className={timeClass}
+                  />
+                </div>
+              ) : (
+                <span className="text-sm text-gray-500">Fermé</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
@@ -65,11 +115,11 @@ function hoursByDayFor(hours: OpeningHour[], zoneName: string | null) {
 }
 
 /** Weekly hours, plus optional named sub-schedules ("Bassin extérieur",
- * "Cuisine") each with their own 7-day grid — for a place where different
- * zones/services don't share one schedule. Zones are entirely client-side
- * state until submit: the server action deletes and re-inserts every row
- * for the place in one go (see saveOpeningHours), so removing a zone here
- * just means its rows don't come back in that reinsert. */
+ * "Cuisine") each with their own week — for a place where different
+ * zones/services don't share one schedule. Zones are client-side state
+ * until submit: the server replaces every row for the place in one
+ * transaction (see saveOpeningHours), so removing a zone here just means
+ * its rows don't come back. */
 export function OpeningHoursForm({
   hours,
   action,
@@ -79,74 +129,79 @@ export function OpeningHoursForm({
 }) {
   const [zones, setZones] = useState<string[]>(() => listZoneNames(hours));
   const [newZoneName, setNewZoneName] = useState("");
+  const [adding, setAdding] = useState(false);
 
   function addZone() {
     const trimmed = newZoneName.trim();
     if (!trimmed || zones.includes(trimmed)) return;
     setZones((prev) => [...prev, trimmed]);
     setNewZoneName("");
-  }
-
-  function removeZone(name: string) {
-    setZones((prev) => prev.filter((z) => z !== name));
+    setAdding(false);
   }
 
   return (
-    <form action={action} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
-          Horaires généraux
-        </p>
-        <DayRows zoneIndex={0} hoursByDay={hoursByDayFor(hours, null)} />
-      </div>
+    <form action={action} className="flex flex-col">
+      <UnsavedChangesGuard />
+      <FormSection
+        first
+        title="Horaires généraux"
+        description="Pour une fermeture après minuit, indiquez l'heure du lendemain (par exemple 02:00)."
+      >
+        <ZoneHours zoneIndex={0} hoursByDay={hoursByDayFor(hours, null)} />
+      </FormSection>
 
       {zones.map((zoneName, i) => (
-        <div key={zoneName} className="flex flex-col gap-2 rounded-lg border border-dashed border-gray-300 p-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-900">{zoneName}</p>
+        <FormSection key={zoneName} title={zoneName} description="Horaires propres à cette zone ou à ce service.">
+          <input type="hidden" name="zone_names" value={zoneName} />
+          <ZoneHours zoneIndex={i + 1} hoursByDay={hoursByDayFor(hours, zoneName)} />
+          <div>
             <button
               type="button"
-              onClick={() => removeZone(zoneName)}
-              className="text-xs text-red-600 transition-colors hover:text-red-700 hover:underline"
+              onClick={() => setZones((prev) => prev.filter((z) => z !== zoneName))}
+              className="inline-flex min-h-10 items-center rounded-lg border border-red-200 px-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
             >
-              Supprimer cette zone
+              Retirer cette zone
             </button>
           </div>
-          <input type="hidden" name="zone_names" value={zoneName} />
-          <DayRows zoneIndex={i + 1} hoursByDay={hoursByDayFor(hours, zoneName)} />
-        </div>
+        </FormSection>
       ))}
 
-      {/* flex-wrap + a real min-width on the input (not min-w-0) — same
-          pattern as DayRows' time-range group above: on a narrow screen the
-          button drops to its own full-width line below the input instead of
-          either overflowing the card or squeezing the input unreadably
-          thin. */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-gray-300 p-3">
-        <input
-          value={newZoneName}
-          onChange={(e) => setNewZoneName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              addZone();
-            }
-          }}
-          placeholder="Nom de la zone/du service, ex: Bassin extérieur"
-          className={`min-w-[12rem] flex-1 ${compactInputClass}`}
-        />
-        <button
-          type="button"
-          onClick={addZone}
-          className="w-full shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:w-auto"
-        >
-          + Ajouter la zone
-        </button>
-      </div>
+      <FormSection title="Horaires séparés" description="Pour un bassin, une cuisine, un service qui n'ouvre pas aux mêmes heures que le lieu.">
+        {adding ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              autoFocus
+              value={newZoneName}
+              onChange={(e) => setNewZoneName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addZone();
+                }
+              }}
+              placeholder="Ex : Bassin extérieur"
+              aria-label="Nom de la zone"
+              className="min-h-11 min-w-[12rem] flex-1 rounded-xl border border-gray-300 bg-white px-3 text-base text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+            />
+            <button type="button" onClick={addZone} className={toolButtonClass}>
+              Ajouter
+            </button>
+            <button type="button" onClick={() => setAdding(false)} className="inline-flex min-h-10 items-center px-2 text-sm text-gray-600 hover:text-gray-900">
+              Annuler
+            </button>
+          </div>
+        ) : (
+          <div>
+            <button type="button" onClick={() => setAdding(true)} className={toolButtonClass}>
+              + Ajouter des horaires séparés
+            </button>
+          </div>
+        )}
+      </FormSection>
 
-      <SaveButton className="self-start" savedLabel="Horaires enregistrés">
-        Enregistrer les horaires
-      </SaveButton>
+      <FormActions>
+        <SaveButton savedLabel="Horaires enregistrés">Enregistrer les horaires</SaveButton>
+      </FormActions>
     </form>
   );
 }

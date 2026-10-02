@@ -2,11 +2,10 @@ import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { getPlaceById, getAllTags } from "@/lib/queries";
 import { PlaceForm } from "@/components/dashboard/PlaceForm";
-import { TagsForm } from "@/components/dashboard/TagsForm";
 import { FormSection } from "@/components/dashboard/FormSection";
 import { QrCodeSection } from "@/components/dashboard/QrCodeSection";
 import { getQrScanStats } from "@/lib/qrScans";
-import { updatePlace, savePlaceTags, generatePlaceQrCode } from "@/app/dashboard/actions";
+import { updatePlace, generatePlaceQrCode } from "@/app/dashboard/actions";
 
 export default async function PlaceInformationsPage({
   params,
@@ -40,17 +39,12 @@ export default async function PlaceInformationsPage({
         </div>
       )}
 
-      <PlaceForm place={place} action={updatePlace.bind(null, id)} />
-
-      <div>
-        <FormSection title="Tags" description="Ils aident les visiteurs à trouver votre lieu en filtrant par catégorie.">
-          <TagsForm
-            allTags={allTags}
-            selectedTagIds={place.tags.map((t) => t.id)}
-            action={savePlaceTags.bind(null, id)}
-          />
-        </FormSection>
-      </div>
+      <PlaceForm
+        place={place}
+        action={updatePlace.bind(null, id)}
+        allTags={allTags}
+        selectedTagIds={place.tags.map((t) => t.id)}
+      />
 
       <FormSection
         title="Code QR du lieu"

@@ -5,6 +5,8 @@ import { requireUser } from "@/lib/supabase/server";
 import { getPlaceById } from "@/lib/queries";
 import { getOpenStatus, formatOpenStatus } from "@/lib/opening-hours";
 import { LinkButton } from "@/components/ui/LinkButton";
+import { UrgentBanner } from "@/components/dashboard/UrgentBanner";
+import { removeUrgentMessage } from "@/app/dashboard/actions";
 
 // Shared by every /dashboard/places/[id]/* sub-page: the "which place am I
 // editing" header (photo, name, open/closed status, link to its public
@@ -26,9 +28,12 @@ export default async function PlaceDashboardLayout({
   if (place.owner_id !== user.id) redirect("/dashboard");
 
   const openStatus = getOpenStatus(place.opening_hours);
+  const urgentActive =
+    Boolean(place.urgent_message) &&
+    (!place.urgent_message_expires_at || new Date(place.urgent_message_expires_at) > new Date());
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+    <div className="mx-auto w-full max-w-4xl [--pro-bottom-offset:calc(3.5rem+env(safe-area-inset-bottom))] px-4 py-6 pb-24 sm:px-6 sm:py-8 lg:[--pro-bottom-offset:0px] lg:pb-8">
       <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-gray-200 pb-5">
         <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:h-14 sm:w-14">
           {place.cover_photo_url && (
@@ -47,6 +52,15 @@ export default async function PlaceDashboardLayout({
           Voir la fiche publique
         </LinkButton>
       </div>
+
+      {urgentActive && (
+        <UrgentBanner
+          placeId={place.id}
+          message={place.urgent_message!}
+          expiresAt={place.urgent_message_expires_at}
+          onRemove={removeUrgentMessage.bind(null, place.id)}
+        />
+      )}
 
       {children}
     </div>

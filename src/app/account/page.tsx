@@ -26,7 +26,7 @@ export default async function AccountPage() {
     <section aria-labelledby="pro-space" className="mt-8">
       <h2 id="pro-space" className="mb-3 text-sm font-medium text-gray-500">Pour les professionnels</h2>
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        <AccountLink href={places.length ? "/dashboard" : "/dashboard/places/new"} title={places.length ? "Espace professionnel" : "Ajouter mon établissement"} detail={places.length ? `Gérer ${places.length === 1 ? places[0].name : `mes ${places.length} établissements`}` : "Présenter mon lieu et publier ses événements"} />
+        <AccountLink href={places.length ? "/dashboard" : "/dashboard/places/new"} title={places.length ? "Espace professionnel" : "Ajouter mon lieu"} detail={places.length ? `Gérer ${places.length === 1 ? places[0].name : `mes ${places.length} lieux`}` : "Présenter mon lieu et publier ses événements"} />
       </div>
     </section>
     <div className="mt-8"><SignOutButton /></div>

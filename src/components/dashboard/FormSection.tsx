@@ -41,7 +41,7 @@ export function FormSection({
 export function FormActions({ compact = false, children }: { compact?: boolean; children: ReactNode }) {
   if (compact) return <div className="pt-1">{children}</div>;
   return (
-    <div className="sticky bottom-0 z-20 -mx-4 flex border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 md:justify-end">
+    <div className="sticky bottom-[var(--pro-bottom-offset,0px)] z-20 -mx-4 flex border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 md:justify-end">
       {children}
     </div>
   );

@@ -24,10 +24,10 @@ export default async function EditEventPage({
   searchParams,
 }: {
   params: Promise<{ id: string; eventId: string }>;
-  searchParams: Promise<{ tab?: string; created?: string }>;
+  searchParams: Promise<{ tab?: string; created?: string; duplicated?: string }>;
 }) {
   const { id, eventId } = await params;
-  const { tab: rawTab, created } = await searchParams;
+  const { tab: rawTab, created, duplicated } = await searchParams;
   const tab: EventTabKey = rawTab === "qr" || rawTab === "affiche" ? rawTab : "infos";
   const { supabase, user } = await requireUser();
 
@@ -68,6 +68,13 @@ export default async function EditEventPage({
           <p className="mt-0.5 text-green-800">
             Prochaine étape : générez son code QR, puis créez l&apos;affiche à imprimer ou à partager.
           </p>
+        </div>
+      )}
+
+      {duplicated === "1" && (
+        <div role="status" className="mb-5 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
+          <p className="font-semibold">Copie créée.</p>
+          <p className="mt-0.5 text-green-800">Ajustez maintenant la date et le titre, puis enregistrez.</p>
         </div>
       )}
 

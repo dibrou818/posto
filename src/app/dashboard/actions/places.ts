@@ -69,6 +69,7 @@ export async function createPlace(formData: FormData) {
     .single();
 
   if (error) throw new Error(error.message);
+  if (formData.has("tags_present")) await replaceTags(supabase, data.id, formData);
 
   revalidatePath("/dashboard");
   redirect(`/dashboard/places/${data.id}/informations?created=1`);
@@ -90,6 +91,7 @@ export async function updatePlace(placeId: string, formData: FormData) {
 
   const { error } = await supabase.from("places").update(fields).eq("id", placeId);
   if (error) throw new Error(error.message);
+  if (formData.has("tags_present")) await replaceTags(supabase, placeId, formData);
 
   // A cover photo swapped for a new one, or a gallery photo the owner
   // removed, otherwise leaves its old file behind in Storage forever —
@@ -106,7 +108,8 @@ export async function updatePlace(placeId: string, formData: FormData) {
     await supabase.storage.from(PLACE_PHOTOS_BUCKET).remove(droppedPaths);
   }
 
-  revalidatePath(`/dashboard/places/${placeId}/informations`);
+  revalidatePath(`/dashboard/places/${placeId}`, "layout");
+  revalidatePath(`/places/${placeId}`);
   revalidatePath("/dashboard");
 }
 
@@ -152,7 +155,7 @@ export async function saveOpeningHours(placeId: string, formData: FormData) {
   const zoneNames = formData.getAll("zone_names").map(String);
   const allZones: (string | null)[] = [null, ...zoneNames];
 
-  const rows: { place_id: string; day_of_week: number; open_time: string; close_time: string; zone_name: string | null }[] = [];
+  const rows: { day_of_week: number; open_time: string; close_time: string; zone_name: string | null }[] = [];
   allZones.forEach((zoneName, zoneIndex) => {
     for (let day = 0; day < 7; day++) {
       const isOpen = formData.get(`open_${zoneIndex}_${day}`) === "on";
@@ -160,42 +163,49 @@ export async function saveOpeningHours(placeId: string, formData: FormData) {
       const open_time = String(formData.get(`open_time_${zoneIndex}_${day}`) ?? "");
       const close_time = String(formData.get(`close_time_${zoneIndex}_${day}`) ?? "");
       if (!open_time || !close_time) continue;
-      rows.push({ place_id: placeId, day_of_week: day, open_time, close_time, zone_name: zoneName });
+      rows.push({ day_of_week: day, open_time, close_time, zone_name: zoneName });
     }
   });
 
-  const { error: deleteError } = await supabase
-    .from("opening_hours")
-    .delete()
-    .eq("place_id", placeId);
-  if (deleteError) throw new Error(deleteError.message);
-
-  if (rows.length > 0) {
-    const { error: insertError } = await supabase.from("opening_hours").insert(rows);
-    if (insertError) throw new Error(insertError.message);
-  }
+  // One database call that deletes the old rows and inserts the new ones in
+  // a single transaction: if anything fails, the place keeps its previous
+  // hours instead of ending up with none.
+  const { error } = await supabase.rpc("replace_opening_hours", { p_place_id: placeId, p_rows: rows });
+  if (error) throw new Error(error.message);
 
   revalidatePath(`/dashboard/places/${placeId}/horaires`);
+  revalidatePath(`/places/${placeId}`);
+}
+
+async function replaceTags(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  placeId: string,
+  formData: FormData,
+) {
+  const tagIds = formData.getAll("tag_ids").map(String);
+  const { error } = await supabase.rpc("replace_place_tags", { p_place_id: placeId, p_tag_ids: tagIds });
+  if (error) throw new Error(error.message);
 }
 
 export async function savePlaceTags(placeId: string, formData: FormData) {
   const { supabase, user } = await requireUser();
   await assertOwnsPlace(supabase, user.id, placeId);
-
-  const tagIds = formData.getAll("tag_ids").map(String);
-
-  const { error: deleteError } = await supabase
-    .from("place_tags")
-    .delete()
-    .eq("place_id", placeId);
-  if (deleteError) throw new Error(deleteError.message);
-
-  if (tagIds.length > 0) {
-    const { error: insertError } = await supabase
-      .from("place_tags")
-      .insert(tagIds.map((tag_id) => ({ place_id: placeId, tag_id })));
-    if (insertError) throw new Error(insertError.message);
-  }
-
+  await replaceTags(supabase, placeId, formData);
   revalidatePath(`/dashboard/places/${placeId}/informations`);
+}
+
+/** Takes the urgent message down right now: clears the text and its expiry
+ * in one step (the banner on every place page calls this). */
+export async function removeUrgentMessage(placeId: string) {
+  const { supabase, user } = await requireUser();
+  await assertOwnsPlace(supabase, user.id, placeId);
+
+  const { error } = await supabase
+    .from("places")
+    .update({ urgent_message: null, urgent_message_expires_at: null })
+    .eq("id", placeId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dashboard/places/${placeId}`, "layout");
+  revalidatePath(`/places/${placeId}`);
 }

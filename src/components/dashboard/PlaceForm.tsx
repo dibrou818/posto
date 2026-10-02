@@ -2,28 +2,33 @@
 
 import { useState } from "react";
 import type { Tables } from "@/types/database.types";
+import type { Tag } from "@/lib/queries";
+import { UrgentMessageFields } from "@/components/dashboard/UrgentMessageFields";
+import { UnsavedChangesGuard } from "@/components/dashboard/UnsavedChangesGuard";
 import { TextField, TextareaField } from "@/components/ui/TextField";
 import { PhoneField } from "@/components/ui/PhoneField";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { PhotoPickerButton } from "@/components/ui/PhotoPickerButton";
-import { DateTimeField } from "@/components/ui/DateTimeField";
 import { FormSection, FormActions } from "@/components/dashboard/FormSection";
 import { AddressField } from "@/components/dashboard/AddressField";
 import { labelClass } from "@/lib/ui";
 import { useSupabasePhotoUpload } from "@/lib/useSupabasePhotoUpload";
-import { toDatetimeLocalValue } from "@/lib/eventSchedule";
 import {
   PLACE_NAME_MAX_LENGTH as NAME_MAX_LENGTH,
   PLACE_DESCRIPTION_MAX_LENGTH as DESCRIPTION_MAX_LENGTH,
-  URGENT_MESSAGE_MAX_LENGTH,
 } from "@/lib/fieldLimits";
 
 export function PlaceForm({
   place,
   action,
+  allTags,
+  selectedTagIds,
 }: {
   place?: Tables<"places">;
   action: (formData: FormData) => Promise<void>;
+  /** When given, the category picker is part of this same form (one save). */
+  allTags?: Tag[];
+  selectedTagIds?: string[];
 }) {
   const [coverPhotoUrl, setCoverPhotoUrl] = useState(place?.cover_photo_url ?? "");
   const [photoUrls, setPhotoUrls] = useState<string[]>(place?.photo_urls ?? []);
@@ -42,6 +47,7 @@ export function PlaceForm({
 
   return (
     <form action={action} className="flex flex-col">
+      <UnsavedChangesGuard />
       <FormSection first title="Présentation" description="Ce que les visiteurs lisent en premier sur votre fiche.">
         <TextField label="Nom du lieu" name="name" required maxLength={NAME_MAX_LENGTH} defaultValue={place?.name} />
         <TextareaField
@@ -123,29 +129,30 @@ export function PlaceForm({
 
       <FormSection
         title="Message urgent"
-        description="Affiché en priorité sur la fiche, par exemple une fermeture exceptionnelle. Il disparaît tout seul après la date d'expiration."
+        description="Affiché en priorité sur la fiche, par exemple une fermeture exceptionnelle. Vous pouvez le retirer en deux clics depuis le bandeau en haut de page."
       >
-        <details open={Boolean(place?.urgent_message)}>
-          <summary className="cursor-pointer text-sm font-medium text-gray-900 underline-offset-4 hover:underline">
-            {place?.urgent_message ? "Message en cours" : "Ajouter un message urgent"}
-          </summary>
-          <div className="mt-3 flex flex-col gap-4">
-            <TextareaField
-              label="Message"
-              name="urgent_message"
-              rows={2}
-              maxLength={URGENT_MESSAGE_MAX_LENGTH}
-              placeholder="Fermeture exceptionnelle le 15 septembre..."
-              defaultValue={place?.urgent_message ?? ""}
-            />
-            <DateTimeField
-              label="Expire le"
-              name="urgent_message_expires_at"
-              defaultValue={toDatetimeLocalValue(place?.urgent_message_expires_at)}
-            />
-          </div>
-        </details>
+        <UrgentMessageFields
+          defaultMessage={place?.urgent_message ?? null}
+          defaultExpiresAt={place?.urgent_message_expires_at ?? null}
+        />
       </FormSection>
+
+      {allTags && (
+        <FormSection title="Catégories" description="Elles aident les visiteurs à trouver votre lieu en filtrant.">
+          <input type="hidden" name="tags_present" value="1" />
+          <div className="flex flex-wrap gap-2">
+            {allTags.map((tag) => (
+              <label
+                key={tag.id}
+                className="flex min-h-10 cursor-pointer items-center rounded-full border border-gray-300 px-3.5 text-sm transition-colors hover:bg-gray-50 has-[:checked]:border-gray-900 has-[:checked]:bg-gray-900 has-[:checked]:text-white"
+              >
+                <input type="checkbox" name="tag_ids" value={tag.id} defaultChecked={selectedTagIds?.includes(tag.id)} className="sr-only" />
+                {tag.label}
+              </label>
+            ))}
+          </div>
+        </FormSection>
+      )}
 
       {error && <p className="pb-2 text-sm text-red-600">{error}</p>}
 

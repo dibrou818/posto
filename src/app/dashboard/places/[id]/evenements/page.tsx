@@ -4,7 +4,7 @@ import { getPlaceById, getAllEventsForPlace, getAllTags } from "@/lib/queries";
 import { EventsManager } from "@/components/dashboard/EventsManager";
 import { getQrScanStats, type QrScanStats } from "@/lib/qrScans";
 import { getEventStatus } from "@/lib/dashboardEventStatus";
-import { createEvent, deleteEvent } from "@/app/dashboard/actions";
+import { createEvent, deleteEvent, duplicateEvent } from "@/app/dashboard/actions";
 
 export default async function PlaceEventsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -39,6 +39,7 @@ export default async function PlaceEventsPage({ params }: { params: Promise<{ id
       scanStatsById={scanStatsById}
       onCreate={createEvent.bind(null, id)}
       onDelete={deleteEvent.bind(null, id)}
+      onDuplicate={duplicateEvent.bind(null, id)}
     />
   );
 }

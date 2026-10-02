@@ -368,6 +368,8 @@ export type Database = {
     }
     Functions: {
       delete_own_account: { Args: never; Returns: undefined }
+      replace_opening_hours: { Args: { p_place_id: string; p_rows: Json }; Returns: undefined }
+      replace_place_tags: { Args: { p_place_id: string; p_tag_ids: string[] }; Returns: undefined }
       search_all: {
         Args: { search_query: string; user_lat?: number; user_lng?: number }
         Returns: {

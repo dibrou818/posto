@@ -6,7 +6,7 @@
 // "@/app/dashboard/actions") so this reorganization needed zero changes at
 // any call site — a re-exported server action is still the same server
 // action, "use server" lives on the file that actually defines it.
-export { createPlace, updatePlace, generatePlaceQrCode, deletePlace, saveOpeningHours, savePlaceTags } from "./actions/places";
+export { createPlace, updatePlace, generatePlaceQrCode, deletePlace, saveOpeningHours, savePlaceTags, removeUrgentMessage } from "./actions/places";
 export { createActivity, updateActivity, deleteActivity } from "./actions/activities";
-export { createEvent, updateEvent, generateEventQrCode, deleteEvent, saveEventPoster, deleteEventPoster } from "./actions/events";
+export { createEvent, duplicateEvent, updateEvent, generateEventQrCode, deleteEvent, saveEventPoster, deleteEventPoster } from "./actions/events";
 export { deleteAccount } from "./actions/account";

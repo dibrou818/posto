@@ -114,6 +114,44 @@ export async function createEvent(placeId: string, formData: FormData) {
   redirect(`/dashboard/places/${placeId}/evenements/${created.id}?tab=qr&created=1`);
 }
 
+/** Copies an event (same details, no QR code or poster yet) and opens the
+ * copy so its date can be adjusted — the common case for a weekly night. */
+export async function duplicateEvent(placeId: string, eventId: string) {
+  const { supabase, user } = await requireUser();
+  await assertOwnsPlace(supabase, user.id, placeId);
+
+  const { data: source, error: readError } = await supabase
+    .from("events")
+    .select("*")
+    .eq("id", eventId)
+    .eq("place_id", placeId)
+    .single();
+  if (readError || !source) throw new Error("Événement introuvable.");
+
+  const { data: copy, error } = await supabase
+    .from("events")
+    .insert({
+      place_id: placeId,
+      title: `${source.title} (copie)`.slice(0, EVENT_TITLE_MAX_LENGTH),
+      description: source.description,
+      start_datetime: source.start_datetime,
+      end_datetime: source.end_datetime,
+      recurrence_rule: source.recurrence_rule,
+      tag_id: source.tag_id,
+      price_cents: source.price_cents,
+      price_unit: source.price_unit,
+      cover_photo_url: source.cover_photo_url,
+      duration_minutes: source.duration_minutes,
+      restrictions: source.restrictions,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/dashboard/places/${placeId}/evenements`);
+  redirect(`/dashboard/places/${placeId}/evenements/${copy.id}?duplicated=1`);
+}
+
 // Same field set/validation as createEvent above — kept as two separate
 // functions rather than one with an optional eventId because their DB calls
 // genuinely differ (insert vs. re-scoped update), not just a detail worth

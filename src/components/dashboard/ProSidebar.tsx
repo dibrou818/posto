@@ -17,7 +17,7 @@ const PLACE_SECTIONS = [
   { slug: "horaires", label: "Horaires", icon: ClockIcon },
   { slug: "activites", label: "Activités", icon: ActivityIcon },
   { slug: "evenements", label: "Événements", icon: CalendarIcon },
-  { slug: "parametres", label: "Paramètres du lieu", icon: SettingsIcon },
+  { slug: "parametres", label: "Paramètres du lieu", icon: SlidersIcon },
 ];
 
 function GridIcon() {
@@ -40,8 +40,12 @@ function CalendarIcon() {
   return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8h14M7 3v3M13 3v3" strokeLinecap="round"/></svg>;
 }
 
-function SettingsIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="10" cy="10" r="2.5"/><path d="M10 2.8v1.4M10 15.8v1.4M17.2 10h-1.4M4.2 10H2.8M15.1 4.9l-1 1M5.9 14.1l-1 1M15.1 15.1l-1-1M5.9 5.9l-1-1" strokeLinecap="round"/></svg>;
+function SlidersIcon() {
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M3 6h7M14 6h3M3 14h3M10 14h7" strokeLinecap="round"/><circle cx="12" cy="6" r="2"/><circle cx="8" cy="14" r="2"/></svg>;
+}
+
+function UserIcon() {
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="10" cy="7" r="3.2"/><path d="M3.8 17c.8-3 3.3-4.5 6.2-4.5s5.4 1.5 6.2 4.5" strokeLinecap="round"/></svg>;
 }
 
 function ArrowLeftIcon() {
@@ -86,19 +90,19 @@ function SidebarContent({
         <nav className="space-y-1" aria-label="Navigation professionnelle">
           <Link href="/dashboard" onClick={onNavigate} className={navClass(pathname === "/dashboard")}>
             <GridIcon />
-            Mes établissements
+            Mes lieux
           </Link>
         </nav>
 
         {places.length > 0 && (
           <div className="mt-6">
-            <p className="mb-2 px-3 text-[11px] font-semibold tracking-[0.12em] text-gray-400 uppercase">Établissement</p>
+            <p className="mb-2 px-3 text-[11px] font-semibold tracking-[0.12em] text-gray-400 uppercase">Lieu</p>
             <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-2">
               <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-gray-100">
                 {currentPlace?.coverPhotoUrl && <Image src={currentPlace.coverPhotoUrl} alt="" fill sizes="36px" className="object-cover" />}
               </div>
               <select
-                aria-label="Choisir un établissement"
+                aria-label="Choisir un lieu"
                 value={currentPlace?.id ?? ""}
                 onChange={(event) => {
                   if (event.target.value) {
@@ -127,21 +131,17 @@ function SidebarContent({
                 </Link>
               );
             })}
-            <Link href={`/places/${currentPlace.id}`} onClick={onNavigate} className={navClass(false)}>
-              <span className="w-4 text-center text-xs">↗</span>
-              Voir la fiche publique
-            </Link>
           </nav>
         )}
 
         <div className="mt-6 border-t border-gray-200 pt-4">
           <Link href="/dashboard/places/new" onClick={onNavigate} className={navClass(pathname === "/dashboard/places/new")}>
             <span className="w-4 text-center text-lg leading-none">+</span>
-            Ajouter un établissement
+            Ajouter un lieu
           </Link>
           <Link href="/dashboard/parametres" onClick={onNavigate} className={navClass(pathname === "/dashboard/parametres")}>
-            <SettingsIcon />
-            Paramètres du compte
+            <UserIcon />
+            Mon compte
           </Link>
         </div>
       </div>
@@ -162,6 +162,15 @@ export function ProSidebar({ places }: { places: ManagedPlace[] }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const placeId = pathname.match(/^\/dashboard\/places\/([^/]+)/)?.[1];
   const currentPlace = places.find((place) => place.id === placeId) ?? null;
+  const currentSection = PLACE_SECTIONS.find((section) => pathname.startsWith(`/dashboard/places/${placeId}/${section.slug}`));
+  const headerTitle = currentPlace
+    ? (currentSection?.label ?? currentPlace.name)
+    : pathname === "/dashboard/places/new"
+      ? "Ajouter un lieu"
+      : pathname.startsWith("/dashboard/parametres")
+        ? "Mon compte"
+        : "Mes lieux";
+  const headerSubtitle = currentPlace && currentSection ? currentPlace.name : null;
 
   // A mobile drawer should behave like a real navigation surface: the page
   // behind it stays still, Escape closes it on hardware keyboards, and the
@@ -188,13 +197,42 @@ export function ProSidebar({ places }: { places: ManagedPlace[] }) {
         <SidebarContent places={places} currentPlace={currentPlace} />
       </aside>
 
-      <header className="sticky top-0 z-40 flex min-h-14 w-full shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 pt-[env(safe-area-inset-top)] lg:hidden">
-        <button type="button" onClick={() => setOpen(true)} aria-label="Ouvrir le menu professionnel" className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 text-gray-700">
+      <header className="sticky top-0 z-40 flex min-h-14 w-full shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 pt-[env(safe-area-inset-top)] lg:hidden">
+        <button type="button" onClick={() => setOpen(true)} aria-label="Ouvrir le menu professionnel" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-700">
           <MenuIcon />
         </button>
-        <span className="flex items-center gap-2 text-sm font-bold text-gray-900">Posto <span className="rounded bg-gray-900 px-1.5 py-0.5 text-[9px] tracking-wider text-white">PRO</span></span>
-        <Link href="/account" className="text-xs font-medium text-gray-600">Quitter</Link>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-gray-900">{headerTitle}</p>
+          {headerSubtitle && <p className="truncate text-xs text-gray-500">{headerSubtitle}</p>}
+        </div>
+        <Link href="/account" className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-sm font-medium text-gray-600 hover:text-gray-900">
+          <ArrowLeftIcon />
+          Profil
+        </Link>
       </header>
+
+      {currentPlace && (
+        <nav
+          aria-label={`Sections de ${currentPlace.name}`}
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
+        >
+          {PLACE_SECTIONS.filter((section) => section.slug !== "parametres").map(({ slug, label, icon: Icon }) => {
+            const href = `/dashboard/places/${currentPlace.id}/${slug}`;
+            const active = pathname === href || pathname.startsWith(`${href}/`);
+            return (
+              <Link
+                key={slug}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                className={`flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors ${active ? "text-gray-900" : "text-gray-500"}`}
+              >
+                <span className={active ? "text-gray-900" : "text-gray-500"}><Icon /></span>
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
 
       {open && (
         <dialog ref={dialogRef} onCancel={() => setOpen(false)} className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none border-0 bg-transparent p-0 backdrop:bg-black/35" aria-label="Menu professionnel">
