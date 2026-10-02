@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { getPlaceById } from "@/lib/queries";
 import { getOpenStatus, formatOpenStatus } from "@/lib/opening-hours";
+import { LinkButton } from "@/components/ui/LinkButton";
 
 // Shared by every /dashboard/places/[id]/* sub-page: the "which place am I
 // editing" header (photo, name, open/closed status, link to its public
@@ -28,8 +28,8 @@ export default async function PlaceDashboardLayout({
   const openStatus = getOpenStatus(place.opening_hours);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
-      <div className="mb-6 flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 sm:p-4">
+    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-gray-200 pb-5">
         <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:h-14 sm:w-14">
           {place.cover_photo_url && (
             <Image src={place.cover_photo_url} alt="" fill sizes="56px" className="object-cover" />
@@ -41,15 +41,11 @@ export default async function PlaceDashboardLayout({
             <span className={openStatus.open ? "font-medium text-green-600" : "font-medium text-red-500"}>
               {formatOpenStatus(openStatus)}
             </span>
-            <Link
-              href={`/places/${place.id}`}
-              target="_blank"
-              className="text-gray-500 underline-offset-2 hover:text-gray-900 hover:underline"
-            >
-              Voir la fiche publique ↗
-            </Link>
           </div>
         </div>
+        <LinkButton href={`/places/${place.id}`} icon="external" className="w-full sm:w-auto">
+          Voir la fiche publique
+        </LinkButton>
       </div>
 
       {children}

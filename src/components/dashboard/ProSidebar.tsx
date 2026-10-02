@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { Logo } from "@/components/Logo";
 
 type ManagedPlace = {
   id: string;
@@ -76,7 +77,7 @@ function SidebarContent({
     <div className="flex h-full flex-col">
       <div className="border-b border-gray-200 px-4 py-4">
         <Link href="/dashboard" onClick={onNavigate} className="inline-flex items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20">
-          <span className="text-lg font-bold tracking-tight text-gray-900">Posto</span>
+          <Logo size={30} />
           <span className="rounded-md bg-gray-900 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white">PRO</span>
         </Link>
       </div>

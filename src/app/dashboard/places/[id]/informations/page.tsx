@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/supabase/server";
 import { getPlaceById, getAllTags } from "@/lib/queries";
 import { PlaceForm } from "@/components/dashboard/PlaceForm";
 import { TagsForm } from "@/components/dashboard/TagsForm";
-import { DashboardSection } from "@/components/dashboard/DashboardSection";
+import { FormSection } from "@/components/dashboard/FormSection";
 import { QrCodeSection } from "@/components/dashboard/QrCodeSection";
 import { getQrScanStats } from "@/lib/qrScans";
 import { updatePlace, savePlaceTags, generatePlaceQrCode } from "@/app/dashboard/actions";
@@ -40,19 +40,22 @@ export default async function PlaceInformationsPage({
         </div>
       )}
 
-      <DashboardSection title="Informations générales">
-        <PlaceForm place={place} action={updatePlace.bind(null, id)} />
-      </DashboardSection>
+      <PlaceForm place={place} action={updatePlace.bind(null, id)} />
 
-      <DashboardSection title="Tags">
-        <TagsForm
-          allTags={allTags}
-          selectedTagIds={place.tags.map((t) => t.id)}
-          action={savePlaceTags.bind(null, id)}
-        />
-      </DashboardSection>
+      <div>
+        <FormSection title="Tags" description="Ils aident les visiteurs à trouver votre lieu en filtrant par catégorie.">
+          <TagsForm
+            allTags={allTags}
+            selectedTagIds={place.tags.map((t) => t.id)}
+            action={savePlaceTags.bind(null, id)}
+          />
+        </FormSection>
+      </div>
 
-      <DashboardSection title="Code QR du lieu">
+      <FormSection
+        title="Code QR du lieu"
+        description="Renvoie vers la page de votre lieu. Il reste valable même si vous modifiez vos informations."
+      >
         <QrCodeSection
           qrCodeUrl={place.qr_code_url}
           publicPath={`/places/${place.id}`}
@@ -60,7 +63,7 @@ export default async function PlaceInformationsPage({
           action={generatePlaceQrCode.bind(null, id)}
           scanStats={scanStats}
         />
-      </DashboardSection>
+      </FormSection>
     </div>
   );
 }

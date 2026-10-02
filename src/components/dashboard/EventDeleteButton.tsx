@@ -22,7 +22,7 @@ export function EventDeleteButton({
     <DeleteButton
       action={action}
       label="Supprimer cet événement"
-      className="text-sm"
+      className="min-h-10 rounded-lg border border-red-200 px-3 text-sm hover:bg-red-50 hover:no-underline"
       confirmMessage={`Supprimer l'événement « ${eventTitle} » ? Cette action est irréversible.`}
       onDeleted={() => router.push(`/dashboard/places/${placeId}/evenements`)}
     />

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { generateQrCodeDataUrl } from "@/lib/qrcode";
 import { PLACE_PHOTOS_BUCKET } from "@/lib/storage";
@@ -87,23 +88,30 @@ export async function createEvent(placeId: string, formData: FormData) {
     throw new Error("Titre et date de début sont requis.");
   }
 
-  const { error } = await supabase.from("events").insert({
-    place_id: placeId,
-    title,
-    description,
-    start_datetime: new Date(start_datetime).toISOString(),
-    end_datetime: end_datetime ? new Date(end_datetime).toISOString() : null,
-    recurrence_rule,
-    tag_id,
-    price_cents,
-    price_unit,
-    cover_photo_url,
-    duration_minutes,
-    restrictions,
-  });
+  const { data: created, error } = await supabase
+    .from("events")
+    .insert({
+      place_id: placeId,
+      title,
+      description,
+      start_datetime: new Date(start_datetime).toISOString(),
+      end_datetime: end_datetime ? new Date(end_datetime).toISOString() : null,
+      recurrence_rule,
+      tag_id,
+      price_cents,
+      price_unit,
+      cover_photo_url,
+      duration_minutes,
+      restrictions,
+    })
+    .select("id")
+    .single();
   if (error) throw new Error(error.message);
 
   revalidatePath(`/dashboard/places/${placeId}/evenements`);
+  // Straight on to the next step (QR code, then poster) instead of back to
+  // the list — what an organizer does right after creating an event.
+  redirect(`/dashboard/places/${placeId}/evenements/${created.id}?tab=qr&created=1`);
 }
 
 // Same field set/validation as createEvent above — kept as two separate

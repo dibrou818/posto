@@ -10,7 +10,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 // (enabled by default) or moving signup through a server action.
 const RATE_LIMITED_ROUTES: { prefix: string; limit: number; windowMs: number }[] = [
   { prefix: "/api/search", limit: 20, windowMs: 60_000 },
-  { prefix: "/api/geocode", limit: 20, windowMs: 60_000 },
+  { prefix: "/api/geocode", limit: 40, windowMs: 60_000 },
   { prefix: "/api/location", limit: 20, windowMs: 60_000 },
 ];
 

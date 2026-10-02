@@ -2,7 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { getPlaceById, getAllEventsForPlace, getAllTags } from "@/lib/queries";
 import { EventsManager } from "@/components/dashboard/EventsManager";
-import { DashboardSection } from "@/components/dashboard/DashboardSection";
+import { getQrScanStats, type QrScanStats } from "@/lib/qrScans";
+import { getEventStatus } from "@/lib/dashboardEventStatus";
 import { createEvent, deleteEvent } from "@/app/dashboard/actions";
 
 export default async function PlaceEventsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -18,16 +19,26 @@ export default async function PlaceEventsPage({ params }: { params: Promise<{ id
     getAllTags(supabase),
   ]);
 
+  // Scan counts only for events that still matter (not over) and already
+  // have a code — one small query pair each, rather than counting scans for
+  // every past event nobody is checking on anymore.
+  const now = new Date();
+  const withScans = events.filter((event) => event.qr_code_url && getEventStatus(event, now).key !== "past");
+  const stats = await Promise.all(withScans.map((event) => getQrScanStats(supabase, "event", event.id)));
+  const scanStatsById: Record<string, QrScanStats> = {};
+  withScans.forEach((event, index) => {
+    scanStatsById[event.id] = stats[index];
+  });
+
   return (
-    <DashboardSection title="Événements">
-      <EventsManager
-        placeId={id}
-        events={events}
-        allTags={allTags}
-        placeCoverPhotoUrl={place.cover_photo_url}
-        onCreate={createEvent.bind(null, id)}
-        onDelete={deleteEvent.bind(null, id)}
-      />
-    </DashboardSection>
+    <EventsManager
+      placeId={id}
+      events={events}
+      allTags={allTags}
+      placeCoverPhotoUrl={place.cover_photo_url}
+      scanStatsById={scanStatsById}
+      onCreate={createEvent.bind(null, id)}
+      onDelete={deleteEvent.bind(null, id)}
+    />
   );
 }
