@@ -1,26 +1,13 @@
 import Link from "next/link";
-import type { Event, Tag } from "@/lib/queries";
+import type { Event } from "@/lib/queries";
 import type { QrScanStats } from "@/lib/qrScans";
-import { DeleteButton } from "@/components/ui/DeleteButton";
-import { formatEventSchedule, formatRecurrence, formatDuration, formatPrice } from "@/lib/eventSchedule";
+import { formatEventSchedule, formatRecurrence, formatPrice } from "@/lib/eventSchedule";
 import { getEventStatus } from "@/lib/dashboardEventStatus";
-import { RestrictionsBadge } from "@/components/RestrictionsBadge";
-import { AccessBadge } from "@/components/AccessBadge";
-import { EventForm } from "@/components/dashboard/EventForm";
 import { buttonClass } from "@/lib/ui";
 import { PlusIcon } from "@/components/ui/PlusIcon";
-import { LinkButton } from "@/components/ui/LinkButton";
 
 const dayFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric" });
 const monthFormat = new Intl.DateTimeFormat("fr-FR", { month: "short" });
-
-function CheckIcon() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5" aria-hidden="true">
-      <path d="M4 10.5 8 14.5 16 5.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 function RepeatIcon() {
   return (
@@ -31,34 +18,34 @@ function RepeatIcon() {
   );
 }
 
-const quickActionClass =
-  "inline-flex min-h-10 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20";
+function ChevronRight() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true">
+      <path d="m8 5 5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
-function EventRow({
-  placeId,
-  event,
-  scanStats,
-  onDelete,
-  onDuplicate,
-}: {
-  placeId: string;
-  event: Event;
-  scanStats: QrScanStats | undefined;
-  onDelete: (eventId: string) => Promise<void>;
-  onDuplicate: (eventId: string) => Promise<void>;
-}) {
+/** One event as a single row that opens its page. What's left to do (QR
+ * code, poster) is quiet text on the right, not a row of buttons. */
+function EventRow({ placeId, event, scanStats }: { placeId: string; event: Event; scanStats: QrScanStats | undefined }) {
   const status = getEventStatus(event);
   const priceLabel = formatPrice(event.price_cents, event.price_unit);
-  const duration = formatDuration(event.duration_minutes);
-  const base = `/dashboard/places/${placeId}/evenements/${event.id}`;
   const start = new Date(event.start_datetime);
-  const hasQr = Boolean(event.qr_code_url);
-  const hasPoster = Boolean(event.poster_url);
+  const todo = [!event.qr_code_url && "code QR", !event.poster_url && "affiche"].filter(Boolean);
+  const meta = [
+    formatEventSchedule(event.start_datetime, event.end_datetime),
+    event.recurrence_rule ? formatRecurrence(event.recurrence_rule) : null,
+    priceLabel,
+  ].filter(Boolean);
 
   return (
-    <li className="rounded-2xl border border-gray-200 bg-white p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-gray-100 text-gray-900">
+    <li>
+      <Link
+        href={`/dashboard/places/${placeId}/evenements/${event.id}`}
+        className="-mx-3 flex items-center gap-4 rounded-xl px-3 py-3.5 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:bg-gray-50"
+      >
+        <span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-gray-100 text-gray-900">
           {event.recurrence_rule ? (
             <RepeatIcon />
           ) : (
@@ -67,93 +54,38 @@ function EventRow({
               <span className="mt-0.5 text-[11px] leading-none text-gray-500">{monthFormat.format(start).replace(".", "")}</span>
             </>
           )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <Link href={base} className="truncate font-semibold text-gray-900 hover:underline focus:outline-none focus-visible:underline">
-              {event.title}
-            </Link>
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>{status.label}</span>
-          </div>
-          <p className="mt-0.5 text-sm text-gray-500">
-            {formatEventSchedule(event.start_datetime, event.end_datetime)}
-            {event.recurrence_rule ? ` · ${formatRecurrence(event.recurrence_rule)}` : ""}
-            {priceLabel ? ` · ${priceLabel}` : ""}
-            {duration ? ` · ${duration}` : ""}
-          </p>
-          {(event.access || event.restrictions) && (
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <AccessBadge access={event.access} />
-              <RestrictionsBadge text={event.restrictions} />
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
-        <Link href={base} className={`${quickActionClass} border-gray-300 bg-white text-gray-900 hover:bg-gray-50`}>
-          Modifier
-        </Link>
-        <Link
-          href={`${base}?tab=qr`}
-          className={`${quickActionClass} ${hasQr ? "border-gray-300 bg-white text-gray-900 hover:bg-gray-50" : "border-dashed border-gray-400 bg-white text-gray-700 hover:bg-gray-50"}`}
-        >
-          {hasQr && <CheckIcon />}
-          Code QR
-          <span className="text-xs font-normal text-gray-500">
-            {!hasQr ? "à générer" : scanStats ? `${scanStats.total} scan${scanStats.total > 1 ? "s" : ""}` : ""}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-medium text-gray-900">{event.title}</span>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>{status.label}</span>
           </span>
-        </Link>
-        <Link
-          href={`${base}?tab=affiche`}
-          className={`${quickActionClass} ${hasPoster ? "border-gray-300 bg-white text-gray-900 hover:bg-gray-50" : "border-dashed border-gray-400 bg-white text-gray-700 hover:bg-gray-50"}`}
-        >
-          {hasPoster && <CheckIcon />}
-          Affiche
-          {!hasPoster && <span className="text-xs font-normal text-gray-500">à créer</span>}
-        </Link>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <form action={onDuplicate.bind(null, event.id)}>
-            <button type="submit" className={`${quickActionClass} border-gray-300 bg-white text-gray-900 hover:bg-gray-50`}>
-              Dupliquer
-            </button>
-          </form>
-          <LinkButton href={`/events/${event.id}`} icon="external">
-            Voir
-          </LinkButton>
-          <DeleteButton
-            action={onDelete.bind(null, event.id)}
-            confirmMessage={`Supprimer l'événement « ${event.title} » ? Son code QR et son affiche seront aussi supprimés.`}
-            className="min-h-10 rounded-lg border border-red-200 px-3 text-sm hover:bg-red-50 hover:no-underline"
-          />
-        </div>
-      </div>
+          <span className="mt-0.5 block truncate text-sm text-gray-500 tabular-nums">{meta.join(" · ")}</span>
+        </span>
+        <span className="hidden shrink-0 text-right text-sm text-gray-500 tabular-nums md:block">
+          {todo.length > 0
+            ? `À faire : ${todo.join(", ")}`
+            : scanStats
+              ? `${scanStats.total} scan${scanStats.total > 1 ? "s" : ""}`
+              : "Prêt"}
+        </span>
+        <ChevronRight />
+      </Link>
     </li>
   );
 }
 
-/** The events list of a place: the "create" form folded behind one clear
- * button at the top, then the events grouped by what matters (coming up,
- * then past), each with its next steps (edit, QR code, poster) one click
- * away instead of buried inside the edit page. */
+/** The events of a place: one button to create, then what's coming up as a
+ * plain list, and what's over folded away below. Everything you do with an
+ * event (edit, QR code, poster, duplicate, delete) lives on its own page. */
 export function EventsManager({
   placeId,
   events,
-  allTags,
-  placeCoverPhotoUrl,
   scanStatsById,
-  onCreate,
-  onDelete,
-  onDuplicate,
 }: {
   placeId: string;
   events: Event[];
-  allTags: Tag[];
-  placeCoverPhotoUrl: string | null;
   scanStatsById: Record<string, QrScanStats>;
-  onCreate: (formData: FormData) => Promise<void>;
-  onDelete: (eventId: string) => Promise<void>;
-  onDuplicate: (eventId: string) => Promise<void>;
 }) {
   const now = new Date();
   const active: Event[] = [];
@@ -166,46 +98,39 @@ export function EventsManager({
   past.sort((a, b) => new Date(b.start_datetime).getTime() - new Date(a.start_datetime).getTime());
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold tracking-tight text-gray-900">Événements</h2>
-        <span className="text-sm text-gray-500">
-          {active.length} à venir{past.length > 0 ? ` · ${past.length} passé${past.length > 1 ? "s" : ""}` : ""}
-        </span>
-      </div>
-
-      <details className="group rounded-2xl border border-gray-200 bg-white" open={events.length === 0}>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
-          <span className="text-sm text-gray-600">Un quiz, une soirée, un tournoi ? Publiez-le en quelques champs.</span>
-          <span className={buttonClass("compact", "shrink-0 group-open:hidden")}><PlusIcon />Créer un événement</span>
-          <span className="hidden shrink-0 text-sm font-medium text-gray-600 group-open:inline">Fermer</span>
-        </summary>
-        <div className="border-t border-gray-200 p-4 sm:p-5">
-          <EventForm allTags={allTags} placeCoverPhotoUrl={placeCoverPhotoUrl} action={onCreate} />
+    <div className="flex flex-col gap-8">
+      <section>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h2 className="posto-heading text-lg text-gray-900">
+            À venir <span className="font-normal text-gray-400 tabular-nums">{active.length}</span>
+          </h2>
+          <Link href={`/dashboard/places/${placeId}/evenements/nouveau`} className={buttonClass("compact", "shrink-0 px-4")}>
+            <PlusIcon />
+            Nouvel événement
+          </Link>
         </div>
-      </details>
-
-      {active.length > 0 && (
-        <ul className="flex flex-col gap-3">
-          {active.map((event) => (
-            <EventRow key={event.id} placeId={placeId} event={event} scanStats={scanStatsById[event.id]} onDelete={onDelete} onDuplicate={onDuplicate} />
-          ))}
-        </ul>
-      )}
-
-      {events.length > 0 && active.length === 0 && (
-        <p className="text-sm text-gray-500">Aucun événement à venir. Créez-en un nouveau ci-dessus.</p>
-      )}
+        {active.length > 0 ? (
+          <ul className="divide-y divide-gray-200 border-y border-gray-200">
+            {active.map((event) => (
+              <EventRow key={event.id} placeId={placeId} event={event} scanStats={scanStatsById[event.id]} />
+            ))}
+          </ul>
+        ) : (
+          <p className="border-y border-gray-200 py-8 text-center text-sm text-gray-500">
+            Aucun événement à venir. Un quiz, une soirée, un tournoi ? Publiez-le en quelques champs.
+          </p>
+        )}
+      </section>
 
       {past.length > 0 && (
         <details className="group">
           <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 [&::-webkit-details-marker]:hidden">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 shrink-0 transition-transform group-open:rotate-90" aria-hidden="true"><path d="m8 5 5 5-5 5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            Événements passés <span className="tabular-nums text-gray-500">{past.length}</span>
+            Passés <span className="tabular-nums text-gray-500">{past.length}</span>
           </summary>
-          <ul className="mt-3 flex flex-col gap-3">
+          <ul className="mt-3 divide-y divide-gray-200 border-y border-gray-200">
             {past.map((event) => (
-              <EventRow key={event.id} placeId={placeId} event={event} scanStats={undefined} onDelete={onDelete} onDuplicate={onDuplicate} />
+              <EventRow key={event.id} placeId={placeId} event={event} scanStats={undefined} />
             ))}
           </ul>
         </details>

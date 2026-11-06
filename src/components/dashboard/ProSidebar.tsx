@@ -2,252 +2,131 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import type { OpenStatusTone } from "@/lib/opening-hours";
 import { Logo } from "@/components/Logo";
 import { PlusIcon } from "@/components/ui/PlusIcon";
+import { STATUS_DOT } from "@/components/OpenStatusLabel";
 
 type ManagedPlace = {
   id: string;
   name: string;
   coverPhotoUrl: string | null;
+  tone: OpenStatusTone;
 };
 
-const PLACE_SECTIONS = [
-  { slug: "informations", label: "Informations", icon: InfoIcon },
-  { slug: "horaires", label: "Horaires", icon: ClockIcon },
-  { slug: "activites", label: "Activités", icon: ActivityIcon },
-  { slug: "evenements", label: "Événements", icon: CalendarIcon },
-  { slug: "parametres", label: "Paramètres du lieu", icon: SlidersIcon },
-];
-
-function GridIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="12" y="3" width="5" height="5" rx="1"/><rect x="3" y="12" width="5" height="5" rx="1"/><rect x="12" y="12" width="5" height="5" rx="1"/></svg>;
-}
-
-function InfoIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.2v.1" strokeLinecap="round"/></svg>;
-}
-
-function ClockIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.8 1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>;
-}
-
-function ActivityIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><path d="M3 10h3l1.5-4 3 8 1.8-4H17" strokeLinecap="round" strokeLinejoin="round"/></svg>;
-}
-
-function CalendarIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8h14M7 3v3M13 3v3" strokeLinecap="round"/></svg>;
-}
-
-function SlidersIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><path d="M3 6h7M14 6h3M3 14h3M10 14h7" strokeLinecap="round"/><circle cx="12" cy="6" r="2"/><circle cx="8" cy="14" r="2"/></svg>;
-}
-
 function UserIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><circle cx="10" cy="7" r="3.2"/><path d="M3.8 17c.8-3 3.3-4.5 6.2-4.5s5.4 1.5 6.2 4.5" strokeLinecap="round"/></svg>;
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4 shrink-0" aria-hidden="true"><circle cx="10" cy="7" r="3.2"/><path d="M3.8 17c.8-3 3.3-4.5 6.2-4.5s5.4 1.5 6.2 4.5" strokeLinecap="round"/></svg>;
 }
 
 function ArrowLeftIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><path d="m11.5 5-5 5 5 5M6.8 10H17" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4 shrink-0" aria-hidden="true"><path d="m11.5 5-5 5 5 5M6.8 10H17" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 
-function CloseIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-5 w-5"><path d="m5 5 10 10M15 5 5 15" strokeLinecap="round"/></svg>;
+function ChevronLeftIcon() {
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 shrink-0" aria-hidden="true"><path d="M12 4 6 10l6 6" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 
-function MenuIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-5 w-5"><path d="M3 5.5h14M3 10h14M3 14.5h14" strokeLinecap="round"/></svg>;
-}
+const rowClass = (active: boolean) =>
+  `flex min-h-10 items-center gap-3 rounded-lg px-2.5 py-1.5 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
+    active ? "bg-gray-100 font-medium text-gray-900" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+  }`;
 
-function SidebarContent({
-  places,
-  currentPlace,
-  onNavigate,
-}: {
-  places: ManagedPlace[];
-  currentPlace: ManagedPlace | null;
-  onNavigate?: () => void;
-}) {
-  const pathname = usePathname();
-  const router = useRouter();
-
-  const navClass = (active: boolean) =>
-    `flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
-      active ? "bg-gray-100 text-gray-900" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-    }`;
-
-  return (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-gray-200 px-4 py-4">
-        <Link href="/dashboard" onClick={onNavigate} className="inline-flex items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20">
-          <Logo size={30} />
-          <span className="text-sm font-medium text-gray-500">Pro</span>
-        </Link>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-3 py-4">
-        <nav className="space-y-1" aria-label="Navigation professionnelle">
-          <Link href="/dashboard" onClick={onNavigate} className={navClass(pathname === "/dashboard")}>
-            <GridIcon />
-            Mes lieux
-          </Link>
-        </nav>
-
-        {places.length > 0 && (
-          <div className="mt-6">
-            <p className="mb-2 px-3 text-xs font-medium text-gray-500">Lieu</p>
-            <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-2">
-              {currentPlace && (
-                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                  {currentPlace.coverPhotoUrl && <Image src={currentPlace.coverPhotoUrl} alt="" fill sizes="40px" className="object-cover" />}
-                </div>
-              )}
-              <select
-                aria-label="Choisir un lieu"
-                value={currentPlace?.id ?? ""}
-                onChange={(event) => {
-                  if (event.target.value) {
-                    router.push(`/dashboard/places/${event.target.value}/informations`);
-                    onNavigate?.();
-                  }
-                }}
-                className="min-w-0 flex-1 bg-transparent text-sm font-medium text-gray-900 outline-none"
-              >
-                {!currentPlace && <option value="">Choisir un lieu</option>}
-                {places.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
-              </select>
-            </div>
-          </div>
-        )}
-
-        {currentPlace && (
-          <nav className="mt-3 space-y-1" aria-label={`Gestion de ${currentPlace.name}`}>
-            {PLACE_SECTIONS.map(({ slug, label, icon: Icon }) => {
-              const href = `/dashboard/places/${currentPlace.id}/${slug}`;
-              const active = pathname === href || pathname.startsWith(`${href}/`);
-              return (
-                <Link key={slug} href={href} onClick={onNavigate} aria-current={active ? "page" : undefined} className={navClass(active)}>
-                  <Icon />
-                  {label}
-                </Link>
-              );
-            })}
-          </nav>
-        )}
-
-        <div className="mt-6 space-y-1 border-t border-gray-200 pt-4">
-          <Link href="/dashboard/places/new" onClick={onNavigate} className={navClass(pathname === "/dashboard/places/new")}>
-            <PlusIcon />
-            Ajouter un lieu
-          </Link>
-          <Link href="/dashboard/parametres" onClick={onNavigate} className={navClass(pathname === "/dashboard/parametres")}>
-            <UserIcon />
-            Mon compte
-          </Link>
-        </div>
-      </div>
-
-      <div className="border-t border-gray-200 p-3">
-        <Link href="/account" onClick={onNavigate} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900">
-          <ArrowLeftIcon />
-          Retour à mon profil
-        </Link>
-      </div>
-    </div>
-  );
-}
-
+/** The pro shell. One rule: the left column says *which place*, the tabs at
+ * the top of the page say *which section* of it. On desktop every place is
+ * listed right here (no dropdown to open), and switching place keeps the
+ * section you were on. On a phone there is no drawer and no bottom bar —
+ * the "Mes lieux" page is the place picker, and a single back link leads
+ * to it from anywhere. */
 export function ProSidebar({ places }: { places: ManagedPlace[] }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const placeId = pathname.match(/^\/dashboard\/places\/([^/]+)/)?.[1];
-  const currentPlace = places.find((place) => place.id === placeId) ?? null;
-  const currentSection = PLACE_SECTIONS.find((section) => pathname.startsWith(`/dashboard/places/${placeId}/${section.slug}`));
-  const headerTitle = currentPlace
-    ? (currentSection?.label ?? currentPlace.name)
-    : pathname === "/dashboard/places/new"
-      ? "Ajouter un lieu"
-      : pathname.startsWith("/dashboard/parametres")
-        ? "Mon compte"
-        : "Mes lieux";
-  const headerSubtitle = currentPlace && currentSection ? currentPlace.name : null;
-
-  // A mobile drawer should behave like a real navigation surface: the page
-  // behind it stays still, Escape closes it on hardware keyboards, and the
-  // lock is always cleaned up if navigation unmounts the component.
-  useEffect(() => {
-    if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    dialogRef.current?.showModal();
-    const desktop = window.matchMedia("(min-width: 1024px)");
-    const closeOnDesktop = () => { if (desktop.matches) setOpen(false); };
-    desktop.addEventListener("change", closeOnDesktop);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      desktop.removeEventListener("change", closeOnDesktop);
-      previouslyFocused?.focus();
-    };
-  }, [open]);
+  const match = pathname.match(/^\/dashboard\/places\/([^/]+)(?:\/([^/]+))?/);
+  const placeId = match && match[1] !== "new" ? match[1] : null;
+  const section = match?.[2] ?? "informations";
+  const onHome = pathname === "/dashboard";
 
   return (
     <>
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 border-r border-gray-200 bg-white lg:block xl:w-72">
-        <SidebarContent places={places} currentPlace={currentPlace} />
+      <aside className="sticky top-0 hidden h-dvh w-72 shrink-0 flex-col border-r border-gray-200 bg-white lg:flex">
+        <div className="flex h-16 shrink-0 items-center px-5">
+          <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20">
+            <Logo size={28} />
+            <span className="text-sm font-medium text-gray-500">Pro</span>
+          </Link>
+        </div>
+
+        <nav aria-label="Mes lieux" className="flex min-h-0 flex-1 flex-col px-3">
+          <Link
+            href="/dashboard"
+            aria-current={onHome ? "page" : undefined}
+            className={`mb-1 flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${onHome ? "text-gray-900" : "text-gray-500 hover:text-gray-900"}`}
+          >
+            Mes lieux
+            <span className="tabular-nums">{places.length}</span>
+          </Link>
+          <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto pb-2">
+            {places.map((place) => {
+              const active = place.id === placeId;
+              return (
+                <li key={place.id}>
+                  <Link
+                    href={`/dashboard/places/${place.id}/${section}`}
+                    aria-current={active ? "page" : undefined}
+                    className={rowClass(active)}
+                  >
+                    <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                      {place.coverPhotoUrl && <Image src={place.coverPhotoUrl} alt="" fill sizes="28px" className="object-cover" />}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{place.name}</span>
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[place.tone]}`} aria-hidden="true" />
+                  </Link>
+                </li>
+              );
+            })}
+            <li>
+              <Link href="/dashboard/places/new" className={rowClass(pathname === "/dashboard/places/new")}>
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-dashed border-gray-300 text-gray-500">
+                  <PlusIcon />
+                </span>
+                Ajouter un lieu
+              </Link>
+            </li>
+          </ul>
+        </nav>
+
+        <div className="shrink-0 space-y-0.5 border-t border-gray-200 p-3">
+          <Link href="/dashboard/parametres" className={rowClass(pathname.startsWith("/dashboard/parametres"))}>
+            <UserIcon />
+            Mon compte
+          </Link>
+          <Link href="/account" className={rowClass(false)}>
+            <ArrowLeftIcon />
+            Retour à l&apos;app
+          </Link>
+        </div>
       </aside>
 
-      <header className="sticky top-0 z-40 flex min-h-14 w-full shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 pt-[env(safe-area-inset-top)] lg:hidden">
-        <button type="button" onClick={() => setOpen(true)} aria-label="Ouvrir le menu professionnel" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-700">
-          <MenuIcon />
-        </button>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-gray-900">{headerTitle}</p>
-          {headerSubtitle && <p className="truncate text-xs text-gray-500">{headerSubtitle}</p>}
-        </div>
-        <Link href="/account" className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-sm font-medium text-gray-600 hover:text-gray-900">
-          <ArrowLeftIcon />
-          Profil
+      <header className="sticky top-0 z-40 flex h-14 w-full shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 lg:hidden">
+        {onHome ? (
+          <Link href="/account" className="inline-flex min-h-11 items-center gap-2" aria-label="Retour à l'app">
+            <Logo size={26} />
+            <span className="text-sm font-medium text-gray-500">Pro</span>
+          </Link>
+        ) : (
+          <Link href="/dashboard" className="-ml-1 inline-flex min-h-11 items-center gap-1 rounded-lg px-1 text-sm font-medium text-gray-900">
+            <ChevronLeftIcon />
+            Mes lieux
+          </Link>
+        )}
+        <span className="flex-1" />
+        <Link
+          href="/dashboard/parametres"
+          aria-label="Mon compte"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+        >
+          <UserIcon />
         </Link>
       </header>
-
-      {currentPlace && (
-        <nav
-          aria-label={`Sections de ${currentPlace.name}`}
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
-        >
-          {PLACE_SECTIONS.filter((section) => section.slug !== "parametres").map(({ slug, label, icon: Icon }) => {
-            const href = `/dashboard/places/${currentPlace.id}/${slug}`;
-            const active = pathname === href || pathname.startsWith(`${href}/`);
-            return (
-              <Link
-                key={slug}
-                href={href}
-                aria-current={active ? "page" : undefined}
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors ${active ? "text-gray-900" : "text-gray-500"}`}
-              >
-                <span className={active ? "text-gray-900" : "text-gray-500"}><Icon /></span>
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-      )}
-
-      {open && (
-        <dialog ref={dialogRef} onCancel={() => setOpen(false)} className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none border-0 bg-transparent p-0 backdrop:bg-black/35" aria-label="Menu professionnel">
-          <button type="button" aria-label="Fermer le menu" onClick={() => setOpen(false)} className="absolute inset-0" tabIndex={-1} />
-          <aside className="relative h-full w-[min(19rem,88vw)] overflow-hidden bg-white pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl">
-            <button type="button" onClick={() => setOpen(false)} aria-label="Fermer le menu" className="absolute top-[calc(env(safe-area-inset-top)+0.75rem)] right-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100">
-              <CloseIcon />
-            </button>
-            <SidebarContent places={places} currentPlace={currentPlace} onNavigate={() => setOpen(false)} />
-          </aside>
-        </dialog>
-      )}
     </>
   );
 }

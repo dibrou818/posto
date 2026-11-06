@@ -59,7 +59,7 @@ export function ActivityForm({
   }
 
   return (
-    <form action={submit} className="flex flex-col gap-4">
+    <form action={submit} className="flex max-w-2xl flex-col gap-4">
       <div>
         <span className={labelClass}>Type d&apos;activité</span>
         <div className="flex flex-wrap gap-1.5">
@@ -71,7 +71,7 @@ export function ActivityForm({
                 type="button"
                 aria-pressed={selected}
                 onClick={() => pickPreset(preset.label, preset.tagSlug)}
-                className={`min-h-9 rounded-lg border px-3 py-1.5 text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 ${
+                className={`min-h-9 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 ${
                   selected
                     ? "border-gray-900 bg-gray-900 text-white"
                     : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
@@ -145,7 +145,7 @@ export function ActivityForm({
           <button
             type="button"
             onClick={onCancel}
-            className="text-xs font-medium text-gray-500 transition-colors hover:text-gray-900"
+            className="inline-flex min-h-10 items-center px-2 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900"
           >
             Annuler
           </button>

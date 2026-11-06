@@ -7,13 +7,12 @@ import { getOpenStatus } from "@/lib/opening-hours";
 import { OpenStatusLabel } from "@/components/OpenStatusLabel";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { UrgentBanner } from "@/components/dashboard/UrgentBanner";
+import { PlaceDashboardTabs } from "@/components/dashboard/PlaceDashboardTabs";
 import { removeUrgentMessage } from "@/app/dashboard/actions";
 
-// Shared by every /dashboard/places/[id]/* sub-page: the "which place am I
-// editing" header (photo, name, open/closed status, link to its public
-// page) and the tab nav between sections — fetched and rendered once here
-// instead of by each page, so switching tabs never has to re-fetch or
-// re-flash this part of the screen.
+// Shared by every /dashboard/places/[id]/* sub-page: the place's name and
+// live status, then the section tabs — fetched and rendered once here so
+// switching tabs never re-flashes this part of the screen.
 export default async function PlaceDashboardLayout({
   children,
   params,
@@ -34,34 +33,45 @@ export default async function PlaceDashboardLayout({
     (!place.urgent_message_expires_at || new Date(place.urgent_message_expires_at) > new Date());
 
   return (
-    <div className="mx-auto w-full max-w-4xl [--pro-bottom-offset:calc(3.5rem+env(safe-area-inset-bottom))] px-4 py-6 pb-24 sm:px-6 sm:py-8 lg:[--pro-bottom-offset:0px] lg:pb-8">
-      <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-gray-200 pb-5">
-        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:h-14 sm:w-14">
-          {place.cover_photo_url && (
-            <Image src={place.cover_photo_url} alt="" fill sizes="56px" className="object-cover" />
-          )}
+    <div className="mx-auto w-full max-w-5xl px-4 sm:px-8">
+      <header className="flex items-center gap-4 pt-6 pb-4 sm:pt-8">
+        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+          {place.cover_photo_url && <Image src={place.cover_photo_url} alt="" fill sizes="56px" className="object-cover" />}
         </div>
         <div className="min-w-0 flex-1">
-          <h1 className="posto-heading truncate text-xl text-gray-900">{place.name}</h1>
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-            <OpenStatusLabel status={openStatus} hasHours={place.opening_hours.some((hour) => hour.zone_name === null)} />
-          </div>
+          <h1 className="posto-heading truncate text-2xl text-gray-900">{place.name}</h1>
+          <p className="mt-0.5 flex min-w-0 items-center gap-2 text-sm text-gray-500">
+            <OpenStatusLabel status={openStatus} hasHours={place.opening_hours.some((hour) => hour.zone_name === null)} className="shrink-0" />
+            {place.address && <span className="hidden truncate sm:inline">· {place.address}</span>}
+          </p>
         </div>
-        <LinkButton href={`/places/${place.id}`} icon="external" className="w-full sm:w-auto">
-          Voir la fiche publique
-        </LinkButton>
+        <div className="hidden shrink-0 sm:block">
+          <LinkButton href={`/places/${place.id}`} icon="external">
+            Voir la fiche
+          </LinkButton>
+        </div>
+      </header>
+
+      <div className="sticky top-14 z-30 border-b border-gray-200 bg-white lg:top-0">
+        <PlaceDashboardTabs placeId={place.id} />
       </div>
 
-      {urgentActive && (
-        <UrgentBanner
-          placeId={place.id}
-          message={place.urgent_message!}
-          expiresAt={place.urgent_message_expires_at}
-          onRemove={removeUrgentMessage.bind(null, place.id)}
-        />
-      )}
-
-      {children}
+      <div className="pt-6 pb-16 sm:pt-8">
+        {urgentActive && (
+          <UrgentBanner
+            placeId={place.id}
+            message={place.urgent_message!}
+            expiresAt={place.urgent_message_expires_at}
+            onRemove={removeUrgentMessage.bind(null, place.id)}
+          />
+        )}
+        {children}
+        <div className="mt-8 sm:hidden">
+          <LinkButton href={`/places/${place.id}`} icon="external" className="w-full">
+            Voir la fiche publique
+          </LinkButton>
+        </div>
+      </div>
     </div>
   );
 }

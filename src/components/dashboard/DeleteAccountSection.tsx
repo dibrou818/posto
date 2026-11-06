@@ -29,24 +29,17 @@ export function DeleteAccountSection({ action }: { action: () => Promise<void> }
   const canDelete = confirmText.trim().toLowerCase() === CONFIRM_PHRASE;
 
   return (
-    <section className="rounded-xl border border-red-200 bg-red-50 p-4">
-      <h2 className="text-sm font-semibold text-red-800">Zone de danger</h2>
-      <p className="mt-1 text-sm text-red-700">
-        Supprimer votre compte efface aussi, définitivement, tous vos lieux et tout ce qui leur est
-        rattaché — horaires, tags, activités, événements, codes QR et affiches. Cette action est
-        irréversible.
-      </p>
-
+    <section aria-label="Supprimer mon compte">
       {!expanded ? (
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="mt-3 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/30"
+          className="inline-flex min-h-10 items-center rounded-lg border border-red-200 bg-white px-4 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/30"
         >
           Supprimer mon compte
         </button>
       ) : (
-        <div className="mt-3 flex flex-col gap-2">
+        <div className="flex max-w-md flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-4">
           <label htmlFor="delete-account-confirm" className="text-sm font-medium text-red-800">
             Tapez « <span className="font-mono">{CONFIRM_PHRASE}</span> » pour confirmer
           </label>

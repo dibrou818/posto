@@ -32,7 +32,17 @@ export default async function AccountSettingsPage() {
         </div>
       </FormSection>
 
-      <DeleteAccountSection action={deleteAccount} />
+      <FormSection
+
+        title="Supprimer le compte"
+
+        description="Efface aussi, définitivement, tous vos lieux et tout ce qui leur est rattaché : horaires, activités, événements, codes QR et affiches."
+
+      >
+
+        <DeleteAccountSection action={deleteAccount} />
+
+      </FormSection>
     </div>
   );
 }

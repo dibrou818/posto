@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { requireUser } from "@/lib/supabase/server";
 import { getPlacesByOwner } from "@/lib/queries";
+import { getOpenStatus, openStatusTone } from "@/lib/opening-hours";
 import { ProSidebar } from "@/components/dashboard/ProSidebar";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
@@ -14,6 +15,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           id: place.id,
           name: place.name,
           coverPhotoUrl: place.cover_photo_url,
+          tone: openStatusTone(
+            getOpenStatus(place.opening_hours),
+            place.opening_hours.some((hour) => hour.zone_name === null),
+          ),
         }))}
       />
       <div className="min-w-0 w-full flex-1">{children}</div>

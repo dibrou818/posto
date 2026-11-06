@@ -6,6 +6,7 @@ import { dayLabel, listZoneNames } from "@/lib/opening-hours";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { FormSection, FormActions } from "@/components/dashboard/FormSection";
 import { UnsavedChangesGuard } from "@/components/dashboard/UnsavedChangesGuard";
+import { PlusIcon } from "@/components/ui/PlusIcon";
 
 // Monday first, as people read a week in France; the stored day numbers
 // (0 = Sunday) are unchanged.
@@ -17,7 +18,7 @@ const timeClass =
   "min-h-10 w-[6.5rem] rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10 disabled:opacity-40";
 
 const toolButtonClass =
-  "inline-flex min-h-10 items-center rounded-full border border-gray-300 bg-white px-3 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50";
+  "inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50";
 
 /** One zone's week: a switch per day with its opening and closing time on
  * the same line, plus shortcuts for the common cases (same hours every day,
@@ -193,7 +194,8 @@ export function OpeningHoursForm({
         ) : (
           <div>
             <button type="button" onClick={() => setAdding(true)} className={toolButtonClass}>
-              + Ajouter des horaires séparés
+              <PlusIcon />
+              Ajouter des horaires séparés
             </button>
           </div>
         )}

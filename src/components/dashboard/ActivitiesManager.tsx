@@ -3,17 +3,18 @@
 import { useState } from "react";
 import type { Activity, Tag } from "@/lib/queries";
 import { formatDuration } from "@/lib/eventSchedule";
+import { accessLabel } from "@/lib/access";
 import { DeleteButton } from "@/components/ui/DeleteButton";
-import { RestrictionsBadge } from "@/components/RestrictionsBadge";
-import { AccessBadge } from "@/components/AccessBadge";
 import { ActivityForm } from "@/components/dashboard/ActivityForm";
 import { buttonClass } from "@/lib/ui";
 import { PlusIcon } from "@/components/ui/PlusIcon";
 
-/** The activities of a place — same list-then-create shape as the events
- * list (header with a count, the create form folded behind one button,
- * a card per item). Activities have no QR code or poster, so editing one
- * happens in place in its own row instead of on a separate page. */
+const textButtonClass =
+  "inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20";
+
+/** The activities of a place — same shape as the events list: one button to
+ * add, then a plain list. Activities have no QR code or poster, so adding
+ * and editing happen right here, the form taking the row's place. */
 export function ActivitiesManager({
   activities,
   allTags,
@@ -28,75 +29,70 @@ export function ActivitiesManager({
   onDelete: (activityId: string) => Promise<void>;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(activities.length === 0);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold tracking-tight text-gray-900">Activités</h2>
-        <span className="text-sm text-gray-500">{activities.length}</span>
+    <section>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h2 className="posto-heading text-lg text-gray-900">
+          Activités <span className="font-normal text-gray-400 tabular-nums">{activities.length}</span>
+        </h2>
+        {!adding && (
+          <button type="button" onClick={() => setAdding(true)} className={buttonClass("compact", "shrink-0 px-4")}>
+            <PlusIcon />
+            Nouvelle activité
+          </button>
+        )}
       </div>
+      <p className="mb-4 text-sm text-gray-500">
+        Ce que l&apos;on peut faire chez vous toute l&apos;année : jeux de société, fléchettes, arcade…
+      </p>
 
-      <details className="group rounded-2xl border border-gray-200 bg-white" open={activities.length === 0}>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
-          <span className="text-sm text-gray-600">Ce que l&apos;on peut faire chez vous toute l&apos;année : jeux de société, fléchettes, arcade…</span>
-          <span className={buttonClass("compact", "shrink-0 group-open:hidden")}><PlusIcon />Ajouter</span>
-          <span className="hidden shrink-0 text-sm font-medium text-gray-600 group-open:inline">Fermer</span>
-        </summary>
-        <div className="border-t border-gray-200 p-4 sm:p-5">
-          <ActivityForm allTags={allTags} action={onCreate} />
-        </div>
-      </details>
-
-      {activities.length > 0 && (
-        <ul className="flex flex-col gap-3">
-          {activities.map((activity) => {
-            const isEditing = editingId === activity.id;
-            const duration = formatDuration(activity.duration_minutes);
+      <ul className="divide-y divide-gray-200 border-y border-gray-200">
+        {adding && (
+          <li className="py-5">
+            <p className="mb-4 font-medium text-gray-900">Nouvelle activité</p>
+            <ActivityForm allTags={allTags} action={onCreate} onCancel={activities.length > 0 ? () => setAdding(false) : undefined} />
+          </li>
+        )}
+        {activities.map((activity) => {
+          if (editingId === activity.id) {
             return (
-              <li key={activity.id} className="rounded-2xl border border-gray-200 bg-white p-4">
-                {isEditing ? (
-                  <ActivityForm
-                    activity={activity}
-                    allTags={allTags}
-                    action={onUpdate.bind(null, activity.id)}
-                    onCancel={() => setEditingId(null)}
-                  />
-                ) : (
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900">
-                        {activity.name}
-                        {duration && <span className="ml-1.5 font-normal text-gray-500">· {duration}</span>}
-                      </p>
-                      {activity.description && <p className="mt-0.5 text-sm text-gray-500">{activity.description}</p>}
-                      {(activity.access || activity.restrictions) && (
-                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                          <AccessBadge access={activity.access} />
-                          <RestrictionsBadge text={activity.restrictions} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditingId(activity.id)}
-                        className="inline-flex min-h-10 items-center rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
-                      >
-                        Modifier
-                      </button>
-                      <DeleteButton
-                        action={onDelete.bind(null, activity.id)}
-                        confirmMessage={`Supprimer l'activité « ${activity.name} » ?`}
-                        className="min-h-10 rounded-lg border border-red-200 px-3 text-sm hover:bg-red-50 hover:no-underline"
-                      />
-                    </div>
-                  </div>
-                )}
+              <li key={activity.id} className="py-5">
+                <ActivityForm
+                  activity={activity}
+                  allTags={allTags}
+                  action={onUpdate.bind(null, activity.id)}
+                  onCancel={() => setEditingId(null)}
+                />
               </li>
             );
-          })}
-        </ul>
-      )}
-    </div>
+          }
+          const meta = [formatDuration(activity.duration_minutes), accessLabel(activity.access), activity.restrictions].filter(Boolean);
+          return (
+            <li key={activity.id} className="flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:gap-4">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-gray-900">{activity.name}</p>
+                {(activity.description || meta.length > 0) && (
+                  <p className="mt-0.5 line-clamp-2 text-sm text-gray-500">
+                    {[activity.description, ...meta].filter(Boolean).join(" · ")}
+                  </p>
+                )}
+              </div>
+              <div className="-ml-3 flex shrink-0 items-center gap-1 sm:ml-0">
+                <button type="button" onClick={() => setEditingId(activity.id)} className={textButtonClass}>
+                  Modifier
+                </button>
+                <DeleteButton
+                  action={onDelete.bind(null, activity.id)}
+                  confirmMessage={`Supprimer l'activité « ${activity.name} » ?`}
+                  className="min-h-10 rounded-lg px-3 text-sm hover:bg-red-50 hover:no-underline"
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

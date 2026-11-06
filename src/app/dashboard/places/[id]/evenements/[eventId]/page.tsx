@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { getEventById, getAllTags } from "@/lib/queries";
@@ -14,6 +15,7 @@ import { formatEventSchedule } from "@/lib/eventSchedule";
 import {
   updateEvent,
   deleteEvent,
+  duplicateEvent,
   generateEventQrCode,
   saveEventPoster,
   deleteEventPoster,
@@ -45,37 +47,45 @@ export default async function EditEventPage({
 
   return (
     <div>
-      <LinkButton href={`/dashboard/places/${id}/evenements`} icon="back" className="mb-4">
-        Retour aux événements
-      </LinkButton>
-
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+      <Link href={`/dashboard/places/${id}/evenements`} className="text-sm text-gray-500 hover:text-gray-900">
+        Événements
+      </Link>
+      <div className="mt-1 mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
           <h2 className="posto-heading text-2xl text-gray-900">{event.title}</h2>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-500">
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-500 tabular-nums">
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>{status.label}</span>
             {formatEventSchedule(event.start_datetime, event.end_datetime)}
           </p>
         </div>
-        <LinkButton href={`/events/${event.id}`} icon="external">
-          Voir la page publique
-        </LinkButton>
+        <div className="flex shrink-0 items-center gap-2">
+          <form action={duplicateEvent.bind(null, id, eventId)}>
+            <button
+              type="submit"
+              className="inline-flex min-h-10 items-center rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+            >
+              Dupliquer
+            </button>
+          </form>
+          <LinkButton href={`/events/${event.id}`} icon="external">
+            Voir
+          </LinkButton>
+        </div>
       </div>
 
-      {created === "1" && (
-        <div role="status" className="mb-5 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
-          <p className="font-semibold">Événement créé.</p>
-          <p className="mt-0.5 text-green-800">
-            Prochaine étape : générez son code QR, puis créez l&apos;affiche à imprimer ou à partager.
-          </p>
-        </div>
-      )}
-
-      {duplicated === "1" && (
-        <div role="status" className="mb-5 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
-          <p className="font-semibold">Copie créée.</p>
-          <p className="mt-0.5 text-green-800">Ajustez maintenant la date et le titre, puis enregistrez.</p>
-        </div>
+      {(created === "1" || duplicated === "1") && (
+        <p role="status" className="mb-5 flex items-start gap-2 rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-700">
+          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" aria-hidden="true" />
+          {created === "1" ? (
+            <span>
+              <span className="font-medium text-gray-900">Événement créé.</span> Générez son code QR, puis son affiche.
+            </span>
+          ) : (
+            <span>
+              <span className="font-medium text-gray-900">Copie créée.</span> Ajustez la date et le titre, puis enregistrez.
+            </span>
+          )}
+        </p>
       )}
 
       <EventTabs basePath={basePath} active={tab} hasQr={Boolean(event.qr_code_url)} hasPoster={Boolean(event.poster_url)} />
@@ -141,9 +151,6 @@ export default async function EditEventPage({
               onDelete={deleteEventPoster.bind(null, id, eventId)}
             />
           </FormSection>
-          <LinkButton href={`/dashboard/places/${id}/evenements`} icon="back" className="mt-4">
-            Retour à la liste des événements
-          </LinkButton>
         </>
       )}
     </div>

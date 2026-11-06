@@ -8,31 +8,29 @@ const TABS: { slug: string; label: string }[] = [
   { slug: "horaires", label: "Horaires" },
   { slug: "activites", label: "Activités" },
   { slug: "evenements", label: "Événements" },
-  { slug: "parametres", label: "Paramètres" },
+  { slug: "parametres", label: "Réglages" },
 ];
 
-/** Segmented-control nav between a place's dashboard sub-pages — same
- * visual language as the map's Lieux/Événements toggle, so switching
- * "sections of a thing I'm managing" always looks the same across the app.
- * A real route per tab (not client-side tab state) so each one only loads
- * its own data, and the URL/back button both work the way people expect. */
+/** The sections of a place, as one row of underlined tabs under its name —
+ * the same on a phone (scrolls sideways) and on a desktop. A real route per
+ * tab so each loads only its own data and the back button works. */
 export function PlaceDashboardTabs({ placeId }: { placeId: string }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-white p-1">
+    <nav aria-label="Sections du lieu" className="-mx-4 flex overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
       {TABS.map((tab) => {
         const href = `/dashboard/places/${placeId}/${tab.slug}`;
-        // startsWith, not exact match: the Événements tab should still read
-        // as active while looking at one specific event's own edit page.
+        // startsWith, not exact match: the Événements tab stays active on
+        // one event's own edit page.
         const active = pathname === href || pathname.startsWith(`${href}/`);
         return (
           <Link
             key={tab.slug}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={`shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
-              active ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"
+            className={`-mb-px inline-flex min-h-12 shrink-0 items-center border-b-2 px-3 text-sm font-medium transition-colors first:pl-0 focus:outline-none focus-visible:text-gray-900 ${
+              active ? "border-gray-900 text-gray-900" : "border-transparent text-gray-500 hover:text-gray-900"
             }`}
           >
             {tab.label}
