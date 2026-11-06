@@ -249,3 +249,23 @@ export async function getSavedEvents(
     .filter((event): event is RawEventWithPlace => event !== null)
     .map(normalizeEvent);
 }
+
+/** Upcoming events across several places, soonest first — the "Pour vous"
+ * block of the home page (events of the places a visitor follows). */
+export async function getUpcomingEventsForPlaces(
+  supabase: SupabaseClient<Database>,
+  placeIds: string[],
+  limit: number,
+): Promise<EventWithPlace[]> {
+  if (placeIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("events")
+    .select(EVENT_SELECT)
+    .in("place_id", placeIds)
+    .gte("start_datetime", new Date().toISOString())
+    .order("start_datetime")
+    .order("id", { ascending: true })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return (data as unknown as RawEventWithPlace[]).map(normalizeEvent);
+}

@@ -15,7 +15,7 @@ const geistSans = Geist({
 const bricolage = Bricolage_Grotesque({
   variable: "--font-bricolage",
   subsets: ["latin"],
-  weight: ["700", "800"],
+  weight: ["600", "800"],
 });
 
 const geistMono = Geist_Mono({
@@ -71,6 +71,11 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // Browser/status-bar tint follows the page in both themes.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f1629" },
+  ],
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

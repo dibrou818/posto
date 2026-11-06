@@ -5,7 +5,7 @@ import { SaveButton } from "@/components/ui/SaveButton";
 
 function InfoIcon() {
   return (
-    <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.75">
       <circle cx="10" cy="10" r="7.5" />
       <path d="M10 9.2v4" strokeLinecap="round" />
       <circle cx="10" cy="6.4" r="0.9" fill="currentColor" stroke="none" />
@@ -109,7 +109,7 @@ export function QrCodeSection({
         </div>
         {qrCodeUrl && scanStats && (
           <p className="text-xs text-gray-500">
-            <span className="font-semibold text-gray-900">{scanStats.last7Days}</span> scan
+            <span className="font-medium text-gray-900 tabular-nums">{scanStats.last7Days}</span> scan
             {scanStats.last7Days !== 1 ? "s" : ""} ces 7 derniers jours
             {scanStats.total !== scanStats.last7Days && (
               <span className="text-gray-400"> · {scanStats.total} au total</span>
@@ -117,7 +117,7 @@ export function QrCodeSection({
           </p>
         )}
         <form action={action}>
-          <SaveButton size="compact" savedLabel="Généré ✓" pendingLabel="Génération...">
+          <SaveButton size="compact" savedLabel="Généré" pendingLabel="Génération…">
             {qrCodeUrl ? "Régénérer le code QR" : "Générer le code QR"}
           </SaveButton>
         </form>

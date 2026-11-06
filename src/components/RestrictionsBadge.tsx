@@ -1,6 +1,6 @@
 function WarningIcon() {
   return (
-    <svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M10 2 18 16H2L10 2Z" />
       <path d="M10 8v3.5" />
       <circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none" />

@@ -20,7 +20,7 @@ function CheckIcon() {
 export function SaveButton({
   children,
   savedLabel = "Enregistré",
-  pendingLabel = "Enregistrement...",
+  pendingLabel = "Enregistrement…",
   disabled = false,
   size = "default",
   className = "",

@@ -41,14 +41,14 @@ function Row({ href, icon, label, value, external }: { href: string; icon: React
       <a
         href={href}
         {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-        className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-gray-50 focus:outline-none focus-visible:bg-gray-50"
+        className="flex min-h-14 items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-gray-50 focus:outline-none focus-visible:bg-gray-50"
       >
         <span className="text-gray-500">{icon}</span>
         <span className="min-w-0 flex-1">
           <span className="block text-xs text-gray-500">{label}</span>
           <span className="block truncate font-medium text-gray-900">{value}</span>
         </span>
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true">
           <path d="M7.5 4.5 13 10l-5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </a>
@@ -64,6 +64,17 @@ function hostLabel(url: string) {
   }
 }
 
+/** "@silombarlille" for a social profile link, falling back to the host when
+ * the path holds no account name (e.g. a bare "instagram.com"). */
+function handleLabel(url: string) {
+  try {
+    const account = new URL(url).pathname.split("/").filter(Boolean)[0];
+    return account && !account.endsWith(".php") ? `@${account}` : hostLabel(url);
+  } catch {
+    return url;
+  }
+}
+
 /** "Contact" block of a place/event page: phone, website and social links as
  * one tidy list instead of a row of loose buttons at the top of the page.
  * Renders nothing when the place has no contact details at all. */
@@ -71,14 +82,14 @@ export function ContactList({ place }: { place: ContactSource }) {
   const rows: ReactNode[] = [];
   if (place.phone) rows.push(<Row key="phone" href={`tel:${place.phone}`} icon={ICONS.phone} label="Téléphone" value={place.phone} />);
   if (place.website_url) rows.push(<Row key="web" href={place.website_url} icon={ICONS.web} label="Site web" value={hostLabel(place.website_url)} external />);
-  if (place.instagram_url) rows.push(<Row key="ig" href={place.instagram_url} icon={ICONS.instagram} label="Instagram" value={hostLabel(place.instagram_url)} external />);
-  if (place.facebook_url) rows.push(<Row key="fb" href={place.facebook_url} icon={ICONS.facebook} label="Facebook" value={hostLabel(place.facebook_url)} external />);
+  if (place.instagram_url) rows.push(<Row key="ig" href={place.instagram_url} icon={ICONS.instagram} label="Instagram" value={handleLabel(place.instagram_url)} external />);
+  if (place.facebook_url) rows.push(<Row key="fb" href={place.facebook_url} icon={ICONS.facebook} label="Facebook" value={handleLabel(place.facebook_url)} external />);
   if (rows.length === 0) return null;
 
   return (
-    <section className="mt-8">
-      <h2 className="mb-2 text-lg font-semibold text-gray-900">Contact</h2>
-      <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white">{rows}</ul>
+    <section className="posto-section">
+      <h2 className="posto-section-title">Contact</h2>
+      <ul className="posto-detail-card divide-y divide-gray-100 overflow-hidden">{rows}</ul>
     </section>
   );
 }

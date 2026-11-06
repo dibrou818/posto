@@ -4,7 +4,7 @@ import type { ChangeEvent } from "react";
 
 function UploadIcon() {
   return (
-    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M10 12.5V3.5" />
       <path d="M6.5 7 10 3.5 13.5 7" />
       <path d="M4 13v1.5a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V13" />

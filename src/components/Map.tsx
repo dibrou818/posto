@@ -309,6 +309,8 @@ function addClusteredLayer(
   });
 }
 
+export type MapViewportBounds = { west: number; south: number; east: number; north: number };
+
 export type MapFocusTarget = { id: string; lat: number; lng: number; zoom?: number };
 
 // What the mobile bottom sheet (rendered by FullScreenMap, outside this
@@ -327,6 +329,7 @@ export function Map({
   onSelectEvent,
   onDismissSelection,
   onInteractionStart,
+  onViewportChange,
 }: {
   places: PlaceWithRelations[];
   events?: EventWithPlace[];
@@ -351,6 +354,9 @@ export function Map({
    * on the map canvas itself, so the panel would otherwise stay open while
    * the map slides around underneath it. */
   onInteractionStart?: () => void;
+  /** The visible area, reported once the map has loaded and every time it
+   * stops moving — FullScreenMap uses it to list the results "around here". */
+  onViewportChange?: (bounds: MapViewportBounds) => void;
 }) {
   const isMobile = useIsMobileViewport();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -394,12 +400,14 @@ export function Map({
   const onSelectEventRef = useRef(onSelectEvent);
   const onDismissSelectionRef = useRef(onDismissSelection);
   const onInteractionStartRef = useRef(onInteractionStart);
+  const onViewportChangeRef = useRef(onViewportChange);
   useEffect(() => {
     isMobileRef.current = isMobile;
     onSelectPlaceRef.current = onSelectPlace;
     onSelectEventRef.current = onSelectEvent;
     onDismissSelectionRef.current = onDismissSelection;
     onInteractionStartRef.current = onInteractionStart;
+    onViewportChangeRef.current = onViewportChange;
   });
 
   const [initialView] = useState(() => readStoredView());
@@ -734,6 +742,18 @@ export function Map({
     }
     map.on("moveend", schedulePersist);
     map.on("zoomend", schedulePersist);
+
+    function reportViewport() {
+      const bounds = map.getBounds();
+      onViewportChangeRef.current?.({
+        west: bounds.getWest(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        north: bounds.getNorth(),
+      });
+    }
+    map.on("load", reportViewport);
+    map.on("moveend", reportViewport);
 
     const removeUserLocationLayer = setupUserLocationLayer(
       map,

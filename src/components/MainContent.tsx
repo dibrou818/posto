@@ -20,7 +20,7 @@ export function MainContent({ children }: { children: React.ReactNode }) {
     <main
       id="main-content"
       tabIndex={-1}
-      className={`flex-1 flex flex-col ${isLanding || isDashboard ? "" : "pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0"} ${isLanding || isDashboard || isMap ? "" : "pt-[env(safe-area-inset-top)] md:pt-0"}`}
+      className={`flex-1 flex flex-col ${isLanding || isDashboard ? "" : "pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0"} ${isLanding || isDashboard || isMap ? "" : "pt-[env(safe-area-inset-top)] md:pt-0"}`}
     >
       {children}
     </main>

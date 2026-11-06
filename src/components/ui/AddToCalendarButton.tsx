@@ -13,7 +13,7 @@ import { useDragToDismissSheet } from "@/lib/useDragToDismissSheet";
 
 function CalendarIcon() {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4">
       <rect x="3.5" y="4.5" width="13" height="12" rx="1.5" />
       <path d="M3.5 8.5h13" strokeLinecap="round" />
       <path d="M7 3v3M13 3v3" strokeLinecap="round" />
@@ -23,7 +23,7 @@ function CalendarIcon() {
 
 function ArrowIcon() {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4 shrink-0 text-gray-400">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4 shrink-0 text-gray-400">
       <path d="M7.5 4.5 13 10l-5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -189,10 +189,10 @@ export function AddToCalendarButton({ event }: { event: CalendarEventInput }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium whitespace-nowrap text-gray-900 transition-[transform,background-color] hover:bg-gray-50 active:scale-[0.98] focus:outline-none focus-visible:ring-4 focus-visible:ring-brand/15"
       >
         <CalendarIcon />
-        Ajouter au calendrier
+        Calendrier
       </button>
 
       {/* Desktop: a small popover anchored under the button, only ever

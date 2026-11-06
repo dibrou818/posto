@@ -1,8 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { PlaceWithRelations } from "@/lib/queries";
-import { getOpenStatus, formatOpenStatus } from "@/lib/opening-hours";
+import { getOpenStatus } from "@/lib/opening-hours";
+import { OpenStatusLabel } from "@/components/OpenStatusLabel";
 import { LinkButton } from "@/components/ui/LinkButton";
+import { PlusIcon } from "@/components/ui/PlusIcon";
 
 const dateFormat = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short" });
 
@@ -26,17 +28,19 @@ export function DashboardPlaceCard({ place, activity }: { place: PlaceWithRelati
   if (place.tags.length === 0) todo.push({ label: "Choisir des catégories", href: `${base}/informations` });
 
   return (
-    <li className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4">
+    <li className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4">
       <div className="flex items-start gap-3">
         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-100">
           {place.cover_photo_url && <Image src={place.cover_photo_url} alt="" fill sizes="64px" className="object-cover" />}
         </div>
         <div className="min-w-0 flex-1">
-          <Link href={`${base}/informations`} className="block truncate text-base font-semibold text-gray-900 hover:underline focus:outline-none focus-visible:underline">
+          <Link href={`${base}/informations`} className="block truncate text-base font-medium text-gray-900 hover:underline focus:outline-none focus-visible:underline">
             {place.name}
           </Link>
           <p className="truncate text-sm text-gray-500">{place.address}</p>
-          <p className={`mt-0.5 text-sm font-medium ${status.open ? "text-green-600" : "text-gray-500"}`}>{formatOpenStatus(status)}</p>
+          <p className="mt-1 text-sm">
+            <OpenStatusLabel status={status} hasHours={place.opening_hours.some((hour) => hour.zone_name === null)} />
+          </p>
         </div>
       </div>
 
@@ -59,8 +63,9 @@ export function DashboardPlaceCard({ place, activity }: { place: PlaceWithRelati
             <Link
               key={item.label}
               href={item.href}
-              className="inline-flex min-h-9 items-center rounded-full border border-dashed border-gray-400 px-3 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-gray-50 px-3 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
             >
+              <PlusIcon />
               {item.label}
             </Link>
           ))}

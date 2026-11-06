@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import type { Activity, Tag } from "@/lib/queries";
 import { compactInputClass, labelClass } from "@/lib/ui";
 import { TextField } from "@/components/ui/TextField";
 import { SaveButton } from "@/components/ui/SaveButton";
 import { DurationField } from "@/components/ui/DurationField";
+import { AccessField } from "@/components/ui/AccessField";
+import { ACTIVITY_PRESETS } from "@/lib/activityPresets";
 import {
   ACTIVITY_NAME_MAX_LENGTH,
   ACTIVITY_DESCRIPTION_MAX_LENGTH,
@@ -15,7 +18,13 @@ import {
  * as PlaceForm/EventForm (an optional `activity` pre-fills every field and
  * swaps the button's label). Used by the activities list's own inline "add"
  * row and its inline "edit" row (see ActivitiesManager), so the two field
- * sets can never drift apart. */
+ * sets can never drift apart.
+ *
+ * The activity type is picked from quick chips (jeux de société,
+ * fléchettes, arcade…): one tap fills the name and sets the matching
+ * category, so every place describes the same activity the same way — which
+ * is what makes it searchable later. The name stays editable free text for
+ * anything the chips don't cover. */
 export function ActivityForm({
   activity,
   allTags,
@@ -29,54 +38,92 @@ export function ActivityForm({
    * out without saving. The "add" form has nothing to cancel back to. */
   onCancel?: () => void;
 }) {
+  const [name, setName] = useState(activity?.name ?? "");
+  const [tagId, setTagId] = useState(activity?.tag_id ?? "");
+  const idBase = activity?.id ?? "new";
+
+  function pickPreset(label: string, tagSlug: string) {
+    setName(label);
+    const tag = allTags.find((t) => t.slug === tagSlug);
+    if (tag) setTagId(tag.id);
+  }
+
+  async function submit(formData: FormData) {
+    await action(formData);
+    // A create form stays on screen for the next activity — clear what the
+    // browser's own form reset doesn't touch (controlled fields).
+    if (!activity) {
+      setName("");
+      setTagId("");
+    }
+  }
+
   return (
-    <form action={action} className="flex flex-col gap-2">
-      {/* The compact "add" row (no `activity`) drops the visible <label> to
-          stay narrow, but a placeholder alone isn't a reliable accessible
-          name for a screen reader (it isn't consistently exposed the way a
-          real label/aria-label is, and it disappears the moment someone
-          starts typing) — aria-label fills that gap exactly when the
-          visible label isn't rendered. */}
+    <form action={submit} className="flex flex-col gap-4">
+      <div>
+        <span className={labelClass}>Type d&apos;activité</span>
+        <div className="flex flex-wrap gap-1.5">
+          {ACTIVITY_PRESETS.map((preset) => {
+            const selected = name.trim().toLowerCase() === preset.label.toLowerCase();
+            return (
+              <button
+                key={preset.tagSlug}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => pickPreset(preset.label, preset.tagSlug)}
+                className={`min-h-9 rounded-lg border px-3 py-1.5 text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 ${
+                  selected
+                    ? "border-gray-900 bg-gray-900 text-white"
+                    : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <TextField
-        label={activity ? "Nom" : undefined}
-        aria-label={activity ? undefined : "Nom de l'activité"}
+        label="Nom affiché"
         name="name"
-        placeholder="Nom de l'activité"
+        placeholder="Ex : Fléchettes, Jeux de société…"
         required
         maxLength={ACTIVITY_NAME_MAX_LENGTH}
-        defaultValue={activity?.name}
+        value={name}
+        onChange={(event) => setName(event.target.value)}
       />
       <TextField
-        label={activity ? "Description" : undefined}
-        aria-label={activity ? undefined : "Description de l'activité"}
+        label="Description"
         name="description"
         placeholder="Description (optionnel)"
         maxLength={ACTIVITY_DESCRIPTION_MAX_LENGTH}
         defaultValue={activity?.description ?? ""}
       />
-      <div className="grid grid-cols-2 gap-2">
-        <DurationField
-          label={activity ? "Durée typique" : undefined}
-          name="duration_minutes"
-          defaultValue={activity?.duration_minutes}
-        />
+
+      <AccessField idPrefix={`activity-access-${idBase}`} defaultValue={activity?.access} />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <DurationField label="Durée typique" name="duration_minutes" defaultValue={activity?.duration_minutes} />
         <TextField
-          label="Restriction"
+          label="Âge ou conditions"
           name="restrictions"
-          placeholder="Ex: 1m45 minimum"
+          placeholder="Ex : dès 8 ans, 1m45 minimum"
           maxLength={RESTRICTIONS_MAX_LENGTH}
           defaultValue={activity?.restrictions ?? ""}
         />
       </div>
+
       <div>
-        {activity && <label className={labelClass}>Tag</label>}
+        <label className={labelClass} htmlFor={`activity-tag-${idBase}`}>Catégorie</label>
         <select
+          id={`activity-tag-${idBase}`}
           name="tag_id"
-          aria-label={activity ? undefined : "Tag"}
-          defaultValue={activity?.tag_id ?? ""}
+          value={tagId}
+          onChange={(event) => setTagId(event.target.value)}
           className={compactInputClass}
         >
-          <option value="">Hérite des tags du lieu</option>
+          <option value="">Celle du lieu</option>
           {allTags.map((tag) => (
             <option key={tag.id} value={tag.id}>
               {tag.label}
@@ -84,12 +131,13 @@ export function ActivityForm({
           ))}
         </select>
       </div>
+
       <div className="flex items-center gap-3">
         <SaveButton
           size="compact"
           className="self-start"
           savedLabel={activity ? "Enregistrée" : "Ajoutée"}
-          pendingLabel={activity ? "Enregistrement..." : "Ajout..."}
+          pendingLabel={activity ? "Enregistrement…" : "Ajout…"}
         >
           {activity ? "Enregistrer" : "Ajouter"}
         </SaveButton>

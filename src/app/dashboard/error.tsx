@@ -3,7 +3,7 @@
 export default function DashboardError({ reset }: { error: Error; reset: () => void }) {
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-16 text-center">
-      <h1 className="text-xl font-bold text-gray-900">Cette action n&apos;a pas abouti</h1>
+      <h1 className="posto-heading text-2xl text-gray-900">Cette action n&apos;a pas abouti</h1>
       <p className="mt-2 text-sm text-gray-500">
         Rien n&apos;a été perdu côté serveur : votre dernier enregistrement réussi est conservé. Vérifiez votre
         connexion, puis réessayez. Si le problème continue, revenez à la page précédente et refaites la modification.

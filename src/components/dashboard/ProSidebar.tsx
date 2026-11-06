@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/Logo";
+import { PlusIcon } from "@/components/ui/PlusIcon";
 
 type ManagedPlace = {
   id: string;
@@ -21,43 +22,43 @@ const PLACE_SECTIONS = [
 ];
 
 function GridIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="12" y="3" width="5" height="5" rx="1"/><rect x="3" y="12" width="5" height="5" rx="1"/><rect x="12" y="12" width="5" height="5" rx="1"/></svg>;
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="12" y="3" width="5" height="5" rx="1"/><rect x="3" y="12" width="5" height="5" rx="1"/><rect x="12" y="12" width="5" height="5" rx="1"/></svg>;
 }
 
 function InfoIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.2v.1" strokeLinecap="round"/></svg>;
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.2v.1" strokeLinecap="round"/></svg>;
 }
 
 function ClockIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.8 1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.8 1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 
 function ActivityIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M3 10h3l1.5-4 3 8 1.8-4H17" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><path d="M3 10h3l1.5-4 3 8 1.8-4H17" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 
 function CalendarIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8h14M7 3v3M13 3v3" strokeLinecap="round"/></svg>;
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8h14M7 3v3M13 3v3" strokeLinecap="round"/></svg>;
 }
 
 function SlidersIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><path d="M3 6h7M14 6h3M3 14h3M10 14h7" strokeLinecap="round"/><circle cx="12" cy="6" r="2"/><circle cx="8" cy="14" r="2"/></svg>;
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><path d="M3 6h7M14 6h3M3 14h3M10 14h7" strokeLinecap="round"/><circle cx="12" cy="6" r="2"/><circle cx="8" cy="14" r="2"/></svg>;
 }
 
 function UserIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4"><circle cx="10" cy="7" r="3.2"/><path d="M3.8 17c.8-3 3.3-4.5 6.2-4.5s5.4 1.5 6.2 4.5" strokeLinecap="round"/></svg>;
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><circle cx="10" cy="7" r="3.2"/><path d="M3.8 17c.8-3 3.3-4.5 6.2-4.5s5.4 1.5 6.2 4.5" strokeLinecap="round"/></svg>;
 }
 
 function ArrowLeftIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-4 w-4"><path d="m11.5 5-5 5 5 5M6.8 10H17" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4"><path d="m11.5 5-5 5 5 5M6.8 10H17" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 
 function CloseIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5"><path d="m5 5 10 10M15 5 5 15" strokeLinecap="round"/></svg>;
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-5 w-5"><path d="m5 5 10 10M15 5 5 15" strokeLinecap="round"/></svg>;
 }
 
 function MenuIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-5 w-5"><path d="M3 5.5h14M3 10h14M3 14.5h14" strokeLinecap="round"/></svg>;
+  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-5 w-5"><path d="M3 5.5h14M3 10h14M3 14.5h14" strokeLinecap="round"/></svg>;
 }
 
 function SidebarContent({
@@ -73,8 +74,8 @@ function SidebarContent({
   const router = useRouter();
 
   const navClass = (active: boolean) =>
-    `flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
-      active ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+    `flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
+      active ? "bg-gray-100 text-gray-900" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
     }`;
 
   return (
@@ -82,7 +83,7 @@ function SidebarContent({
       <div className="border-b border-gray-200 px-4 py-4">
         <Link href="/dashboard" onClick={onNavigate} className="inline-flex items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20">
           <Logo size={30} />
-          <span className="rounded-md bg-gray-900 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white">PRO</span>
+          <span className="text-sm font-medium text-gray-500">Pro</span>
         </Link>
       </div>
 
@@ -96,11 +97,13 @@ function SidebarContent({
 
         {places.length > 0 && (
           <div className="mt-6">
-            <p className="mb-2 px-3 text-[11px] font-semibold tracking-[0.12em] text-gray-400 uppercase">Lieu</p>
+            <p className="mb-2 px-3 text-xs font-medium text-gray-500">Lieu</p>
             <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-2">
-              <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                {currentPlace?.coverPhotoUrl && <Image src={currentPlace.coverPhotoUrl} alt="" fill sizes="36px" className="object-cover" />}
-              </div>
+              {currentPlace && (
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                  {currentPlace.coverPhotoUrl && <Image src={currentPlace.coverPhotoUrl} alt="" fill sizes="40px" className="object-cover" />}
+                </div>
+              )}
               <select
                 aria-label="Choisir un lieu"
                 value={currentPlace?.id ?? ""}
@@ -134,9 +137,9 @@ function SidebarContent({
           </nav>
         )}
 
-        <div className="mt-6 border-t border-gray-200 pt-4">
+        <div className="mt-6 space-y-1 border-t border-gray-200 pt-4">
           <Link href="/dashboard/places/new" onClick={onNavigate} className={navClass(pathname === "/dashboard/places/new")}>
-            <span className="w-4 text-center text-lg leading-none">+</span>
+            <PlusIcon />
             Ajouter un lieu
           </Link>
           <Link href="/dashboard/parametres" onClick={onNavigate} className={navClass(pathname === "/dashboard/parametres")}>

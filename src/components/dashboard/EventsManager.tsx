@@ -5,8 +5,10 @@ import { DeleteButton } from "@/components/ui/DeleteButton";
 import { formatEventSchedule, formatRecurrence, formatDuration, formatPrice } from "@/lib/eventSchedule";
 import { getEventStatus } from "@/lib/dashboardEventStatus";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
+import { AccessBadge } from "@/components/AccessBadge";
 import { EventForm } from "@/components/dashboard/EventForm";
 import { buttonClass } from "@/lib/ui";
+import { PlusIcon } from "@/components/ui/PlusIcon";
 import { LinkButton } from "@/components/ui/LinkButton";
 
 const dayFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric" });
@@ -14,7 +16,7 @@ const monthFormat = new Intl.DateTimeFormat("fr-FR", { month: "short" });
 
 function CheckIcon() {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-3.5 w-3.5" aria-hidden="true">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5" aria-hidden="true">
       <path d="M4 10.5 8 14.5 16 5.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -22,7 +24,7 @@ function CheckIcon() {
 
 function RepeatIcon() {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5" aria-hidden="true">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-5 w-5" aria-hidden="true">
       <path d="M4 9a5 5 0 0 1 8.5-3.5L15 8M16 11a5 5 0 0 1-8.5 3.5L5 12" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M15 4v4h-4M5 16v-4h4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -61,8 +63,8 @@ function EventRow({
             <RepeatIcon />
           ) : (
             <>
-              <span className="text-base leading-none font-bold">{dayFormat.format(start)}</span>
-              <span className="mt-0.5 text-[10px] leading-none font-medium text-gray-500 uppercase">{monthFormat.format(start).replace(".", "")}</span>
+              <span className="text-base leading-none font-semibold tabular-nums">{dayFormat.format(start)}</span>
+              <span className="mt-0.5 text-[11px] leading-none text-gray-500">{monthFormat.format(start).replace(".", "")}</span>
             </>
           )}
         </div>
@@ -79,8 +81,9 @@ function EventRow({
             {priceLabel ? ` · ${priceLabel}` : ""}
             {duration ? ` · ${duration}` : ""}
           </p>
-          {event.restrictions && (
-            <div className="mt-1">
+          {(event.access || event.restrictions) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <AccessBadge access={event.access} />
               <RestrictionsBadge text={event.restrictions} />
             </div>
           )}
@@ -174,7 +177,7 @@ export function EventsManager({
       <details className="group rounded-2xl border border-gray-200 bg-white" open={events.length === 0}>
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
           <span className="text-sm text-gray-600">Un quiz, une soirée, un tournoi ? Publiez-le en quelques champs.</span>
-          <span className={buttonClass("compact", "shrink-0 group-open:hidden")}>+ Créer un événement</span>
+          <span className={buttonClass("compact", "shrink-0 group-open:hidden")}><PlusIcon />Créer un événement</span>
           <span className="hidden shrink-0 text-sm font-medium text-gray-600 group-open:inline">Fermer</span>
         </summary>
         <div className="border-t border-gray-200 p-4 sm:p-5">
@@ -196,8 +199,9 @@ export function EventsManager({
 
       {past.length > 0 && (
         <details className="group">
-          <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
-            Événements passés ({past.length})
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 [&::-webkit-details-marker]:hidden">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 shrink-0 transition-transform group-open:rotate-90" aria-hidden="true"><path d="m8 5 5 5-5 5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            Événements passés <span className="tabular-nums text-gray-500">{past.length}</span>
           </summary>
           <ul className="mt-3 flex flex-col gap-3">
             {past.map((event) => (

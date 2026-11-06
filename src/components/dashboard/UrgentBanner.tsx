@@ -19,7 +19,7 @@ export function UrgentBanner({
 }) {
   return (
     <div role="status" className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4">
-      <p className="text-xs font-semibold tracking-wide text-amber-800 uppercase">Message urgent affiché sur votre fiche</p>
+      <p className="text-sm font-medium text-amber-900">Message urgent affiché sur votre fiche</p>
       <p className="mt-1 text-sm text-amber-950">{message}</p>
       <p className="mt-0.5 text-xs text-amber-800">
         {expiresAt ? `Disparaît le ${dateFormat.format(new Date(expiresAt))}` : "Sans date de fin : il reste affiché jusqu'à ce que vous le retiriez."}

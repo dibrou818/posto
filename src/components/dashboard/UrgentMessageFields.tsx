@@ -46,7 +46,7 @@ export function UrgentMessageFields({
         name="urgent_message"
         rows={2}
         maxLength={URGENT_MESSAGE_MAX_LENGTH}
-        placeholder="Fermeture exceptionnelle ce soir..."
+        placeholder="Fermeture exceptionnelle ce soir…"
         defaultValue={defaultMessage ?? ""}
       />
       <div>

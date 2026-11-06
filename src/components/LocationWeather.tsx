@@ -30,7 +30,7 @@ function LocationIcon() {
       height="14"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -45,7 +45,7 @@ function LocationIcon() {
 // changes the icon people expect to see).
 function SunIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="4.5" />
       <path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
     </svg>
@@ -54,7 +54,7 @@ function SunIcon() {
 
 function MoonIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z" />
     </svg>
   );
@@ -62,7 +62,7 @@ function MoonIcon() {
 
 function CloudIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M7 18.5a4.5 4.5 0 0 1-.5-8.97 5.5 5.5 0 0 1 10.66-1.9A4 4 0 0 1 17 18.5H7Z" />
     </svg>
   );
@@ -70,7 +70,7 @@ function CloudIcon() {
 
 function FogIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 9.5h11M4 13.5h16M4 17.5h13" />
     </svg>
   );
@@ -78,7 +78,7 @@ function FogIcon() {
 
 function RainIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M7 15a4.5 4.5 0 0 1-.5-8.97 5.5 5.5 0 0 1 10.66-1.9A4 4 0 0 1 17 15H7Z" />
       <path d="M8 18.5 7 20.5M12 18.5l-1 2M16 18.5l-1 2" />
     </svg>
@@ -87,7 +87,7 @@ function RainIcon() {
 
 function SnowIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M7 15a4.5 4.5 0 0 1-.5-8.97 5.5 5.5 0 0 1 10.66-1.9A4 4 0 0 1 17 15H7Z" />
       <path d="M8 18v3M12 18v3M16 18v3M6.7 19.5 9.3 18M17.3 19.5 14.7 18" />
     </svg>
@@ -96,7 +96,7 @@ function SnowIcon() {
 
 function StormIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M7 14.5a4.5 4.5 0 0 1-.5-8.97 5.5 5.5 0 0 1 10.66-1.9A4 4 0 0 1 17 14.5H7Z" />
       <path d="m13 15-2.5 4h3L11 23" />
     </svg>
@@ -236,7 +236,7 @@ export function LocationWeather({
 
   const label =
     state.status === "loading"
-      ? "Localisation en cours..."
+      ? "Localisation en cours…"
       : state.status === "denied"
         ? "Localisation indisponible · réessayer"
         : "Autour de moi";
@@ -261,8 +261,8 @@ export function LocationWeather({
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/45" />
 
       <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-4">
-        <h1 className="text-center text-3xl leading-tight font-bold tracking-tight text-balance text-white sm:text-5xl">
-          On fait quoi aujourd’hui&nbsp;?
+        <h1 className="posto-heading text-center text-3xl text-balance text-on-accent sm:text-5xl sm:tracking-[-0.02em]">
+          On fait quoi à Lille aujourd’hui&nbsp;?
         </h1>
 
         {children && <div className="w-full">{children}</div>}
@@ -275,7 +275,7 @@ export function LocationWeather({
       {state.status === "granted" ? (
         state.temperatureC !== null && (
           <div
-            className="absolute right-4 bottom-3 z-10 flex items-center gap-1.5 text-white/80 sm:right-6 sm:bottom-4"
+            className="absolute right-4 bottom-3 z-10 flex items-center gap-1.5 text-on-accent/80 sm:right-6 sm:bottom-4"
             title={state.approximate ? "Position approximative" : undefined}
           >
             <WeatherIcon code={state.weatherCode} isDay={state.isDay} />
@@ -287,7 +287,7 @@ export function LocationWeather({
           type="button"
           onClick={requestLocation}
           disabled={state.status === "loading"}
-          className="absolute right-4 bottom-3 z-10 flex min-h-8 items-center gap-1.5 rounded-full border border-white/25 bg-black/20 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm transition-colors hover:bg-black/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:opacity-60 sm:right-6 sm:bottom-4"
+          className="absolute right-4 bottom-3 z-10 flex min-h-8 items-center gap-1.5 rounded-full border border-on-accent/25 bg-black/20 px-3 py-1 text-xs font-medium text-on-accent/90 backdrop-blur-sm transition-colors hover:bg-black/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:opacity-60 sm:right-6 sm:bottom-4"
         >
           <LocationIcon />
           {label}

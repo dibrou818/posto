@@ -9,9 +9,9 @@ function ConfirmButton() {
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex min-h-10 items-center rounded-lg bg-red-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40 focus-visible:ring-offset-2 disabled:opacity-60"
+      className="inline-flex min-h-10 items-center rounded-lg bg-danger px-3 text-sm font-semibold text-on-accent transition-colors hover:bg-danger-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40 focus-visible:ring-offset-2 disabled:opacity-60"
     >
-      {pending ? "Suppression..." : "Confirmer"}
+      {pending ? "Suppression…" : "Confirmer"}
     </button>
   );
 }

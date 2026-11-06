@@ -16,6 +16,7 @@ import {
   textField,
   textFieldLimited,
   parseDurationMinutes,
+  parseAccess,
   parseCoverPhotoUrl,
   storagePathFromPublicUrl,
   getSiteOrigin,
@@ -83,6 +84,7 @@ export async function createEvent(placeId: string, formData: FormData) {
   const cover_photo_url = parseCoverPhotoUrl(formData);
   const duration_minutes = parseDurationMinutes(formData, "duration_minutes");
   const restrictions = textFieldLimited(formData, "restrictions", RESTRICTIONS_MAX_LENGTH, "Restriction");
+  const access = parseAccess(formData);
 
   if (!title || !start_datetime) {
     throw new Error("Titre et date de début sont requis.");
@@ -103,6 +105,7 @@ export async function createEvent(placeId: string, formData: FormData) {
       cover_photo_url,
       duration_minutes,
       restrictions,
+      access,
     })
     .select("id")
     .single();
@@ -143,6 +146,7 @@ export async function duplicateEvent(placeId: string, eventId: string) {
       cover_photo_url: source.cover_photo_url,
       duration_minutes: source.duration_minutes,
       restrictions: source.restrictions,
+      access: source.access,
     })
     .select("id")
     .single();
@@ -171,6 +175,7 @@ export async function updateEvent(placeId: string, eventId: string, formData: Fo
   const cover_photo_url = parseCoverPhotoUrl(formData);
   const duration_minutes = parseDurationMinutes(formData, "duration_minutes");
   const restrictions = textFieldLimited(formData, "restrictions", RESTRICTIONS_MAX_LENGTH, "Restriction");
+  const access = parseAccess(formData);
 
   if (!title || !start_datetime) {
     throw new Error("Titre et date de début sont requis.");
@@ -191,6 +196,7 @@ export async function updateEvent(placeId: string, eventId: string, formData: Fo
         cover_photo_url,
         duration_minutes,
         restrictions,
+        access,
       },
       { count: "exact" },
     )

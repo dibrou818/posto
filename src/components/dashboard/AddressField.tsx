@@ -9,7 +9,7 @@ const DEBOUNCE_MS = 350;
 
 function PinIcon() {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4 shrink-0 text-gray-500" aria-hidden="true">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4 shrink-0 text-gray-500" aria-hidden="true">
       <path d="M10 18s6-5.5 6-10a6 6 0 1 0-12 0c0 4.5 6 10 6 10Z" strokeLinecap="round" strokeLinejoin="round" />
       <circle cx="10" cy="8" r="2.2" />
     </svg>
@@ -192,7 +192,7 @@ export function AddressField({
       )}
 
       <p className={`mt-1.5 text-sm ${confirmed ? "text-green-600" : "text-gray-500"}`}>
-        {confirmed ? "Adresse confirmée ✓" : "Tapez votre adresse, puis choisissez-la dans la liste."}
+        {confirmed ? "Adresse confirmée" : "Tapez votre adresse, puis choisissez-la dans la liste."}
       </p>
     </div>
   );

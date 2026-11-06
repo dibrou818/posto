@@ -51,7 +51,7 @@ export default async function EditEventPage({
 
       <div className="mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
-          <h2 className="text-xl font-bold tracking-tight text-gray-900">{event.title}</h2>
+          <h2 className="posto-heading text-2xl text-gray-900">{event.title}</h2>
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-500">
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}>{status.label}</span>
             {formatEventSchedule(event.start_datetime, event.end_datetime)}

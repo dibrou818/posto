@@ -31,7 +31,7 @@ export default async function PlaceInformationsPage({
     <div>
       {created === "1" && (
         <div className="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          <p className="font-medium">✅ Lieu créé avec succès.</p>
+          <p className="font-medium">Lieu créé</p>
           <p className="mt-0.5 text-green-700">
             Complétez ci-dessous ses informations, puis les autres onglets (horaires, activités,
             événements) si besoin — chaque section s&apos;enregistre indépendamment.

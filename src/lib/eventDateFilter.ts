@@ -39,13 +39,13 @@ const shortDateFormatter = new Intl.DateTimeFormat("fr-FR", { day: "numeric", mo
  * a quick option's own label, a formatted single date, or a formatted
  * range ("12 sept. – 15 sept."). */
 export function formatEventDateFilterLabel(filter: EventDateFilterValue): string {
-  if (filter.kind === "all") return "Date";
+  if (filter.kind === "all") return "Quand";
   if (filter.kind === "range") {
     const start = shortDateFormatter.format(fromDateKey(filter.start));
     if (filter.start === filter.end) return start;
     return `${start} – ${shortDateFormatter.format(fromDateKey(filter.end))}`;
   }
-  return EVENT_DATE_QUICK_OPTIONS.find((o) => o.kind === filter.kind)?.label ?? "Date";
+  return EVENT_DATE_QUICK_OPTIONS.find((o) => o.kind === filter.kind)?.label ?? "Quand";
 }
 
 function isSameLocalDay(a: Date, b: Date): boolean {

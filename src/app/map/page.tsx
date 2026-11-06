@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { getAllPlaces, getUpcomingEvents } from "@/lib/queries";
+import { getAllPlaces, getAllTags, getUpcomingEvents } from "@/lib/queries";
 import { FullScreenMap } from "@/components/FullScreenMap";
 
 // Streamed immediately while MapData's query is still in flight below —
@@ -20,12 +20,13 @@ function MapPageSkeleton() {
 // until it resolves.
 async function MapData() {
   const supabase = await createClient();
-  const [places, events] = await Promise.all([
+  const [places, events, tags] = await Promise.all([
     getAllPlaces(supabase),
     getUpcomingEvents(supabase),
+    getAllTags(supabase),
   ]);
 
-  return <FullScreenMap places={places} events={events} />;
+  return <FullScreenMap places={places} events={events} allTags={tags} />;
 }
 
 // Deliberately synchronous, not `async function MapPage()` — the previous

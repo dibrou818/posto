@@ -11,6 +11,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { PLACE_PHOTOS_BUCKET } from "@/lib/storage";
+import { isAccessValue } from "@/lib/access";
 
 // getSiteOrigin now lives in @/lib/site (also needed outside the dashboard —
 // the public event page's .ics download and Open Graph metadata) —
@@ -126,4 +127,14 @@ export function storagePathFromPublicUrl(publicUrl: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** The "Accès" radio group posts one of free/registration/reservation, or an
+ * empty string for "not specified" (stored as NULL). Anything else is
+ * rejected rather than silently dropped. */
+export function parseAccess(formData: FormData): string | null {
+  const raw = textField(formData, "access");
+  if (!raw) return null;
+  if (!isAccessValue(raw)) throw new Error("Accès invalide.");
+  return raw;
 }

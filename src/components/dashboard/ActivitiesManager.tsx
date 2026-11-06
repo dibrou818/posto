@@ -5,8 +5,10 @@ import type { Activity, Tag } from "@/lib/queries";
 import { formatDuration } from "@/lib/eventSchedule";
 import { DeleteButton } from "@/components/ui/DeleteButton";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
+import { AccessBadge } from "@/components/AccessBadge";
 import { ActivityForm } from "@/components/dashboard/ActivityForm";
 import { buttonClass } from "@/lib/ui";
+import { PlusIcon } from "@/components/ui/PlusIcon";
 
 /** The activities of a place — same list-then-create shape as the events
  * list (header with a count, the create form folded behind one button,
@@ -36,8 +38,8 @@ export function ActivitiesManager({
 
       <details className="group rounded-2xl border border-gray-200 bg-white" open={activities.length === 0}>
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
-          <span className="text-sm text-gray-600">Ce que l&apos;on peut faire chez vous toute l&apos;année : billard, karaoké, escalade…</span>
-          <span className={buttonClass("compact", "shrink-0 group-open:hidden")}>+ Ajouter</span>
+          <span className="text-sm text-gray-600">Ce que l&apos;on peut faire chez vous toute l&apos;année : jeux de société, fléchettes, arcade…</span>
+          <span className={buttonClass("compact", "shrink-0 group-open:hidden")}><PlusIcon />Ajouter</span>
           <span className="hidden shrink-0 text-sm font-medium text-gray-600 group-open:inline">Fermer</span>
         </summary>
         <div className="border-t border-gray-200 p-4 sm:p-5">
@@ -67,8 +69,9 @@ export function ActivitiesManager({
                         {duration && <span className="ml-1.5 font-normal text-gray-500">· {duration}</span>}
                       </p>
                       {activity.description && <p className="mt-0.5 text-sm text-gray-500">{activity.description}</p>}
-                      {activity.restrictions && (
-                        <div className="mt-1.5">
+                      {(activity.access || activity.restrictions) && (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          <AccessBadge access={activity.access} />
                           <RestrictionsBadge text={activity.restrictions} />
                         </div>
                       )}

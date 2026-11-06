@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CityResult } from "@/components/SearchBar";
+import { ClearIcon } from "@/components/ui/FilterChip";
 
 export type LocationFilterValue = { label: string; lat: number; lng: number };
 
@@ -16,7 +17,7 @@ const DROPDOWN_MAX_WIDTH = 256;
 
 function PinIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 21s-7-6.5-7-11.5a7 7 0 0 1 14 0C19 14.5 12 21 12 21Z" />
       <circle cx="12" cy="9.5" r="2.2" />
     </svg>
@@ -151,7 +152,7 @@ export function LocationFilter({
             title="Réinitialiser"
             className="min-h-8 min-w-8 shrink-0 rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
           >
-            ✕
+            <ClearIcon />
           </button>
         )}
       </div>
@@ -166,11 +167,11 @@ export function LocationFilter({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher une ville..."
+            placeholder="Rechercher une ville…"
             className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-900 transition-colors focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
           />
           <div className="mt-1 max-h-56 overflow-y-auto">
-            {loading && <p className="px-2 py-2 text-xs text-gray-500">Recherche...</p>}
+            {loading && <p className="px-2 py-2 text-xs text-gray-500">Recherche…</p>}
             {!loading && !queryTooShort && visibleCities.length === 0 && (
               <p className="px-2 py-2 text-xs text-gray-500">Aucune ville trouvée.</p>
             )}

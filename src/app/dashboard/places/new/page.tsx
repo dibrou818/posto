@@ -1,6 +1,5 @@
 import { requireUser } from "@/lib/supabase/server";
 import { PlaceForm } from "@/components/dashboard/PlaceForm";
-import { BackButton } from "@/components/ui/BackButton";
 import { getAllTags } from "@/lib/queries";
 import { createPlace } from "@/app/dashboard/actions";
 
@@ -9,12 +8,9 @@ export default async function NewPlacePage() {
   const allTags = await getAllTags(supabase);
 
   return (
-    <div className="mx-auto w-full max-w-lg px-4 py-8">
-      <div className="mb-4">
-        <BackButton fallbackHref="/dashboard" />
-      </div>
-      <h1 className="mb-1 text-xl font-bold text-gray-900">Nouveau lieu</h1>
-      <p className="mb-6 text-sm text-gray-500">
+    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+      <h1 className="posto-title mb-2 text-gray-900">Nouveau lieu</h1>
+      <p className="mb-6 text-sm text-gray-600">
         Renseignez les infos de base — vous pourrez ajouter horaires, tags, activités et
         événements juste après.
       </p>

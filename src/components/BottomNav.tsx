@@ -82,7 +82,7 @@ export function BottomNav({ user }: { user: User | null }) {
       // no extra hand-picked buffer on top of it (a prior +4/+8px made the
       // icons sit further from the bottom edge than the curve it was
       // meant to clear actually needs).
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200/80 bg-white/92 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_28px_rgba(23,33,59,0.08)] backdrop-blur-xl md:hidden"
       aria-label="Navigation principale"
     >
       <div className="mx-auto flex max-w-6xl">
@@ -96,13 +96,13 @@ export function BottomNav({ user }: { user: User | null }) {
               href={item.href}
               aria-label={item.label}
               title={item.label}
-              className="flex min-h-14 flex-1 flex-col gap-1 items-center justify-center transition-colors focus:outline-none focus-visible:bg-gray-50"
+              className="relative flex min-h-[4.5rem] flex-1 flex-col items-center justify-center gap-1 transition-colors focus:outline-none focus-visible:bg-gray-50"
               aria-current={active ? "page" : undefined}
             >
-              <span className={active ? "text-gray-900" : "text-gray-500"}>
+              <span className={`relative grid h-8 min-w-12 place-items-center rounded-full transition-colors ${active ? "bg-brand/10 text-brand" : "text-gray-500"}`}>
                 <Icon active={active} />
               </span>
-              <span className={`text-[11px] ${active ? "font-semibold text-gray-900" : "text-gray-600"}`}>{item.label}</span>
+              <span className={`text-[11px] leading-none ${active ? "font-semibold text-brand" : "font-medium text-gray-500"}`}>{item.label}</span>
             </Link>
           );
         })}

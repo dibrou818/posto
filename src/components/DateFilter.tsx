@@ -69,7 +69,7 @@ function RangeCalendar({ onPick }: { onPick: (start: string, end: string) => voi
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-0.5 px-0.5 pb-1 text-center text-[10px] font-medium text-gray-400">
+      <div className="grid grid-cols-7 gap-0.5 px-0.5 pb-1 text-center text-[11px] font-medium text-gray-500">
         {WEEKDAY_LABELS.map((label, i) => (
           // Monday..Sunday all repeat "M" for mardi/mercredi and appear
           // twice (lundi/mardi, jeudi/vendredi start with the same

@@ -95,7 +95,7 @@ export function ChangePasswordSection({ email }: { email: string }) {
         )}
       </div>
 
-      {done && !expanded && <p className="text-sm font-medium text-green-600">Mot de passe mis à jour ✓</p>}
+      {done && !expanded && <p className="text-sm font-medium text-green-600">Mot de passe mis à jour</p>}
 
       {expanded && (
         <form onSubmit={handleSubmit} className="flex max-w-sm flex-col gap-3 border-t border-gray-100 pt-3">
@@ -127,7 +127,7 @@ export function ChangePasswordSection({ email }: { email: string }) {
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex items-center gap-3">
             <Button type="submit" size="compact" disabled={saving}>
-              {saving ? "Enregistrement..." : "Modifier le mot de passe"}
+              {saving ? "Enregistrement…" : "Modifier le mot de passe"}
             </Button>
             <button
               type="button"

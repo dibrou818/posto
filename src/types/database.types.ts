@@ -42,6 +42,7 @@ export type Database = {
       }
       activities: {
         Row: {
+          access: string | null
           created_at: string
           description: string | null
           duration_minutes: number | null
@@ -52,6 +53,7 @@ export type Database = {
           tag_id: string | null
         }
         Insert: {
+          access?: string | null
           created_at?: string
           description?: string | null
           duration_minutes?: number | null
@@ -62,6 +64,7 @@ export type Database = {
           tag_id?: string | null
         }
         Update: {
+          access?: string | null
           created_at?: string
           description?: string | null
           duration_minutes?: number | null
@@ -91,6 +94,7 @@ export type Database = {
       events: {
         Row: {
           cover_photo_url: string | null
+          access: string | null
           created_at: string
           description: string | null
           duration_minutes: number | null
@@ -109,6 +113,7 @@ export type Database = {
         }
         Insert: {
           cover_photo_url?: string | null
+          access?: string | null
           created_at?: string
           description?: string | null
           duration_minutes?: number | null
@@ -127,6 +132,7 @@ export type Database = {
         }
         Update: {
           cover_photo_url?: string | null
+          access?: string | null
           created_at?: string
           description?: string | null
           duration_minutes?: number | null

@@ -87,7 +87,7 @@ export function PlaceForm({
             label={coverPhotoUrl ? "Changer la photo" : "Choisir une photo"}
           />
           <input type="hidden" name="cover_photo_url" value={coverPhotoUrl} />
-          {coverUpload.uploading && <p className="mt-1 text-sm text-gray-500">Envoi en cours...</p>}
+          {coverUpload.uploading && <p className="mt-1 text-sm text-gray-500">Envoi en cours…</p>}
         </div>
 
         <div>
@@ -117,7 +117,7 @@ export function PlaceForm({
             disabled={galleryUpload.uploading}
             label="Ajouter une photo"
           />
-          {galleryUpload.uploading && <p className="mt-1 text-sm text-gray-500">Envoi en cours...</p>}
+          {galleryUpload.uploading && <p className="mt-1 text-sm text-gray-500">Envoi en cours…</p>}
         </div>
       </FormSection>
 

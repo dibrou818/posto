@@ -15,6 +15,7 @@ export function FollowPlaceButton({
     <FavoriteActionButton
       userId={userId}
       active={initialFollowing}
+      tone="secondary"
       labels={{ off: "Suivre", on: "Suivi" }}
       ariaLabels={{ off: "Suivre ce lieu", on: "Ne plus suivre ce lieu" }}
       prompt={{

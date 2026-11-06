@@ -7,7 +7,7 @@ import { buttonClass } from "@/lib/ui";
 import { Logo } from "@/components/Logo";
 
 const navLinkClass =
-  "inline-flex min-h-11 items-center rounded-xl px-3 py-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20";
+  "inline-flex min-h-10 items-center rounded-full px-4 py-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/30";
 
 export function Header({ user }: { user: User | null }) {
   const pathname = usePathname();
@@ -20,12 +20,12 @@ export function Header({ user }: { user: User | null }) {
 
   function linkClass(href: string) {
     const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-    return `${navLinkClass} ${active ? "font-semibold bg-gray-100 text-gray-900" : "text-gray-700 hover:text-gray-900"}`;
+    return `${navLinkClass} ${active ? "font-semibold bg-brand/10 text-brand" : "font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`;
   }
 
   return (
     <header
-      className={`sticky top-0 z-40 border-b border-gray-200 bg-white pt-[env(safe-area-inset-top)] hidden md:block`}
+      className="sticky top-0 z-40 hidden border-b border-gray-200/80 bg-white/90 pt-[env(safe-area-inset-top)] backdrop-blur-xl md:block"
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link

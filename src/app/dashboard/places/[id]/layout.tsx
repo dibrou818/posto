@@ -3,7 +3,8 @@ import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { getPlaceById } from "@/lib/queries";
-import { getOpenStatus, formatOpenStatus } from "@/lib/opening-hours";
+import { getOpenStatus } from "@/lib/opening-hours";
+import { OpenStatusLabel } from "@/components/OpenStatusLabel";
 import { LinkButton } from "@/components/ui/LinkButton";
 import { UrgentBanner } from "@/components/dashboard/UrgentBanner";
 import { removeUrgentMessage } from "@/app/dashboard/actions";
@@ -41,11 +42,9 @@ export default async function PlaceDashboardLayout({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-bold text-gray-900">{place.name}</h1>
+          <h1 className="posto-heading truncate text-xl text-gray-900">{place.name}</h1>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-            <span className={openStatus.open ? "font-medium text-green-600" : "font-medium text-red-500"}>
-              {formatOpenStatus(openStatus)}
-            </span>
+            <OpenStatusLabel status={openStatus} hasHours={place.opening_hours.some((hour) => hour.zone_name === null)} />
           </div>
         </div>
         <LinkButton href={`/places/${place.id}`} icon="external" className="w-full sm:w-auto">

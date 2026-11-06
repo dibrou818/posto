@@ -150,12 +150,12 @@ export function PosterSection({
             disabled={status === "generating"}
             className={buttonClass("compact")}
           >
-            {status === "generating" ? "Génération..." : posterUrl ? "Mettre à jour l'affiche" : "Générer l'affiche"}
+            {status === "generating" ? "Génération…" : posterUrl ? "Mettre à jour l'affiche" : "Générer l'affiche"}
           </button>
           {status === "done" && (
             <span className="flex items-center gap-1 text-sm font-medium text-green-600">
               <CheckIcon />
-              Générée ✓
+              Générée
             </span>
           )}
         </div>

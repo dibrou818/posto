@@ -92,7 +92,7 @@ export function SignupForm({ nextPath = "/account" }: { nextPath?: string }) {
       {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {message && <p role="status" className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{message}</p>}
       <Button type="submit" disabled={loading} className="mt-1">
-        {loading ? "Création..." : "Créer mon compte"}
+        {loading ? "Création…" : "Créer mon compte"}
       </Button>
       <p className="text-sm text-gray-500">
         Déjà un compte ?{" "}

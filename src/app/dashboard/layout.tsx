@@ -8,7 +8,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const places = await getPlacesByOwner(supabase, user.id);
 
   return (
-    <div className="flex min-h-dvh w-full flex-col bg-white lg:flex-row">
+    <div className="theme-light flex min-h-dvh w-full flex-col bg-white lg:flex-row">
       <ProSidebar
         places={places.map((place) => ({
           id: place.id,

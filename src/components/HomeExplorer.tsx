@@ -1,28 +1,25 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
+import type { PlaceWithRelations, EventWithPlace, Tag } from "@/lib/queries";
 import { SearchBar } from "@/components/SearchBar";
 import { PlaceCard } from "@/components/PlaceCard";
 import { EventCard } from "@/components/EventCard";
 import { LocationWeather } from "@/components/LocationWeather";
-import { KindFilter } from "@/components/KindFilter";
+import { ExploreFilterBar } from "@/components/ExploreFilterBar";
 import { LocationFilter, LOCATION_FILTER_RADIUS_KM, type LocationFilterValue } from "@/components/LocationFilter";
-import { BudgetFilter } from "@/components/BudgetFilter";
-import { matchesBudgetFilter, type BudgetFilterValue } from "@/lib/budgetFilter";
-import { DateFilter } from "@/components/DateFilter";
-import { matchesEventDateFilter, ALL_EVENT_DATES, type EventDateFilterValue } from "@/lib/eventDateFilter";
+import { useEventFilters } from "@/lib/useEventFilters";
+import { EmptyResults } from "@/components/ui/EmptyResults";
+import { ALL_EVENT_DATES } from "@/lib/eventDateFilter";
 import { haversineKm } from "@/lib/distance";
 import { usePlacesExplorer, type UserLocation } from "@/lib/usePlacesExplorer";
 import type { ResultKindFilter } from "@/lib/resultFilter";
 import { eventMatchesTag } from "@/lib/eventTags";
 import { isOpenNow } from "@/lib/opening-hours";
-import { isEventHappeningNow } from "@/lib/eventSchedule";
 import { loadMorePlaces, loadMoreEvents } from "@/app/actions/explore";
 import { EXPLORE_PAGE_SIZE } from "@/lib/explore";
 import { useLoadMoreOnScroll } from "@/lib/useLoadMoreOnScroll";
-import { CalendarKindIcon, PlaceKindIcon } from "@/components/KindIcon";
 
 // A place or an event, tagged with its own kind — the shape the merged
 // "Tout" feed below is built from. Kept as a real discriminated union (not
@@ -33,36 +30,31 @@ type FeedItem = { kind: "place"; place: PlaceWithRelations } | { kind: "event"; 
 export function HomeExplorer({
   initialPlaces,
   initialEvents,
+  allTags,
+  forYou,
 }: {
   initialPlaces: PlaceWithRelations[];
   initialEvents: EventWithPlace[];
+  allTags: Tag[];
+  /** Upcoming events of the places this visitor follows — only for a
+   * signed-in visitor who follows at least one place. */
+  forYou?: EventWithPlace[];
 }) {
   const router = useRouter();
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locationFilter, setLocationFilter] = useState<LocationFilterValue | null>(null);
   // Événements first by default (not "all") — it's what Posto actually
   // differentiates on, so it's also what a first-time visitor should land
-  // looking at, not a mixed feed they have to filter down themselves.
-  const [kindFilter, setKindFilter] = useState<ResultKindFilter>("event");
-  // Deliberately applied *after* placesDisplay/eventsDisplay below rather
-  // than folded into the location/tag fallback-tier logic those compute —
-  // that logic's whole point is "never show a blank section, fall back to
-  // something"; showing a closed place because nothing was open would defeat
-  // the point of this filter rather than honor it. Empty here just means
-  // empty, with its own message, no further fallback tier.
-  const [openNowOnly, setOpenNowOnly] = useState(false);
-  // Events-only (see budgetFilter.ts — places/activities carry no price at
-  // all in this schema), and applied the same way openNowOnly is: as a hard
-  // filter after placesDisplay/eventsDisplay's own fallback logic, not
-  // folded into it. A place/event 160km away is still "the closest thing we
-  // have" and worth falling back to; an event outside the chosen budget
-  // just isn't what was asked for, and pretending otherwise would defeat
-  // the filter.
-  const [budgetFilter, setBudgetFilter] = useState<BudgetFilterValue | null>(null);
-  // Same reasoning/placement as budgetFilter right above — events-only
-  // (places have no date of their own to filter by), applied as a hard
-  // filter after the fallback tiers below, same as openNowOnly/budgetFilter.
-  const [dateFilter, setDateFilter] = useState<EventDateFilterValue>(ALL_EVENT_DATES);
+  // looking at, not a mixed feed they have to filter down themselves. With
+  // no upcoming event at all, that tab would open on an empty screen, so the
+  // places (always there, with their live status) take its place.
+  const [kindFilter, setKindFilter] = useState<ResultKindFilter>(initialEvents.length > 0 ? "event" : "place");
+  // Date, budget, duration, access and "open now" — shared with the map (see
+  // useEventFilters). All of them are hard filters applied after the fallback
+  // tiers below: a closed place or an out-of-budget event is never shown just
+  // because nothing matched.
+  const filters = useEventFilters();
+  const { openNowOnly } = filters;
 
   // The page only ever sends the first page of each list (see app/page.tsx)
   // — everything past that grows here via "Voir plus", one bounded fetch at
@@ -121,6 +113,31 @@ export function HomeExplorer({
     places,
     referencePoint,
   );
+
+  // Filters and tags are applied here in the browser, to whatever pages have
+  // been fetched so far — with only the first 9 loaded, "2 results" would be
+  // a lie. So while one is active, the remaining pages are pulled in one
+  // after the other (the catalogue is small; each call is one bounded page)
+  // until the counts are real.
+  const filtersActive = filters.activeCount > 0 || Boolean(selectedTag);
+  useEffect(() => {
+    if (!filtersActive || paginationError) return;
+    // Deferred a tick (react-hooks/set-state-in-effect), like the other
+    // effects in this app that start a state-setting fetch on their own.
+    queueMicrotask(() => {
+      if (hasMoreEvents && !loadingMoreEvents) void handleLoadMoreEvents();
+      if (hasMorePlaces && !loadingMorePlaces) void handleLoadMorePlaces();
+    });
+  }, [
+    filtersActive,
+    paginationError,
+    hasMoreEvents,
+    loadingMoreEvents,
+    handleLoadMoreEvents,
+    hasMorePlaces,
+    loadingMorePlaces,
+    handleLoadMorePlaces,
+  ]);
 
   // Once geolocation resolves to a city, auto-fill the location filter —
   // but only if the user hasn't already picked one by hand, so a manual
@@ -262,19 +279,10 @@ export function HomeExplorer({
     return placesDisplay.list.filter((p) => isOpenNow(p.opening_hours));
   }, [placesDisplay.list, openNowOnly]);
 
-  const finalEventsList = useMemo(() => {
-    let list = eventsDisplay.list;
-    if (openNowOnly) {
-      list = list.filter((e) => isEventHappeningNow(e.start_datetime, e.end_datetime, e.duration_minutes));
-    }
-    if (dateFilter.kind !== "all") {
-      list = list.filter((e) => matchesEventDateFilter(e.start_datetime, dateFilter));
-    }
-    if (budgetFilter) {
-      list = list.filter((e) => matchesBudgetFilter(e.price_cents, budgetFilter));
-    }
-    return list;
-  }, [eventsDisplay.list, openNowOnly, dateFilter, budgetFilter]);
+  const finalEventsList = useMemo(
+    () => eventsDisplay.list.filter(filters.matchesEvent),
+    [eventsDisplay.list, filters.matchesEvent],
+  );
 
   // Shared by both places the events section can go empty after filtering
   // (its own exclusive section, and the merged "Tout" feed) — one message
@@ -284,19 +292,25 @@ export function HomeExplorer({
   // wording below); two or more active at once fall back to one generic
   // phrase rather than trying to grammatically stitch mismatched clauses
   // ("d'ouvert" vs "dans ce budget") into a single sentence.
-  const activeHardFilterCount = [openNowOnly, dateFilter.kind !== "all", Boolean(budgetFilter)].filter(
-    Boolean,
-  ).length;
-  const emptyEventsReason =
-    activeHardFilterCount === 0
-      ? null
-      : activeHardFilterCount > 1
-        ? "rien ne correspond à ces filtres"
-        : openNowOnly
-          ? "rien d'ouvert ni en cours"
-          : dateFilter.kind !== "all"
-            ? "rien à cette période"
-            : "rien dans ce budget";
+  const emptyEventsReason = filters.activeCount === 0 ? null : "rien ne correspond à ces filtres";
+
+  // The way out of an empty list: a gentler next step when the date is the
+  // likely culprit ("Aujourd'hui" → "Demain"), and always a full reset.
+  const resetAllFilters = () => {
+    filters.resetMore();
+    filters.setDateFilter(ALL_EVENT_DATES);
+    setSelectedTag(null);
+  };
+  const emptyActions = () => {
+    const actions: { label: string; onClick: () => void; primary?: boolean }[] = [];
+    if (filters.dateFilter.kind === "today") {
+      actions.push({ label: "Voir demain", primary: true, onClick: () => filters.setDateFilter({ kind: "tomorrow" }) });
+    } else if (filters.dateFilter.kind === "tomorrow") {
+      actions.push({ label: "Voir ce week-end", primary: true, onClick: () => filters.setDateFilter({ kind: "weekend" }) });
+    }
+    actions.push({ label: "Réinitialiser les filtres", primary: actions.length === 0, onClick: resetAllFilters });
+    return actions;
+  };
 
   // "Tout" is one interleaved feed now, not the two sections (with their
   // own "Lieux"/"Événements" headings) stacked one above the other — a
@@ -380,56 +394,35 @@ export function HomeExplorer({
       </LocationWeather>
 
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
-        <div className="flex flex-col gap-2">
-          {/* grid on mobile (2 even columns, however many rows that takes —
-              KindFilter spanning both so it reads as the primary control on
-              its own full-width row) so every chip actually fills the
-              screen's width instead of hugging its own content and leaving
-              dead space in a ragged wrap; sm:flex reverts to the plain
-              inline row once there's enough width for chips to just sit at
-              their natural size side by side. Each chip's own flex-1/
-              justify-between trigger (see FilterChip.tsx, LocationFilter.tsx,
-              KindFilter.tsx) is what actually lets it fill the wider grid
-              cell — this container just decides how much room each one
-              gets. */}
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-            <div className="col-span-2 sm:contents">
-              <KindFilter value={kindFilter} onChange={setKindFilter} />
+        {forYou && forYou.length > 0 && (
+          <section aria-labelledby="for-you-heading" className="flex flex-col gap-3">
+            <h2 id="for-you-heading" className="text-lg font-semibold tracking-tight text-gray-900">
+              Pour vous
+              <span className="ml-2 text-sm font-normal text-gray-500">Les lieux que vous suivez</span>
+            </h2>
+            {/* Snap-scrolling row, bleeding to the screen edge on phones so it
+                reads as swipeable; cards keep a fixed width so the next one
+                peeks in. */}
+            <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {forYou.map((event) => (
+                <div key={event.id} className="w-[44%] max-w-56 shrink-0 snap-start sm:w-56">
+                  <EventCard event={event} morph={false} variant="tile" />
+                </div>
+              ))}
             </div>
-            <LocationFilter value={locationFilter} onChange={setLocationFilter} />
-            {/* Events-only data (see eventDateFilter.ts/budgetFilter.ts) —
-                both hidden while exclusively viewing Lieux, where they'd
-                have nothing to filter and just look like broken controls. */}
-            {kindFilter !== "place" && <DateFilter value={dateFilter} onChange={setDateFilter} />}
-            {kindFilter !== "place" && <BudgetFilter value={budgetFilter} onChange={setBudgetFilter} />}
-            {/* Same p-1-outer/px-2.5-py-1.5-inner two-layer shell as every
-                dropdown chip next to it (see ui/FilterChip.tsx) — a single
-                border+padding layer here rendered 8px shorter than the
-                others (measured: 30px vs. their 38px), which is exactly
-                the kind of "looks about right" mismatch that doesn't show
-                up until it's sitting directly next to the real thing. */}
-            <div className="rounded-lg border border-gray-300 bg-white p-0.5 sm:shrink-0">
-              <button
-                type="button"
-                onClick={() => setOpenNowOnly((v) => !v)}
-                aria-pressed={openNowOnly}
-                className={`min-h-8 w-full whitespace-nowrap rounded-md px-2.5 py-1 text-center text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
-                  openNowOnly ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                Ouvert maintenant
-              </button>
-            </div>
-          </div>
-          {selectedTag && (
-            <button
-              onClick={() => setSelectedTag(null)}
-              className="flex w-fit items-center gap-1 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
-            >
-              {selectedTag.label} ✕
-            </button>
-          )}
-        </div>
+          </section>
+        )}
+
+        <ExploreFilterBar
+          kind={kindFilter}
+          onKindChange={setKindFilter}
+          filters={filters}
+          tags={allTags}
+          selectedTag={selectedTag}
+          onSelectTag={setSelectedTag}
+          locationChip={<LocationFilter value={locationFilter} onChange={setLocationFilter} />}
+          resultCount={showMerged ? mergedFeed.length : showEvents ? finalEventsList.length : finalPlacesList.length}
+        />
 
         {paginationError && <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           La suite des résultats n’a pas pu être chargée.
@@ -447,23 +440,22 @@ export function HomeExplorer({
           {showEvents && (
             <section className="flex flex-col gap-2">
               {eventsDisplay.heading && (
-                <div className="flex items-center gap-1.5">
-                  <span className="shrink-0 text-gray-900">
-                    <CalendarKindIcon />
-                  </span>
-                  <h2 className="text-base font-bold text-gray-900">{eventsDisplay.heading}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="posto-heading text-lg text-gray-900">{eventsDisplay.heading}</h2>
                 </div>
               )}
               {eventsDisplay.note && (
                 <p className="text-sm text-gray-500">{eventsDisplay.note}</p>
               )}
               {emptyEventsReason && eventsDisplay.list.length > 0 && finalEventsList.length === 0 && (
-                <p className="text-sm text-gray-500">
-                  {emptyEventsReason.charAt(0).toUpperCase() + emptyEventsReason.slice(1)} pour l&apos;instant.
-                </p>
+                <EmptyResults
+                  title="Aucun événement ne correspond"
+                  description="Essayez une autre date, ou retirez un filtre."
+                  actions={emptyActions()}
+                />
               )}
               {finalEventsList.length > 0 && (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-y-3.5 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-7 lg:grid-cols-4">
                   {finalEventsList.map((event) => (
                     <EventCard
                       key={event.id}
@@ -485,7 +477,7 @@ export function HomeExplorer({
                   just be confusing, not more useful. */}
               {hasMoreEvents && (
                 <div ref={eventsSentinelRef} className="flex justify-center py-2">
-                  {loadingMoreEvents && <p className="text-xs text-gray-400">Chargement...</p>}
+                  {loadingMoreEvents && <p className="text-xs text-gray-400">Chargement…</p>}
                 </div>
               )}
             </section>
@@ -499,21 +491,22 @@ export function HomeExplorer({
                   is precisely "place"), the pin should read just as
                   clearly as the calendar does, not a plainer sibling. */}
               {placesDisplay.heading && (
-                <div className="flex items-center gap-1.5">
-                  <span className="shrink-0 text-gray-900">
-                    <PlaceKindIcon />
-                  </span>
-                  <h2 className="text-base font-bold text-gray-900">{placesDisplay.heading}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="posto-heading text-lg text-gray-900">{placesDisplay.heading}</h2>
                 </div>
               )}
               {placesDisplay.note && (
                 <p className="text-sm text-gray-500">{placesDisplay.note}</p>
               )}
               {openNowOnly && placesDisplay.list.length > 0 && finalPlacesList.length === 0 && (
-                <p className="text-sm text-gray-500">Rien d&apos;ouvert pour l&apos;instant.</p>
+                <EmptyResults
+                  title="Rien d'ouvert pour l'instant"
+                  description="Aucun lieu n'est ouvert en ce moment. Retirez « Ouvert maintenant » pour tout voir."
+                  actions={[{ label: "Voir tous les lieux", primary: true, onClick: () => filters.setOpenNowOnly(false) }]}
+                />
               )}
               {finalPlacesList.length > 0 && (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-y-3.5 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-7 lg:grid-cols-4">
                   {finalPlacesList.map((place) => (
                     <PlaceCard
                       key={place.id}
@@ -529,7 +522,7 @@ export function HomeExplorer({
               )}
               {hasMorePlaces && (
                 <div ref={placesSentinelRef} className="flex justify-center py-2">
-                  {loadingMorePlaces && <p className="text-xs text-gray-400">Chargement...</p>}
+                  {loadingMorePlaces && <p className="text-xs text-gray-400">Chargement…</p>}
                 </div>
               )}
             </section>
@@ -542,7 +535,7 @@ export function HomeExplorer({
           {showMerged && (
             <section className="flex flex-col gap-2">
               {mergedFeed.length > 0 && (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-y-3.5 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-7 lg:grid-cols-4">
                   {mergedFeed.map((item) =>
                     item.kind === "event" ? (
                       <EventCard
@@ -569,16 +562,16 @@ export function HomeExplorer({
                 </div>
               )}
               {mergedFeed.length === 0 && (
-                <p className="text-sm text-gray-500">
-                  {emptyEventsReason
-                    ? `${emptyEventsReason.charAt(0).toUpperCase() + emptyEventsReason.slice(1)} pour l'instant.`
-                    : "Rien à afficher pour l'instant."}
-                </p>
+                <EmptyResults
+                  title={emptyEventsReason ? "Rien ne correspond" : "Rien à afficher pour l'instant"}
+                  description={emptyEventsReason ? "Essayez une autre date, ou retirez un filtre." : undefined}
+                  actions={emptyEventsReason ? emptyActions() : []}
+                />
               )}
               {((hasMorePlaces && !loadingMorePlaces) || (hasMoreEvents && !loadingMoreEvents)) && (
                 <div ref={mergedSentinelRef} className="flex justify-center py-2">
                   {(loadingMorePlaces || loadingMoreEvents) && (
-                    <p className="text-xs text-gray-400">Chargement...</p>
+                    <p className="text-xs text-gray-400">Chargement…</p>
                   )}
                 </div>
               )}

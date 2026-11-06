@@ -49,7 +49,7 @@ export function TextField({ label, maxLength, className = "", onChange, defaultV
       {(label !== undefined || maxLength !== undefined) && (
         <div className="mb-1 flex items-baseline justify-between gap-2">
           {label !== undefined ? <label htmlFor={fieldId} className="text-sm font-medium text-gray-700">{label}</label> : <span />}
-          {maxLength !== undefined && <CharCounter count={count} max={maxLength} />}
+          {maxLength !== undefined && <CharCounter count={value !== undefined ? String(value).length : count} max={maxLength} />}
         </div>
       )}
       <input

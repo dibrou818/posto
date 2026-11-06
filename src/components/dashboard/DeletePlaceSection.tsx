@@ -11,9 +11,9 @@ function ConfirmDeleteButton({ disabled }: { disabled: boolean }) {
     <button
       type="submit"
       disabled={disabled || pending}
-      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-red-300"
+      className="rounded-lg bg-danger px-4 py-2 text-sm font-semibold text-on-accent transition-colors hover:bg-danger-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-red-300"
     >
-      {pending ? "Suppression..." : "Supprimer définitivement"}
+      {pending ? "Suppression…" : "Supprimer définitivement"}
     </button>
   );
 }

@@ -1,4 +1,4 @@
-import { cache } from "react";
+import { cache, ViewTransition } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -12,9 +12,10 @@ import { getOpenStatus, listZoneNames } from "@/lib/opening-hours";
 import { formatDuration, formatPrice } from "@/lib/eventSchedule";
 import { OpeningHoursAccordion } from "@/components/OpeningHoursAccordion";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
+import { AccessBadge } from "@/components/AccessBadge";
 import { BackButton } from "@/components/ui/BackButton";
 import { ShareButton } from "@/components/ui/ShareButton";
-import { PhotoCarousel } from "@/components/PhotoCarousel";
+import { PlacePhotoGallery } from "@/components/PlacePhotoGallery";
 import { placePhotos } from "@/lib/photos";
 import { placeShareText } from "@/lib/share";
 import { recordQrScan } from "@/lib/qrScans";
@@ -38,6 +39,15 @@ const eventDateFormatter = new Intl.DateTimeFormat("fr-FR", {
 // Short weekday/month for the big date badge on each event card (e.g. "mer." / "9" / "sept.").
 const badgeWeekdayFormatter = new Intl.DateTimeFormat("fr-FR", { weekday: "short" });
 const badgeMonthFormatter = new Intl.DateTimeFormat("fr-FR", { month: "short" });
+
+function WarningIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true">
+      <path d="M10 3.5 2.5 16.5h15L10 3.5Z" strokeLinejoin="round" />
+      <path d="M10 8.5v3.5M10 14.25v.25" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 // See the matching comment on the event page — memoizes the one DB round
 // trip generateMetadata and the page body below both need for the same
@@ -132,7 +142,7 @@ export default async function PlacePage({
   const jsonLd = localBusinessJsonLd(place, `${siteOrigin}/places/${place.id}`);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:py-10">
+    <div className="posto-detail-page">
       {/* Structured data only — invisible to a visitor, read by search
           engines (and, increasingly, AI answer engines) to understand
           "what is this place, where, when it's open" without scraping the
@@ -143,10 +153,8 @@ export default async function PlacePage({
         dangerouslySetInnerHTML={{ __html: jsonLdScriptContent(jsonLd) }}
       />
       {hasUrgentMessage && (
-        <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <span className="mt-0.5 shrink-0" aria-hidden="true">
-            ⚠️
-          </span>
+        <div className="mx-4 mb-4 flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:mx-0">
+          <WarningIcon />
           <p className="whitespace-pre-line">{place.urgent_message}</p>
         </div>
       )}
@@ -158,24 +166,29 @@ export default async function PlacePage({
           tops out at 24px), so this is an arbitrary value rather than an
           approximation — the whole point here was an exact match, not "close
           enough". */}
-      <div className="relative mb-4 h-64 w-full overflow-hidden rounded-2xl sm:h-80 bg-gray-100">
-        <PhotoCarousel photos={photos} alt={place.name} />
-        <div className="absolute top-3 left-3 z-10">
-          <BackButton fallbackHref="/" />
+      <ViewTransition name={`photo-place-${place.id}`} share="morph" default="none">
+        <div className="posto-detail-hero">
+          <PlacePhotoGallery photos={photos} alt={place.name} />
+          <div className="absolute top-3 left-3 z-10">
+            <BackButton fallbackHref="/" />
+          </div>
+          <div className="absolute top-3 right-3 z-10">
+            <ShareButton title={place.name} text={placeShareText(place.name, place.address)} />
+          </div>
         </div>
-        <div className="absolute top-3 right-3 z-10">
-          <ShareButton title={place.name} text={placeShareText(place.name, place.address)} />
-        </div>
-      </div>
+      </ViewTransition>
+
+      <div className="posto-detail-content pt-5 sm:pt-6">
 
       <h1 className="posto-title min-w-0 break-words text-gray-900">{place.name}</h1>
-      <p className="mt-1 text-sm text-gray-500">{place.address}</p>
+      <p className="mt-2 text-sm leading-relaxed text-gray-600">{place.address}</p>
 
-      <div className="mt-4">
+      <div className="mt-3">
         <OpenStatusBadge status={openStatus} />
       </div>
 
-      <div className="mt-4">
+      <div className="posto-action-bar mt-5">
+        <DirectionsButton lat={place.lat} lng={place.lng} primary />
         <FollowPlaceButton
           placeId={place.id}
           userId={user?.id ?? null}
@@ -195,11 +208,14 @@ export default async function PlacePage({
       </div>
 
       {place.description && (
-        <p className="mt-4 whitespace-pre-line text-sm text-gray-700">{place.description}</p>
+        <section className="posto-section">
+          <h2 className="posto-section-title">À propos</h2>
+          <p className="posto-detail-card whitespace-pre-line p-4 text-sm leading-6 text-gray-700">{place.description}</p>
+        </section>
       )}
 
-      <section className="mt-8">
-        <h2 className="mb-2 text-lg font-semibold text-gray-900">Horaires</h2>
+      <section className="posto-section">
+        <h2 className="posto-section-title">Horaires</h2>
         <OpeningHoursAccordion hours={place.opening_hours} todayIndex={new Date().getDay()} showStatus={false} />
         {zoneNames.length > 0 && (
           <div className="mt-3 flex flex-col gap-3">
@@ -218,15 +234,15 @@ export default async function PlacePage({
       </section>
 
       {activities.length > 0 && (
-        <section className="mt-8">
-          <h2 className="mb-2 text-lg font-semibold text-gray-900">Activités</h2>
+        <section className="posto-section">
+          <h2 className="posto-section-title">Activités</h2>
           <ul className="space-y-2">
             {activities.map((activity) => {
               const duration = formatDuration(activity.duration_minutes);
               return (
                 <li
                   key={activity.id}
-                  className="rounded-xl border border-gray-200 bg-white p-3 text-sm"
+                  className="posto-detail-card p-4 text-sm"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-medium text-gray-900">{activity.name}</p>
@@ -239,8 +255,9 @@ export default async function PlacePage({
                   {activity.description && (
                     <p className="mt-1 text-gray-600">{activity.description}</p>
                   )}
-                  {activity.restrictions && (
-                    <div className="mt-2">
+                  {(activity.access || activity.restrictions) && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <AccessBadge access={activity.access} />
                       <RestrictionsBadge text={activity.restrictions} />
                     </div>
                   )}
@@ -255,19 +272,16 @@ export default async function PlacePage({
           preview of exactly where this place is, in the same visual style
           as the full /map, not the full explorer itself (no search, no
           other pins, no clustering — there's only ever one point here). */}
-      <section className="mt-8">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-gray-900">Localisation</h2>
-          <DirectionsButton lat={place.lat} lng={place.lng} />
-        </div>
+      <section className="posto-section">
+        <h2 className="posto-section-title">Localisation</h2>
         <LocationMiniMap lat={place.lat} lng={place.lng} color={PLACE_COLOR} />
       </section>
 
       <ContactList place={place} />
 
       {events.length > 0 && (
-        <section className="mt-8">
-          <h2 className="mb-2 text-lg font-semibold text-gray-900">Événements à venir</h2>
+        <section className="posto-section">
+          <h2 className="posto-section-title">Événements à venir</h2>
           <ul className="space-y-2">
             {events.map((event) => {
               const start = new Date(event.start_datetime);
@@ -284,16 +298,16 @@ export default async function PlacePage({
                       a hard, mid-character clip. */}
                   <Link
                     href={`/events/${event.id}`}
-                    className="flex h-32 overflow-hidden rounded-xl border border-gray-200 bg-white text-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+                    className="posto-detail-card posto-interactive-card flex min-h-32 overflow-hidden text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-brand/10"
                   >
                     <div className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 border-r border-gray-100 bg-gray-50 px-1 text-center">
-                      <span className="text-[11px] font-medium uppercase text-gray-500">
+                      <span className="text-xs text-gray-500">
                         {badgeWeekdayFormatter.format(start)}
                       </span>
-                      <span className="text-2xl leading-none font-bold text-gray-900">
+                      <span className="text-2xl leading-none font-semibold text-gray-900 tabular-nums">
                         {start.getDate()}
                       </span>
-                      <span className="text-[11px] font-medium uppercase text-gray-500">
+                      <span className="text-xs text-gray-500">
                         {badgeMonthFormatter.format(start)}
                       </span>
                     </div>
@@ -323,6 +337,7 @@ export default async function PlacePage({
           </ul>
         </section>
       )}
+      </div>
     </div>
   );
 }

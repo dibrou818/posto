@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/supabase/server";
 import { ACTIVITY_NAME_MAX_LENGTH, ACTIVITY_DESCRIPTION_MAX_LENGTH, RESTRICTIONS_MAX_LENGTH } from "@/lib/fieldLimits";
-import { assertOwnsPlace, textField, textFieldLimited, parseDurationMinutes } from "./shared";
+import { assertOwnsPlace, textField, textFieldLimited, parseDurationMinutes, parseAccess } from "./shared";
 
 export async function createActivity(placeId: string, formData: FormData) {
   const { supabase, user } = await requireUser();
@@ -14,12 +14,13 @@ export async function createActivity(placeId: string, formData: FormData) {
   const tag_id = textField(formData, "tag_id");
   const duration_minutes = parseDurationMinutes(formData, "duration_minutes");
   const restrictions = textFieldLimited(formData, "restrictions", RESTRICTIONS_MAX_LENGTH, "Restriction");
+  const access = parseAccess(formData);
 
   if (!name) throw new Error("Le nom de l'activité est requis.");
 
   const { error } = await supabase
     .from("activities")
-    .insert({ place_id: placeId, name, description, tag_id, duration_minutes, restrictions });
+    .insert({ place_id: placeId, name, description, tag_id, duration_minutes, restrictions, access });
   if (error) throw new Error(error.message);
 
   revalidatePath(`/dashboard/places/${placeId}/activites`);
@@ -34,13 +35,14 @@ export async function updateActivity(placeId: string, activityId: string, formDa
   const tag_id = textField(formData, "tag_id");
   const duration_minutes = parseDurationMinutes(formData, "duration_minutes");
   const restrictions = textFieldLimited(formData, "restrictions", RESTRICTIONS_MAX_LENGTH, "Restriction");
+  const access = parseAccess(formData);
 
   if (!name) throw new Error("Le nom de l'activité est requis.");
 
   // Re-scope by place_id, not just id — see deleteActivity below for why.
   const { error, count } = await supabase
     .from("activities")
-    .update({ name, description, tag_id, duration_minutes, restrictions }, { count: "exact" })
+    .update({ name, description, tag_id, duration_minutes, restrictions, access }, { count: "exact" })
     .eq("id", activityId)
     .eq("place_id", placeId);
   if (error) throw new Error(error.message);

@@ -1,10 +1,18 @@
 import { createRoot, type Root } from "react-dom/client";
 import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
-import { getOpenStatus, formatOpenStatus } from "@/lib/opening-hours";
+import { getOpenStatus, formatOpenStatus, openStatusTone, type OpenStatusTone } from "@/lib/opening-hours";
 import { formatEventDateBadge } from "@/lib/eventSchedule";
 import { popupBodyHtml, CALENDAR_ICON_SVG, EVENT_COLOR } from "@/lib/mapPopups";
 import { PhotoCarousel } from "@/components/PhotoCarousel";
 import { placePhotos } from "@/lib/photos";
+
+// Same tones as OpenStatusLabel, as raw colors since popups are plain HTML.
+const POPUP_STATUS_COLORS: Record<OpenStatusTone, { bg: string; fg: string; dot: string }> = {
+  open: { bg: "#dcfce7", fg: "#166534", dot: "#22c55e" },
+  soon: { bg: "#fef3c7", fg: "#92400e", dot: "#f59e0b" },
+  closed: { bg: "#fee2e2", fg: "#991b1b", dot: "#ef4444" },
+  unknown: { bg: "#e7e9ed", fg: "#4d5973", dot: "#9aa4b8" },
+};
 
 // Builds a map popup's actual DOM node (for Popup#setDOMContent, not
 // #setHTML) — the photo area is a *mounted* PhotoCarousel, the exact same
@@ -74,9 +82,7 @@ export function placePopupContent(place: PlaceWithRelations): PopupContent {
     photos: placePhotos(place),
     title: place.name,
     subtitle: place.address ?? "",
-    badge: status.open
-      ? { label: formatOpenStatus(status), bg: "#dcfce7", fg: "#166534", dot: "#22c55e" }
-      : { label: formatOpenStatus(status), bg: "#fee2e2", fg: "#991b1b", dot: "#ef4444" },
+    badge: { label: formatOpenStatus(status), ...POPUP_STATUS_COLORS[openStatusTone(status)] },
     href: `/places/${place.id}`,
     cta: "Voir la fiche",
   });

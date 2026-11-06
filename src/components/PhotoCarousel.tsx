@@ -5,14 +5,14 @@ import Image from "next/image";
 
 function ChevronIcon({ direction }: { direction: "left" | "right" }) {
   return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d={direction === "left" ? "M15 5 8 12l7 7" : "M9 5l7 7-7 7"} />
     </svg>
   );
 }
 
 const ARROW_BUTTON_CLASS =
-  "absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70";
+  "absolute top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-on-accent backdrop-blur-sm transition-colors hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70";
 
 /** Fills its parent (a `relative h-64 ...` box on the place page, or the map
  * popup's much smaller photo slot — see lib/mapPopupContent.tsx) with a
@@ -118,7 +118,7 @@ export function PhotoCarousel({
 
       <div className="pointer-events-none absolute inset-x-0 bottom-2.5 flex justify-center gap-1.5">
         {photos.map((_, i) => (
-          <span key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${i === index ? "bg-white" : "bg-white/50"}`} />
+          <span key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${i === index ? "bg-on-accent" : "bg-on-accent/50"}`} />
         ))}
       </div>
     </div>

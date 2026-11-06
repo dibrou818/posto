@@ -17,8 +17,8 @@ export default async function FavoritesPage() {
     {!user ? <EmptyState title="Vos prochaines sorties commencent ici" description="Connectez-vous pour retrouver vos événements enregistrés et vos lieux suivis sur tous vos appareils." href="/login?next=%2Ffavorites" action="Se connecter" /> : <FavoritesTabs
       eventsCount={events.length}
       placesCount={places.length}
-      events={events.length ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{events.map(event => <EventCard key={event.id} event={event} />)}</div> : <EmptyState title="Une sortie vous tente ?" description="Enregistrez-la depuis sa fiche avec le bouton Enregistrer. Vous la retrouverez ici." href="/" action="Découvrir les événements" />}
-      places={places.length ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{places.map(place => <PlaceCard key={place.id} place={place} />)}</div> : <EmptyState title="Gardez vos bonnes adresses" description="Appuyez sur Suivre sur la fiche d’un lieu pour le retrouver facilement." href="/map" action="Explorer la carte" />}
+      events={events.length ? <div className="grid grid-cols-1 gap-y-3.5 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-7 lg:grid-cols-4">{events.map(event => <EventCard key={event.id} event={event} />)}</div> : <EmptyState title="Une sortie vous tente ?" description="Enregistrez-la depuis sa fiche avec le bouton Enregistrer. Vous la retrouverez ici." href="/" action="Découvrir les événements" />}
+      places={places.length ? <div className="grid grid-cols-1 gap-y-3.5 sm:grid-cols-3 sm:gap-x-4 sm:gap-y-7 lg:grid-cols-4">{places.map(place => <PlaceCard key={place.id} place={place} />)}</div> : <EmptyState title="Gardez vos bonnes adresses" description="Appuyez sur Suivre sur la fiche d’un lieu pour le retrouver facilement." href="/map" action="Explorer la carte" />}
     />}
   </div>;
 }

@@ -150,6 +150,18 @@ export function formatOpenStatus(status: OpenStatus): string {
   return "Fermé";
 }
 
+export type OpenStatusTone = "open" | "soon" | "closed" | "unknown";
+
+/** The one color decision behind every status dot in the app: green while
+ * open, amber when a change is imminent, red when closed, grey when the
+ * place has no hours at all. */
+export function openStatusTone(status: OpenStatus, hasHours = true): OpenStatusTone {
+  if (!hasHours) return "unknown";
+  const label = formatOpenStatus(status);
+  if (label !== "Ouvert" && label !== "Fermé") return "soon";
+  return status.open ? "open" : "closed";
+}
+
 /** Every distinct named sub-schedule present in a place's hours, in the
  * order they first appear — empty when the place only has general hours. */
 export function listZoneNames(hours: OpeningHour[]): string[] {

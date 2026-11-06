@@ -9,6 +9,15 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 // every chip built on this shell gets the safety net for free either way.
 const VIEWPORT_MARGIN = 8;
 
+/** Small close mark for the chips' reset button. */
+export function ClearIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="mx-auto" aria-hidden="true">
+      <path d="m5.5 5.5 9 9M14.5 5.5l-9 9" />
+    </svg>
+  );
+}
+
 function ChevronIcon() {
   return (
     <svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -130,7 +139,7 @@ export function FilterChip({
             title="Réinitialiser"
             className="min-h-8 min-w-8 shrink-0 rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
           >
-            ✕
+            <ClearIcon />
           </button>
         )}
       </div>
@@ -170,5 +179,44 @@ export function FilterChipOption({
     >
       {label}
     </button>
+  );
+}
+
+/** A chip that opens something other than a dropdown (the "Filtres" sheet) —
+ * the same two-layer shell as FilterChip so it can't drift in height, plus
+ * an optional count badge for how many filters are active inside. */
+export function FilterButton({
+  icon,
+  label,
+  count = 0,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  count?: number;
+  onClick: () => void;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="flex min-w-0 items-center gap-1 rounded-lg border border-gray-300 bg-white p-0.5 text-xs">
+        <button
+          type="button"
+          onClick={onClick}
+          className={`flex min-h-8 min-w-0 flex-1 items-center justify-between gap-1.5 rounded-md px-2.5 py-1 text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 ${
+            count > 0 ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          <span className="flex min-w-0 items-center gap-1.5">
+            {icon}
+            <span className="min-w-0 truncate">{label}</span>
+          </span>
+          {count > 0 && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[11px] font-semibold text-gray-900">
+              {count}
+            </span>
+          )}
+        </button>
+      </div>
+    </div>
   );
 }

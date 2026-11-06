@@ -5,7 +5,7 @@ import { FilterChip, FilterChipOption } from "@/components/ui/FilterChip";
 
 function EuroIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M17 6.5a6 6 0 1 0 0 11" />
       <path d="M4.5 10h9M4.5 14h7.5" />
     </svg>

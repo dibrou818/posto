@@ -4,7 +4,7 @@ export type EventTabKey = "infos" | "qr" | "affiche";
 
 function CheckIcon() {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-3.5 w-3.5 text-green-600" aria-hidden="true">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-green-600" aria-hidden="true">
       <path d="M4 10.5 8 14.5 16 5.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );

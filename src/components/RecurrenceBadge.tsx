@@ -2,7 +2,7 @@ import { formatRecurrence } from "@/lib/eventSchedule";
 
 function RepeatIcon() {
   return (
-    <svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 7h8a2 2 0 0 1 2 2v1" strokeLinecap="round" />
       <path d="M7.5 4.5 5 7l2.5 2.5" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M15 13H7a2 2 0 0 1-2-2v-1" strokeLinecap="round" />

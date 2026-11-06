@@ -94,7 +94,7 @@ export function ChangeEmailSection({ currentEmail }: { currentEmail: string }) {
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex items-center gap-3">
             <Button type="submit" size="compact" disabled={saving}>
-              {saving ? "Envoi..." : "Confirmer"}
+              {saving ? "Envoi…" : "Confirmer"}
             </Button>
             <button
               type="button"

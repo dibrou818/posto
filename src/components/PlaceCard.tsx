@@ -1,79 +1,74 @@
+import { ViewTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { PlaceWithRelations } from "@/lib/queries";
-import { getOpenStatus, formatOpenStatus } from "@/lib/opening-hours";
+import { getOpenStatus, formatOpenStatus, openStatusTone } from "@/lib/opening-hours";
+import { OpenStatusLabel, STATUS_DOT } from "@/components/OpenStatusLabel";
 import { formatDistance } from "@/lib/distance";
-import { cardClass } from "@/lib/ui";
 import { PlaceKindIcon } from "@/components/KindIcon";
+import { CARD_IMAGE_SIZES, cardClasses, type CardVariant } from "@/components/EventCard";
 
+/** Same layout rules as EventCard (compact row on phones, image-first tile
+ * above), for a place: the live open/closed state takes the date's slot. */
 export function PlaceCard({
   place,
   distanceKm,
+  morph = true,
+  variant = "auto",
 }: {
   place: PlaceWithRelations;
   distanceKm?: number;
+  morph?: boolean;
+  variant?: CardVariant;
 }) {
+  const c = cardClasses(variant);
   const openStatus = getOpenStatus(place.opening_hours);
   const hasHours = place.opening_hours.some((hour) => hour.zone_name === null);
   const statusLabel = hasHours ? formatOpenStatus(openStatus) : "Horaires non renseignés";
+  const dot = STATUS_DOT[openStatusTone(openStatus, hasHours)];
+  const meta = [place.address, distanceKm !== undefined ? formatDistance(distanceKm) : null].filter(Boolean);
+
+  const photo = (
+    <div className={c.photo}>
+      {place.cover_photo_url ? (
+        <Image
+          src={place.cover_photo_url}
+          alt=""
+          fill
+          sizes={variant === "tile" ? "(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw" : CARD_IMAGE_SIZES}
+          className="object-cover"
+        />
+      ) : (
+        <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center text-gray-400 [&_svg]:h-6 [&_svg]:w-6">
+          <PlaceKindIcon />
+        </span>
+      )}
+      <span className={`${c.chip} absolute top-2 left-2 max-w-[calc(100%-1rem)] items-center gap-1.5 rounded-full bg-white/95 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-gray-900 tabular-nums shadow-sm sm:top-2.5 sm:left-2.5 sm:px-2.5 sm:py-1 sm:text-xs`}>
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} aria-hidden="true" />
+        {statusLabel}
+      </span>
+    </div>
+  );
 
   return (
-    <Link
-      href={`/places/${place.id}`}
-      className={`flex gap-3.5 p-3 focus:outline-none focus:ring-2 focus:ring-gray-900/20 ${cardClass}`}
-    >
-      <div className="relative flex h-28 w-24 items-center justify-center shrink-0 overflow-hidden rounded-lg bg-gray-100">
-        {place.cover_photo_url ? (
-          <Image
-            src={place.cover_photo_url}
-            alt=""
-            fill
-            sizes="96px"
-            className="object-cover"
-          />
-        ) : <span aria-hidden="true" className="text-gray-400"><PlaceKindIcon /></span>}
-      </div>
-      {/* min-w-0 on the row below (not just here) is what lets `truncate`
-          on the title actually shrink instead of overflowing — see
-          EventCard, which has the same fix for the same reason. */}
-      <div className="flex min-w-0 flex-1 flex-col justify-between">
-        <div className="min-w-0">
-          {/* The title used to share its line with the Ouvert/Fermé status —
-              same fix as EventCard's title/price: it now gets the full
-              first line, and the status moves down into the badge row,
-              grouped with distance in the bottom-right corner. The kind
-              icon sits right before it on that same line, not on the
-              photo — the exact same PlaceKindIcon the "Lieux" section
-              heading uses (see KindIcon.tsx), same gray-900 as the title
-              text right after it. aria-hidden: decorative, the card's own
-              content (address, Ouvert/Fermé) already says what it is. */}
-          <div className="flex min-w-0 items-center gap-1.5">
-            <span aria-hidden="true" className="shrink-0 text-gray-900">
-              <PlaceKindIcon />
-            </span>
-            <h3 className="min-w-0 line-clamp-2 text-base leading-snug font-semibold text-gray-900">{place.name}</h3>
-          </div>
-          <p className="line-clamp-2 text-sm text-gray-600">{place.address}</p>
-        </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          {place.tags.map((tag) => (
-            <span
-              key={tag.id}
-              className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs whitespace-nowrap text-gray-600"
-            >
-              {tag.label}
-            </span>
-          ))}
-          <span className="ml-auto flex shrink-0 items-center gap-1.5">
-            {distanceKm !== undefined && (
-              <span className="text-xs whitespace-nowrap text-gray-500">{formatDistance(distanceKm)}</span>
-            )}
-            <span
-              className={`shrink-0 text-xs font-medium whitespace-nowrap ${!hasHours ? "text-gray-500" : openStatus.open ? "text-green-700" : "text-gray-600"}`}
-            >
-              {statusLabel}
-            </span>
-          </span>
+    <Link href={`/places/${place.id}`} className={c.link}>
+      <div className={c.layout}>
+        {morph ? (
+          <ViewTransition name={`photo-place-${place.id}`} share="morph" default="none">
+            {photo}
+          </ViewTransition>
+        ) : (
+          photo
+        )}
+        <div className={c.text}>
+          <p className={`${c.inlineMeta} truncate text-xs`}>
+            <OpenStatusLabel status={openStatus} hasHours={hasHours} />
+          </p>
+          <h3 className={`${c.title} leading-snug font-semibold text-gray-900`}>{place.name}</h3>
+          <p className="line-clamp-1 text-sm text-gray-600">{meta.join(" · ")}</p>
+          {place.tags.length > 0 && (
+            <p className="line-clamp-1 text-xs text-gray-500 sm:text-sm">{place.tags.map((tag) => tag.label).join(" · ")}</p>
+          )}
         </div>
       </div>
     </Link>

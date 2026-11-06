@@ -10,6 +10,7 @@ import { DateTimeField } from "@/components/ui/DateTimeField";
 import { FormSection, FormActions } from "@/components/dashboard/FormSection";
 import { RecurrenceField } from "@/components/ui/RecurrenceField";
 import { PriceField } from "@/components/ui/PriceField";
+import { AccessField } from "@/components/ui/AccessField";
 import { PhotoPickerButton } from "@/components/ui/PhotoPickerButton";
 import { useSupabasePhotoUpload } from "@/lib/useSupabasePhotoUpload";
 import { toDatetimeLocalValue } from "@/lib/eventSchedule";
@@ -76,14 +77,15 @@ export function EventForm({
         <RecurrenceField label="Récurrence" name="recurrence_rule" defaultValue={event?.recurrence_rule} />
       </FormSection>
 
-      <FormSection title="Tarif et public" description="Ce qui aide à décider avant de venir." compact={compact}>
+      <FormSection title="Tarif et accès" description="Ce qui aide à décider avant de venir." compact={compact}>
         <PriceField label="Prix" defaultCents={event?.price_cents} defaultUnit={event?.price_unit} />
+        <AccessField idPrefix={`event-access-${event?.id ?? "new"}`} defaultValue={event?.access} />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <DurationField label="Durée typique" name="duration_minutes" defaultValue={event?.duration_minutes} />
           <TextField
-            label="Restriction"
+            label="Âge ou conditions"
             name="restrictions"
-            placeholder="Ex: +18 ans"
+            placeholder="Ex : dès 8 ans, console fournie"
             maxLength={RESTRICTIONS_MAX_LENGTH}
             defaultValue={event?.restrictions ?? ""}
           />
@@ -116,7 +118,7 @@ export function EventForm({
             label={coverPhotoUrl ? "Changer la photo" : "Choisir une photo"}
           />
           <input type="hidden" name="cover_photo_url" value={coverPhotoUrl} />
-          {uploading && <p className="mt-1 text-sm text-gray-500">Envoi en cours...</p>}
+          {uploading && <p className="mt-1 text-sm text-gray-500">Envoi en cours…</p>}
           {!coverPhotoUrl && placeCoverPhotoUrl && (
             <p className="mt-1 text-sm text-gray-500">La photo du lieu sera utilisée par défaut.</p>
           )}
@@ -128,7 +130,7 @@ export function EventForm({
         <SaveButton
           disabled={uploading}
           savedLabel={event ? "Enregistré" : "Ajouté"}
-          pendingLabel={event ? "Enregistrement..." : "Ajout..."}
+          pendingLabel={event ? "Enregistrement…" : "Ajout…"}
         >
           {event ? "Enregistrer les modifications" : "Ajouter l'événement"}
         </SaveButton>

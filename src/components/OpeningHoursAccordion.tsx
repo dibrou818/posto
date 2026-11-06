@@ -53,13 +53,13 @@ export function OpeningHoursAccordion({
   const todayHours = formatHourRanges(today);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white text-sm">
+    <div className="posto-detail-card overflow-hidden text-sm">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
         aria-controls={panelId}
-        className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+        className="flex min-h-14 w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand/10"
       >
         <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <span className="font-medium text-gray-900">Aujourd&apos;hui · {today.label}</span>
@@ -76,7 +76,7 @@ export function OpeningHoursAccordion({
           <path
             d="M5 7.5L10 12.5L15 7.5"
             stroke="currentColor"
-            strokeWidth="1.5"
+            strokeWidth="1.75"
             strokeLinecap="round"
             strokeLinejoin="round"
           />

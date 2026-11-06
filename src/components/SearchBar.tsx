@@ -67,7 +67,7 @@ interface Props {
 // a calendar for a dated event, a target for a city/area.
 function TagIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12.5 3H5a2 2 0 0 0-2 2v7.5a1 1 0 0 0 .3.7l9 9a1 1 0 0 0 1.4 0l7.5-7.5a1 1 0 0 0 0-1.4l-9-9a1 1 0 0 0-.7-.3Z" />
       <circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none" />
     </svg>
@@ -76,7 +76,7 @@ function TagIcon() {
 
 function PinIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 21s-7-6.5-7-11.5a7 7 0 0 1 14 0C19 14.5 12 21 12 21Z" />
       <circle cx="12" cy="9.5" r="2.2" />
     </svg>
@@ -85,7 +85,7 @@ function PinIcon() {
 
 function CalendarIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3.5" y="5" width="17" height="16" rx="2" />
       <path d="M3.5 9.5h17" />
       <path d="M8 3v4" />
@@ -96,7 +96,7 @@ function CalendarIcon() {
 
 function SearchIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="10.5" cy="10.5" r="6.5" />
       <path d="m20 20-4.7-4.7" />
     </svg>
@@ -105,7 +105,7 @@ function SearchIcon() {
 
 function CityIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="7.5" />
       <circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none" />
     </svg>
@@ -138,7 +138,7 @@ export function SearchBar({
   onSelectTag,
   onSelectResult,
   onSelectCity,
-  placeholder = "Rechercher un lieu, une activité, un tag...",
+  placeholder = "Un bar, un karaoké, un quiz…",
   filter: controlledFilter,
   onFilterChange,
   inputRoundingClassName = "rounded-lg",
@@ -350,7 +350,7 @@ export function SearchBar({
             ))}
           </div>
 
-          {loading && <div className="px-4 py-3 text-sm text-gray-500">Recherche...</div>}
+          {loading && <div className="px-4 py-3 text-sm text-gray-500">Recherche…</div>}
 
           {!loading && rows.length > 0 && (
             <div className="py-1">

@@ -19,7 +19,7 @@ export function LogoBubble({ size = 32 }: { size?: number }) {
     <span
       aria-hidden="true"
       style={{ width: size, height: size }}
-      className="inline-grid shrink-0 place-items-center rounded-[22.4%] bg-brand text-white"
+      className="inline-grid shrink-0 place-items-center rounded-[22.4%] bg-brand text-on-accent"
     >
       <LogoMark className="h-[64%] w-[64%]" />
     </span>

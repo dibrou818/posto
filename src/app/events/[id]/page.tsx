@@ -1,5 +1,5 @@
 import { eventStatus } from "@/lib/eventStatus";
-import { cache } from "react";
+import { cache, ViewTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -10,6 +10,7 @@ import { BackButton } from "@/components/ui/BackButton";
 import { ShareButton } from "@/components/ui/ShareButton";
 import { RecurrenceBadge } from "@/components/RecurrenceBadge";
 import { RestrictionsBadge } from "@/components/RestrictionsBadge";
+import { AccessBadge } from "@/components/AccessBadge";
 import { formatEventSchedule, formatDuration, formatPrice } from "@/lib/eventSchedule";
 import { eventShareText } from "@/lib/share";
 import { AddToCalendarButton } from "@/components/ui/AddToCalendarButton";
@@ -21,6 +22,7 @@ import { EVENT_COLOR } from "@/lib/mapPopups";
 import { SaveEventButton } from "@/components/consumer/SaveEventButton";
 import { ContactList } from "@/components/ContactList";
 import { DirectionsButton } from "@/components/DirectionsButton";
+import { CalendarKindIcon } from "@/components/KindIcon";
 
 // Wrapped in React's cache() so generateMetadata and the page body below —
 // both called for the same request — share one DB round trip instead of
@@ -119,7 +121,7 @@ export default async function EventPage({
   const jsonLd = eventJsonLd(event, `${siteOrigin}/events/${event.id}`);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:py-10">
+    <div className="posto-detail-page">
       {/* Structured data only — see the matching comment on the place
           page / structuredData.ts. */}
       <script
@@ -129,24 +131,33 @@ export default async function EventPage({
       {/* rounded-[30px] — see the matching comment on the place page's own
           hero photo (same BackButton-over-corner pairing, same exact-match
           derivation: 12px offset + 18px button radius). */}
-      <div className="relative mb-4 h-64 w-full overflow-hidden rounded-2xl sm:h-80 bg-gray-100">
-        {coverPhotoUrl && (
-          <Image
-            src={coverPhotoUrl}
-            alt={event.title}
-            fill
-            sizes="768px"
-            className="object-cover"
-            priority
-          />
-        )}
-        <div className="absolute top-3 left-3">
-          <BackButton fallbackHref="/" />
+      <ViewTransition name={`photo-event-${event.id}`} share="morph" default="none">
+        <div className="posto-detail-hero">
+          {coverPhotoUrl && (
+            <Image
+              src={coverPhotoUrl}
+              alt={event.title}
+              fill
+              sizes="768px"
+              className="object-cover"
+              priority
+            />
+          )}
+          {!coverPhotoUrl && (
+            <div className="absolute inset-0 grid place-items-center bg-gray-100 text-gray-400 [&_svg]:h-9 [&_svg]:w-9" aria-hidden="true">
+              <CalendarKindIcon />
+            </div>
+          )}
+          <div className="absolute top-3 left-3">
+            <BackButton fallbackHref="/" />
+          </div>
+          <div className="absolute top-3 right-3 z-10">
+            <ShareButton title={event.title} text={eventShareText(event.title, dateLabel, place.address)} />
+          </div>
         </div>
-        <div className="absolute top-3 right-3 z-10">
-          <ShareButton title={event.title} text={eventShareText(event.title, dateLabel, place.address)} />
-        </div>
-      </div>
+      </ViewTransition>
+
+      <div className="posto-detail-content pt-5 sm:pt-6">
 
       <div className="flex items-start justify-between gap-3">
         <h1 className="posto-title min-w-0 break-words text-gray-900">{event.title}</h1>
@@ -159,9 +170,9 @@ export default async function EventPage({
         </span>
       </div>
 
-      <p className="mt-1 text-sm text-gray-500">{dateLabel}</p>
+      <p className="mt-2 text-base font-medium leading-relaxed text-brand tabular-nums">{dateLabel}</p>
 
-      <div className="mt-5 flex flex-wrap items-start gap-2">
+      <div className="posto-action-bar mt-5">
         <SaveEventButton
           eventId={event.id}
           userId={user?.id ?? null}
@@ -170,10 +181,10 @@ export default async function EventPage({
         <AddToCalendarButton event={calendarEvent} />
       </div>
 
-      {(priceLabel || event.recurrence_rule || event.duration_minutes) && (
+      {(priceLabel || event.recurrence_rule || event.duration_minutes || event.access) && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           {priceLabel && (
-            <span className="rounded-full bg-gray-900 px-2.5 py-1 text-xs font-medium text-white">
+            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-900 tabular-nums">
               {priceLabel}
             </span>
           )}
@@ -183,11 +194,15 @@ export default async function EventPage({
             </span>
           )}
           <RecurrenceBadge rule={event.recurrence_rule} />
+          <AccessBadge access={event.access} />
         </div>
       )}
 
       {event.description && (
-        <p className="mt-4 whitespace-pre-line text-sm text-gray-700">{event.description}</p>
+        <section className="posto-section">
+          <h2 className="posto-section-title">À propos</h2>
+          <p className="posto-detail-card whitespace-pre-line p-4 text-sm leading-6 text-gray-700">{event.description}</p>
+        </section>
       )}
 
       {event.restrictions && (
@@ -201,19 +216,19 @@ export default async function EventPage({
           no location beyond that), same visual style as the full /map. In
           EVENT_COLOR, not the place's usual dark dot: this page is about
           the event, not the venue itself. */}
-      <section className="mt-8">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-gray-900">Localisation</h2>
+      <section className="posto-section">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="posto-section-title mb-0">Localisation</h2>
           <DirectionsButton lat={place.lat} lng={place.lng} />
         </div>
         <LocationMiniMap lat={place.lat} lng={place.lng} color={EVENT_COLOR} />
       </section>
 
-      <section className="mt-8">
-        <h2 className="mb-2 text-lg font-semibold text-gray-900">Lieu</h2>
+      <section className="posto-section">
+        <h2 className="posto-section-title">Lieu</h2>
         <Link
           href={`/places/${place.id}`}
-          className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 text-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
+          className="posto-detail-card posto-interactive-card flex min-h-20 items-center gap-3 p-3 text-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-brand/10"
         >
           <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
             {place.cover_photo_url && (
@@ -226,13 +241,14 @@ export default async function EventPage({
               <span className="block truncate text-xs text-gray-500">{place.address}</span>
             )}
           </span>
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4 shrink-0 text-gray-500">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4 shrink-0 text-gray-500">
             <path d="M7.5 4.5 13 10l-5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Link>
       </section>
 
       <ContactList place={place} />
+      </div>
     </div>
   );
 }

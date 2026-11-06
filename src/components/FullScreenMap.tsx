@@ -3,17 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
-import type { PlaceWithRelations, EventWithPlace } from "@/lib/queries";
-import type { MapFocusTarget, MapSheetItem } from "@/components/Map";
+import type { PlaceWithRelations, EventWithPlace, Tag } from "@/lib/queries";
+import type { MapFocusTarget, MapSheetItem, MapViewportBounds } from "@/components/Map";
 import { SearchBar, type SearchResult, type CityResult } from "@/components/SearchBar";
-import { KindFilter } from "@/components/KindFilter";
-import { DateFilter } from "@/components/DateFilter";
-import { BudgetFilter } from "@/components/BudgetFilter";
+import { ExploreFilterBar } from "@/components/ExploreFilterBar";
+import { MapResultsSheet } from "@/components/MapResultsSheet";
 import { MapBottomSheet } from "@/components/MapBottomSheet";
 import { usePlacesExplorer } from "@/lib/usePlacesExplorer";
 import type { ResultKindFilter } from "@/lib/resultFilter";
-import { matchesEventDateFilter, ALL_EVENT_DATES, type EventDateFilterValue } from "@/lib/eventDateFilter";
-import { matchesBudgetFilter, type BudgetFilterValue } from "@/lib/budgetFilter";
+import { useEventFilters } from "@/lib/useEventFilters";
+import { isOpenNow } from "@/lib/opening-hours";
 import { eventMatchesTag } from "@/lib/eventTags";
 
 const CITY_ZOOM = 12;
@@ -60,22 +59,27 @@ function useInitialCityFocus(): MapFocusTarget | null {
   return { id: "city:initial", lat, lng, zoom: CITY_ZOOM };
 }
 
+function inBounds(lat: number, lng: number, bounds: MapViewportBounds | null) {
+  if (!bounds) return true;
+  return lat >= bounds.south && lat <= bounds.north && lng >= bounds.west && lng <= bounds.east;
+}
+
 export function FullScreenMap({
   places,
   events,
+  allTags,
 }: {
   places: PlaceWithRelations[];
   events: EventWithPlace[];
+  allTags: Tag[];
 }) {
   useLockBodyScroll();
   const { selectedTag, setSelectedTag, places: filteredPlaces } = usePlacesExplorer(places);
   const [focusTarget, setFocusTarget] = useState<MapFocusTarget | null>(useInitialCityFocus());
   const [kindFilter, setKindFilter] = useState<ResultKindFilter>("all");
-  const [dateFilter, setDateFilter] = useState<EventDateFilterValue>(ALL_EVENT_DATES);
-  // Same filter, same component, as the home page's own Budget chip (see
-  // BudgetFilter.tsx and HomeExplorer.tsx) — events-only, hidden below
-  // alongside DateFilter whenever kindFilter is exclusively "place".
-  const [budgetFilter, setBudgetFilter] = useState<BudgetFilterValue | null>(null);
+  // Same filters, same hook, as the home page (see useEventFilters).
+  const filters = useEventFilters();
+  const [viewport, setViewport] = useState<MapViewportBounds | null>(null);
   // Mobile-only: which pin's preview the bottom sheet is showing (see
   // Map.tsx's onSelectPlace/onSelectEvent — desktop never sets this, it
   // keeps using Leaflet's own popup instead).
@@ -88,13 +92,33 @@ export function FullScreenMap({
 
   // Which markers are actually shown follows the Lieux/Événements toggle —
   // "place" hides events entirely and vice versa, "all" shows both.
-  const visiblePlaces = kindFilter === "event" ? [] : filteredPlaces;
+  const visiblePlaces = useMemo(() => {
+    if (kindFilter === "event") return [];
+    return filters.openNowOnly ? filteredPlaces.filter((p) => isOpenNow(p.opening_hours)) : filteredPlaces;
+  }, [kindFilter, filteredPlaces, filters.openNowOnly]);
   const visibleEvents = useMemo(() => {
     if (kindFilter === "place") return [];
-    return tagFilteredEvents.filter(
-      (e) => matchesEventDateFilter(e.start_datetime, dateFilter) && matchesBudgetFilter(e.price_cents, budgetFilter),
-    );
-  }, [tagFilteredEvents, kindFilter, dateFilter, budgetFilter]);
+    return tagFilteredEvents.filter(filters.matchesEvent);
+  }, [tagFilteredEvents, kindFilter, filters.matchesEvent]);
+
+  // What the results sheet lists: the visible markers that are inside the
+  // part of the map currently on screen — events soonest first, then places.
+  const areaItems = useMemo((): MapSheetItem[] => {
+    const eventItems: MapSheetItem[] = visibleEvents
+      .filter((event) => inBounds(event.place.lat, event.place.lng, viewport))
+      .map((event) => ({ kind: "event", event }));
+    const placeItems: MapSheetItem[] = visiblePlaces
+      .filter((place) => inBounds(place.lat, place.lng, viewport))
+      .map((place) => ({ kind: "place", place }));
+    return [...eventItems, ...placeItems];
+  }, [visibleEvents, visiblePlaces, viewport]);
+
+  function handleSelectItem(item: MapSheetItem) {
+    // Same id scheme the search results use: Map recognises it, flies there
+    // and (on a phone) opens the pin's preview sheet.
+    if (item.kind === "place") setFocusTarget({ id: item.place.id, lat: item.place.lat, lng: item.place.lng });
+    else setFocusTarget({ id: item.event.id, lat: item.event.place.lat, lng: item.event.place.lng });
+  }
 
   function handleSelectResult(result: SearchResult) {
     // Events are keyed by their own id on the map (see EventClusteredMarkers),
@@ -115,7 +139,7 @@ export function FullScreenMap({
   }
 
   return (
-    <div className="relative min-h-0 flex-1">
+    <div className="map-has-sheet relative min-h-0 flex-1">
       <div className="absolute inset-0">
         <Map
           places={visiblePlaces}
@@ -124,9 +148,11 @@ export function FullScreenMap({
           onSelectPlace={(place) => setSheetItem({ kind: "place", place })}
           onSelectEvent={(event) => setSheetItem({ kind: "event", event })}
           onDismissSelection={() => setSheetItem(null)}
+          onViewportChange={setViewport}
         />
       </div>
 
+      <MapResultsSheet items={areaItems} hidden={sheetItem !== null} onSelect={handleSelectItem} />
       <MapBottomSheet item={sheetItem} onClose={() => setSheetItem(null)} />
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[1000] flex flex-col items-center gap-2 p-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
@@ -136,7 +162,7 @@ export function FullScreenMap({
               onSelectTag={setSelectedTag}
               onSelectResult={handleSelectResult}
               onSelectCity={handleSelectCity}
-              placeholder="Rechercher un lieu, une ville, un événement..."
+              placeholder="Rechercher sur la carte"
               filter={kindFilter}
               onFilterChange={setKindFilter}
               inputRoundingClassName="rounded-full"
@@ -152,21 +178,17 @@ export function FullScreenMap({
             mobile-grid/desktop-flex responsive split as the home page's own
             row too (see its own comment) — full-width, evenly-filled chips
             on a narrow screen instead of a ragged content-sized wrap. */}
-        <div className="pointer-events-auto grid w-full max-w-xl grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-          <div className="col-span-2 sm:contents">
-            <KindFilter value={kindFilter} onChange={setKindFilter} />
-          </div>
-          {kindFilter !== "place" && <DateFilter value={dateFilter} onChange={setDateFilter} />}
-          {kindFilter !== "place" && <BudgetFilter value={budgetFilter} onChange={setBudgetFilter} />}
+        <div className="pointer-events-auto w-full max-w-xl">
+          <ExploreFilterBar
+            kind={kindFilter}
+            onKindChange={setKindFilter}
+            filters={filters}
+            tags={allTags}
+            selectedTag={selectedTag}
+            onSelectTag={setSelectedTag}
+            resultCount={visibleEvents.length + visiblePlaces.length}
+          />
         </div>
-        {selectedTag && (
-          <button
-            onClick={() => setSelectedTag(null)}
-            className="pointer-events-auto flex w-fit items-center gap-1 self-start rounded-full bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-md transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30"
-          >
-            {selectedTag.label} ✕
-          </button>
-        )}
       </div>
     </div>
   );
