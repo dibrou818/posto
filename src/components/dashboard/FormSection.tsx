@@ -7,12 +7,15 @@ import type { ReactNode } from "react";
  * bare stack of fields for a form that already sits inside a framed panel
  * (the "create an event" panel). */
 export function FormSection({
+  id,
   title,
   description,
   compact = false,
   first = false,
   children,
 }: {
+  /** Anchor for an in-page link to this group. */
+  id?: string;
   title: string;
   description?: ReactNode;
   compact?: boolean;
@@ -22,7 +25,7 @@ export function FormSection({
 }) {
   if (compact) return <div className="flex flex-col gap-4">{children}</div>;
   return (
-    <section className={`@container ${first ? "pb-7" : "border-t border-gray-200 py-7"}`}>
+    <section id={id} className={`@container scroll-mt-32 ${first ? "pb-7" : "border-t border-gray-200 py-7"}`}>
       <div className="grid gap-4 @xl:grid-cols-[13rem_minmax(0,1fr)] @xl:gap-10">
         <div>
           <h2 className="text-base font-semibold tracking-tight text-gray-900">{title}</h2>

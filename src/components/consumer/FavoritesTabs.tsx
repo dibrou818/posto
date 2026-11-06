@@ -39,7 +39,7 @@ export function FavoritesTabs({
             }`}
           >
             {option.label}
-            <span className={`ml-1.5 text-xs ${tab === option.value ? "text-white/70" : "text-gray-400"}`}>{option.count}</span>
+            <span className={`ml-1.5 text-xs ${tab === option.value ? "text-white/70" : "text-gray-500"}`}>{option.count}</span>
           </button>
         ))}
       </div>

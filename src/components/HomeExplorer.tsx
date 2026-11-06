@@ -271,7 +271,9 @@ export function HomeExplorer({
         note: "Voici tous les événements à venir :",
       };
     }
-    return { list: [], heading: "Événements à venir", note: "Aucun événement à venir pour l'instant." };
+    // Nothing scheduled at all: the section shows its own way out below
+    // (see the EmptyResults under the heading) instead of a dead note.
+    return { list: [], heading: "Événements à venir", note: null };
   }, [visibleEvents, tagFilteredEvents, events, selectedTag, locationFilter, sortByDistance]);
 
   const finalPlacesList = useMemo(() => {
@@ -447,6 +449,22 @@ export function HomeExplorer({
               {eventsDisplay.note && (
                 <p className="text-sm text-gray-500">{eventsDisplay.note}</p>
               )}
+              {eventsDisplay.list.length === 0 && (
+                <EmptyResults
+                  title="Pas d'événement prévu pour l'instant"
+                  description="Les lieux, eux, sont là : regardez ce qui est ouvert maintenant."
+                  actions={[
+                    {
+                      label: "Voir les lieux ouverts",
+                      primary: true,
+                      onClick: () => {
+                        setKindFilter("place");
+                        filters.setOpenNowOnly(true);
+                      },
+                    },
+                  ]}
+                />
+              )}
               {emptyEventsReason && eventsDisplay.list.length > 0 && finalEventsList.length === 0 && (
                 <EmptyResults
                   title="Aucun événement ne correspond"
@@ -477,7 +495,7 @@ export function HomeExplorer({
                   just be confusing, not more useful. */}
               {hasMoreEvents && (
                 <div ref={eventsSentinelRef} className="flex justify-center py-2">
-                  {loadingMoreEvents && <p className="text-xs text-gray-400">Chargement…</p>}
+                  {loadingMoreEvents && <p className="text-xs text-gray-500">Chargement…</p>}
                 </div>
               )}
             </section>
@@ -522,7 +540,7 @@ export function HomeExplorer({
               )}
               {hasMorePlaces && (
                 <div ref={placesSentinelRef} className="flex justify-center py-2">
-                  {loadingMorePlaces && <p className="text-xs text-gray-400">Chargement…</p>}
+                  {loadingMorePlaces && <p className="text-xs text-gray-500">Chargement…</p>}
                 </div>
               )}
             </section>
@@ -571,7 +589,7 @@ export function HomeExplorer({
               {((hasMorePlaces && !loadingMorePlaces) || (hasMoreEvents && !loadingMoreEvents)) && (
                 <div ref={mergedSentinelRef} className="flex justify-center py-2">
                   {(loadingMorePlaces || loadingMoreEvents) && (
-                    <p className="text-xs text-gray-400">Chargement…</p>
+                    <p className="text-xs text-gray-500">Chargement…</p>
                   )}
                 </div>
               )}

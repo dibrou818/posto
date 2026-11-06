@@ -48,7 +48,7 @@ function Row({ href, icon, label, value, external }: { href: string; icon: React
           <span className="block text-xs text-gray-500">{label}</span>
           <span className="block truncate font-medium text-gray-900">{value}</span>
         </span>
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4 shrink-0 text-gray-500" aria-hidden="true">
           <path d="M7.5 4.5 13 10l-5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </a>

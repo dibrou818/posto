@@ -4,13 +4,15 @@ import { requireUser } from "@/lib/supabase/server";
 import { getFollowedPlaces, getPlacesByOwner, getSavedEvents } from "@/lib/queries";
 import { SignOutButton } from "@/components/SignOutButton";
 import { EventCard } from "@/components/EventCard";
+import { ChevronRightIcon } from "@/components/ui/icons";
+import { getEventStatus } from "@/lib/dashboardEventStatus";
 
 export const metadata: Metadata = { title: "Mon compte · Posto", robots: { index: false, follow: false } };
 
 function AccountLink({ href, title, detail }: { href: string; title: string; detail: string }) {
   return <Link href={href} className="flex min-h-16 items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-gray-50">
     <span className="min-w-0"><span className="block font-medium text-gray-900">{title}</span><span className="mt-0.5 block text-sm leading-relaxed text-gray-600">{detail}</span></span>
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true"><path d="m8 5 5 5-5 5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+    <ChevronRightIcon />
   </Link>;
 }
 
@@ -41,7 +43,9 @@ export default async function AccountPage() {
   const name = displayName(user);
   // The next few saved events that haven't happened yet — the reason to open
   // this page: what's coming up that you've said you want to go to.
-  const upcomingSaved = savedEvents.filter((event) => new Date(event.start_datetime) >= new Date()).slice(0, 4);
+  const now = new Date();
+  const upcomingAll = savedEvents.filter((event) => getEventStatus(event, now).key !== "past");
+  const upcomingSaved = upcomingAll.slice(0, 4);
 
   return <div className="posto-page !max-w-3xl">
     <header className="flex items-center gap-4">
@@ -53,7 +57,7 @@ export default async function AccountPage() {
     </header>
 
     <div className="mt-6 flex gap-3">
-      <Stat value={savedEvents.length} label={savedEvents.length > 1 ? "événements enregistrés" : "événement enregistré"} href="/favorites" />
+      <Stat value={upcomingAll.length} label={upcomingAll.length > 1 ? "sorties à venir" : "sortie à venir"} href="/favorites" />
       <Stat value={followedPlaces.length} label={followedPlaces.length > 1 ? "lieux suivis" : "lieu suivi"} href="/favorites" />
     </div>
 

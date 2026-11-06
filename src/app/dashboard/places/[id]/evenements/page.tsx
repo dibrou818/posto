@@ -1,17 +1,12 @@
-import { notFound, redirect } from "next/navigation";
-import { requireUser } from "@/lib/supabase/server";
-import { getPlaceById, getAllEventsForPlace } from "@/lib/queries";
+import { getOwnedPlace } from "@/lib/dashboardPlace";
+import { getAllEventsForPlace } from "@/lib/queries";
 import { EventsManager } from "@/components/dashboard/EventsManager";
 import { getQrScanStats, type QrScanStats } from "@/lib/qrScans";
 import { getEventStatus } from "@/lib/dashboardEventStatus";
 
 export default async function PlaceEventsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase, user } = await requireUser();
-
-  const place = await getPlaceById(supabase, id);
-  if (!place) notFound();
-  if (place.owner_id !== user.id) redirect("/dashboard");
+  const { supabase } = await getOwnedPlace(id);
 
   const events = await getAllEventsForPlace(supabase, id);
 

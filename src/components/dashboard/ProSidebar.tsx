@@ -7,6 +7,7 @@ import type { OpenStatusTone } from "@/lib/opening-hours";
 import { Logo } from "@/components/Logo";
 import { PlusIcon } from "@/components/ui/PlusIcon";
 import { STATUS_DOT } from "@/components/OpenStatusLabel";
+import { ChevronLeftIcon } from "@/components/ui/icons";
 
 type ManagedPlace = {
   id: string;
@@ -21,10 +22,6 @@ function UserIcon() {
 
 function ArrowLeftIcon() {
   return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4 shrink-0" aria-hidden="true"><path d="m11.5 5-5 5 5 5M6.8 10H17" strokeLinecap="round" strokeLinejoin="round"/></svg>;
-}
-
-function ChevronLeftIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 shrink-0" aria-hidden="true"><path d="M12 4 6 10l6 6" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 
 const rowClass = (active: boolean) =>

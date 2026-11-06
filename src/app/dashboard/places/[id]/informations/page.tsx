@@ -1,6 +1,5 @@
-import { notFound, redirect } from "next/navigation";
-import { requireUser } from "@/lib/supabase/server";
-import { getPlaceById, getAllTags } from "@/lib/queries";
+import { getOwnedPlace } from "@/lib/dashboardPlace";
+import { getAllTags } from "@/lib/queries";
 import { PlaceForm } from "@/components/dashboard/PlaceForm";
 import { updatePlace } from "@/app/dashboard/actions";
 
@@ -13,11 +12,7 @@ export default async function PlaceInformationsPage({
 }) {
   const { id } = await params;
   const { created } = await searchParams;
-  const { supabase, user } = await requireUser();
-
-  const place = await getPlaceById(supabase, id);
-  if (!place) notFound();
-  if (place.owner_id !== user.id) redirect("/dashboard");
+  const { supabase, place } = await getOwnedPlace(id);
 
   const allTags = await getAllTags(supabase);
 

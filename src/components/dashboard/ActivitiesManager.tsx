@@ -35,7 +35,7 @@ export function ActivitiesManager({
     <section>
       <div className="mb-2 flex items-center justify-between gap-3">
         <h2 className="posto-heading text-lg text-gray-900">
-          Activités <span className="font-normal text-gray-400 tabular-nums">{activities.length}</span>
+          Activités <span className="font-normal text-gray-500 tabular-nums">{activities.length}</span>
         </h2>
         {!adding && (
           <button type="button" onClick={() => setAdding(true)} className={buttonClass("compact", "shrink-0 px-4")}>

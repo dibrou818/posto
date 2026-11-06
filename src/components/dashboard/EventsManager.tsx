@@ -5,6 +5,7 @@ import { formatEventSchedule, formatRecurrence, formatPrice } from "@/lib/eventS
 import { getEventStatus } from "@/lib/dashboardEventStatus";
 import { buttonClass } from "@/lib/ui";
 import { PlusIcon } from "@/components/ui/PlusIcon";
+import { ChevronRightIcon } from "@/components/ui/icons";
 
 const dayFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric" });
 const monthFormat = new Intl.DateTimeFormat("fr-FR", { month: "short" });
@@ -14,14 +15,6 @@ function RepeatIcon() {
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-5 w-5" aria-hidden="true">
       <path d="M4 9a5 5 0 0 1 8.5-3.5L15 8M16 11a5 5 0 0 1-8.5 3.5L5 12" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M15 4v4h-4M5 16v-4h4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ChevronRight() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true">
-      <path d="m8 5 5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -69,7 +62,7 @@ function EventRow({ placeId, event, scanStats }: { placeId: string; event: Event
               ? `${scanStats.total} scan${scanStats.total > 1 ? "s" : ""}`
               : "Prêt"}
         </span>
-        <ChevronRight />
+        <ChevronRightIcon />
       </Link>
     </li>
   );
@@ -102,7 +95,7 @@ export function EventsManager({
       <section>
         <div className="mb-2 flex items-center justify-between gap-3">
           <h2 className="posto-heading text-lg text-gray-900">
-            À venir <span className="font-normal text-gray-400 tabular-nums">{active.length}</span>
+            À venir <span className="font-normal text-gray-500 tabular-nums">{active.length}</span>
           </h2>
           <Link href={`/dashboard/places/${placeId}/evenements/nouveau`} className={buttonClass("compact", "shrink-0 px-4")}>
             <PlusIcon />

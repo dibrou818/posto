@@ -67,28 +67,30 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --background: #0f1629;
-    --foreground: #eef1f9;
-    --surface: #0f1629;
-    --border: #28324d;
-    --ink: #eef1f9;
-    --soft: #1b2440;
-    --muted: #aab4cc;
+    /* Neutral graphite, not navy: the content (photos, the blue accent,
+       status dots) carries the color, the surfaces stay out of the way. */
+    --background: #111112;
+    --foreground: #f2f2f3;
+    --surface: #111112;
+    --border: #2a2a2d;
+    --ink: #f2f2f3;
+    --soft: #1f1f21;
+    --muted: #a8a8ad;
     --brand: #3f68ff;
-    --color-white: #0f1629;
-    --color-gray-50: #151d33;
-    --color-gray-100: #1b2440;
-    --color-gray-200: #28324d;
-    --color-gray-300: #38435f;
-    --color-gray-400: #5f6c8f;
-    --color-gray-500: #8a96b3;
-    --color-gray-600: #aab4cc;
-    --color-gray-700: #c6cee2;
-    --color-gray-800: #dde2f0;
-    --color-gray-900: #eef1f9;
+    --color-white: #111112;
+    --color-gray-50: #18181a;
+    --color-gray-100: #1f1f21;
+    --color-gray-200: #2a2a2d;
+    --color-gray-300: #3a3a3e;
+    --color-gray-400: #5d5d63;
+    --color-gray-500: #8d8d93;
+    --color-gray-600: #a8a8ad;
+    --color-gray-700: #c8c8cc;
+    --color-gray-800: #e1e1e4;
+    --color-gray-900: #f2f2f3;
     --color-brand: #3f68ff;
     --color-brand-hover: #5a7fff;
-    --color-soft: #1b2440;
+    --color-soft: #1f1f21;
     --color-green-50: #0f2a1c;
     --color-green-100: #123522;
     --color-green-200: #1f5a36;
@@ -112,7 +114,7 @@
     --color-amber-800: #fde68a;
     --color-amber-900: #fef3c7;
     --color-amber-950: #fffbeb;
-    --color-blue-50: #12203f;
+    --color-blue-50: #1a2033;
     --color-blue-600: #7b9bff;
     --color-blue-800: #b3c6ff;
     --color-sky-50: #0d2433;

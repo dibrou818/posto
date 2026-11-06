@@ -1,12 +1,10 @@
 import type { ReactNode } from "react";
-import { requireUser } from "@/lib/supabase/server";
-import { getPlacesByOwner } from "@/lib/queries";
+import { getOwnedPlaces } from "@/lib/dashboardPlace";
 import { getOpenStatus, openStatusTone } from "@/lib/opening-hours";
 import { ProSidebar } from "@/components/dashboard/ProSidebar";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const { supabase, user } = await requireUser();
-  const places = await getPlacesByOwner(supabase, user.id);
+  const { places } = await getOwnedPlaces();
 
   return (
     <div className="theme-light flex min-h-dvh w-full flex-col bg-white lg:flex-row">

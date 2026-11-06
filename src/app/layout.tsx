@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
+import { MapWarmup } from "@/components/MapWarmup";
 import { MainContent } from "@/components/MainContent";
 import { createClient } from "@/lib/supabase/server";
 
@@ -74,7 +75,7 @@ export const viewport: Viewport = {
   // Browser/status-bar tint follows the page in both themes.
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f1629" },
+    { media: "(prefers-color-scheme: dark)", color: "#111112" },
   ],
 };
 
@@ -105,6 +106,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             BottomNav to clear (see MainContent.tsx's own comment). */}
         <MainContent>{children}</MainContent>
         <BottomNav user={user} />
+        <MapWarmup />
       </body>
     </html>
   );

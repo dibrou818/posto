@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
-import { notFound, redirect } from "next/navigation";
-import { requireUser } from "@/lib/supabase/server";
-import { getPlaceById } from "@/lib/queries";
+import { getOwnedPlace } from "@/lib/dashboardPlace";
 import { getOpenStatus } from "@/lib/opening-hours";
 import { OpenStatusLabel } from "@/components/OpenStatusLabel";
 import { LinkButton } from "@/components/ui/LinkButton";
@@ -21,11 +19,7 @@ export default async function PlaceDashboardLayout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { supabase, user } = await requireUser();
-
-  const place = await getPlaceById(supabase, id);
-  if (!place) notFound();
-  if (place.owner_id !== user.id) redirect("/dashboard");
+  const { place } = await getOwnedPlace(id);
 
   const openStatus = getOpenStatus(place.opening_hours);
   const urgentActive =

@@ -14,7 +14,7 @@ function CheckIcon() {
 
 /** Submit button for a `<form action={serverAction}>`: shows "..." while the
  * action is in flight (via useFormStatus, so it works with plain server
- * actions — no need to touch their signature), then flashes a "✓ Enregistré"
+ * actions — no need to touch their signature), then flashes an "Enregistré"
  * confirmation for a couple seconds once it completes. Every dashboard form
  * saves independently, so without this a click gave no feedback at all. */
 export function SaveButton({
@@ -23,6 +23,7 @@ export function SaveButton({
   pendingLabel = "Enregistrement…",
   disabled = false,
   size = "default",
+  variant = "primary",
   className = "",
 }: {
   children: ReactNode;
@@ -30,6 +31,8 @@ export function SaveButton({
   pendingLabel?: string;
   disabled?: boolean;
   size?: "default" | "compact";
+  /** "secondary" for a rare action that shouldn't read as the main one. */
+  variant?: "primary" | "secondary";
   className?: string;
 }) {
   const { pending } = useFormStatus();
@@ -50,7 +53,15 @@ export function SaveButton({
 
   return (
     <span className="inline-flex items-center gap-2">
-      <button type="submit" disabled={disabled || pending} className={buttonClass(size, className)}>
+      <button
+        type="submit"
+        disabled={disabled || pending}
+        className={
+          variant === "secondary"
+            ? `inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20 disabled:opacity-50 ${className}`.trim()
+            : buttonClass(size, className)
+        }
+      >
         {pending ? pendingLabel : children}
       </button>
       {justSaved && (

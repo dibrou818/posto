@@ -3,18 +3,11 @@ import Link from "next/link";
 import type { PlaceWithRelations } from "@/lib/queries";
 import { getOpenStatus } from "@/lib/opening-hours";
 import { OpenStatusLabel } from "@/components/OpenStatusLabel";
+import { ChevronRightIcon } from "@/components/ui/icons";
 
 const dateFormat = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short" });
 
 export type PlaceActivity = { upcomingCount: number; nextStart: string | null };
-
-function ChevronRight() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true">
-      <path d="m8 5 5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 /** One place on the pro home, as a single tappable row: photo, name, live
  * status, what's coming up and what's still missing — the whole row opens
@@ -61,7 +54,7 @@ export function DashboardPlaceCard({ place, activity }: { place: PlaceWithRelati
           )}
         </span>
         <span className="hidden shrink-0 text-right text-sm text-gray-500 tabular-nums md:block">{upcoming}</span>
-        <ChevronRight />
+        <ChevronRightIcon />
       </Link>
     </li>
   );

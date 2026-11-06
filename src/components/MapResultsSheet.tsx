@@ -37,7 +37,7 @@ function Row({ item, onSelect }: { item: MapSheetItem; onSelect: (item: MapSheet
         onClick={() => onSelect(item)}
         className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/20"
       >
-        <span className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-100 text-gray-400">
+        <span className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-100 text-gray-500">
           {photo ? (
             <Image src={photo} alt="" fill sizes="56px" className="object-cover" />
           ) : isPlace ? (

@@ -144,7 +144,7 @@ export default async function EventPage({
             />
           )}
           {!coverPhotoUrl && (
-            <div className="absolute inset-0 grid place-items-center bg-gray-100 text-gray-400 [&_svg]:h-9 [&_svg]:w-9" aria-hidden="true">
+            <div className="absolute inset-0 grid place-items-center bg-gray-100 text-gray-500 [&_svg]:h-9 [&_svg]:w-9" aria-hidden="true">
               <CalendarKindIcon />
             </div>
           )}

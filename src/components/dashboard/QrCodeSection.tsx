@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { buttonClass } from "@/lib/ui";
 import { SaveButton } from "@/components/ui/SaveButton";
 
 function InfoIcon() {
@@ -112,24 +113,29 @@ export function QrCodeSection({
             <span className="font-medium text-gray-900 tabular-nums">{scanStats.last7Days}</span> scan
             {scanStats.last7Days !== 1 ? "s" : ""} ces 7 derniers jours
             {scanStats.total !== scanStats.last7Days && (
-              <span className="text-gray-400"> · {scanStats.total} au total</span>
+              <span className="text-gray-500"> · {scanStats.total} au total</span>
             )}
           </p>
         )}
-        <form action={action}>
-          <SaveButton size="compact" savedLabel="Généré" pendingLabel="Génération…">
-            {qrCodeUrl ? "Régénérer le code QR" : "Générer le code QR"}
-          </SaveButton>
-        </form>
-        {qrCodeUrl && (
-          <a
-            href={qrCodeUrl}
-            download="code-qr.png"
-            className="text-xs font-medium text-gray-700 underline transition-colors hover:text-gray-900"
-          >
-            Télécharger l&apos;image
-          </a>
-        )}
+        {/* Once a code exists, downloading it is the everyday action;
+            regenerating is rare, so it steps back to a secondary button. */}
+        <div className="flex flex-wrap items-center gap-2">
+          {qrCodeUrl && (
+            <a href={qrCodeUrl} download="code-qr.png" className={buttonClass("compact", "px-4")}>
+              Télécharger l&apos;image
+            </a>
+          )}
+          <form action={action}>
+            <SaveButton
+              size="compact"
+              variant={qrCodeUrl ? "secondary" : "primary"}
+              savedLabel="Généré"
+              pendingLabel="Génération…"
+            >
+              {qrCodeUrl ? "Régénérer" : "Générer le code QR"}
+            </SaveButton>
+          </form>
+        </div>
       </div>
     </div>
   );

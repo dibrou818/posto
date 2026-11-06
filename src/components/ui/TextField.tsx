@@ -68,11 +68,13 @@ export function TextField({ label, maxLength, className = "", onChange, defaultV
 type TextareaFieldProps = {
   /** See TextField's `label` — same reasoning. */
   label?: string;
+  /** One line of guidance under the field. */
+  hint?: string;
 } & TextareaHTMLAttributes<HTMLTextAreaElement>;
 
 /** Labeled textarea, same visual style and maxLength/counter behavior as
  * {@link TextField}. */
-export function TextareaField({ label, maxLength, className = "", onChange, defaultValue, value, ...props }: TextareaFieldProps) {
+export function TextareaField({ label, hint, maxLength, className = "", onChange, defaultValue, value, ...props }: TextareaFieldProps) {
   const generatedId = useId();
   const fieldId = props.id ?? generatedId;
   const [count, setCount] = useCharCount(value ?? defaultValue);
@@ -98,7 +100,9 @@ export function TextareaField({ label, maxLength, className = "", onChange, defa
         onChange={handleChange}
         {...props}
         id={fieldId}
+        aria-describedby={hint ? `${fieldId}-hint` : undefined}
       />
+      {hint && <p id={`${fieldId}-hint`} className="mt-1.5 text-sm text-gray-500">{hint}</p>}
     </div>
   );
 }

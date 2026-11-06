@@ -39,7 +39,7 @@ export function PlaceCard({
           className="object-cover"
         />
       ) : (
-        <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center text-gray-400 [&_svg]:h-6 [&_svg]:w-6">
+        <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center text-gray-500 [&_svg]:h-6 [&_svg]:w-6">
           <PlaceKindIcon />
         </span>
       )}

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -29,12 +30,14 @@ export async function createClient() {
   );
 }
 
-/** Fetches the signed-in user, redirecting to /login if there isn't one. */
-export async function requireUser() {
+/** Fetches the signed-in user, redirecting to /login if there isn't one.
+ * Memoized per server request: the dashboard's layouts and page all call it
+ * while rendering one screen, and only the first one reaches Supabase Auth. */
+export const requireUser = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
   return { supabase, user };
-}
+});

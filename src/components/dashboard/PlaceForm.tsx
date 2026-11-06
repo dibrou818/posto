@@ -18,6 +18,15 @@ import {
   PLACE_DESCRIPTION_MAX_LENGTH as DESCRIPTION_MAX_LENGTH,
 } from "@/lib/fieldLimits";
 
+const SECTIONS = [
+  { id: "presentation", label: "Présentation" },
+  { id: "adresse", label: "Adresse" },
+  { id: "photos", label: "Photos" },
+  { id: "liens", label: "Liens" },
+  { id: "urgent", label: "Message urgent" },
+  { id: "categories", label: "Catégories" },
+];
+
 export function PlaceForm({
   place,
   action,
@@ -48,19 +57,33 @@ export function PlaceForm({
   return (
     <form action={action} className="flex flex-col">
       <UnsavedChangesGuard />
-      <FormSection first title="Présentation" description="Ce que les visiteurs lisent en premier sur votre fiche.">
+      {place && (
+        <nav aria-label="Sections du formulaire" className="-mx-4 mb-6 flex gap-1 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
+          {SECTIONS.filter((section) => section.id !== "categories" || allTags).map((section) => (
+            <a
+              key={section.id}
+              href={`#${section.id}`}
+              className="inline-flex min-h-9 shrink-0 items-center rounded-lg bg-gray-50 px-3 text-sm text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
+            >
+              {section.label}
+            </a>
+          ))}
+        </nav>
+      )}
+      <FormSection id="presentation" first title="Présentation" description="Ce que les visiteurs lisent en premier sur votre fiche.">
         <TextField label="Nom du lieu" name="name" required maxLength={NAME_MAX_LENGTH} defaultValue={place?.name} />
         <TextareaField
           label="Description"
           name="description"
           rows={4}
           maxLength={DESCRIPTION_MAX_LENGTH}
+          hint="L'ambiance, ce qu'on y fait, ce qui vous rend unique. L'adresse et les horaires ont leurs propres champs."
           defaultValue={place?.description ?? ""}
         />
         <PhoneField name="phone" defaultValue={place?.phone} />
       </FormSection>
 
-      <FormSection title="Adresse" description="Elle sert à placer votre lieu sur la carte.">
+      <FormSection id="adresse" title="Adresse" description="Elle sert à placer votre lieu sur la carte.">
         <AddressField
           defaultAddress={place?.address}
           defaultLat={place?.lat}
@@ -72,6 +95,7 @@ export function PlaceForm({
       </FormSection>
 
       <FormSection
+        id="photos"
         title="Photos"
         description="Plusieurs photos aident bien plus à se décider qu'une seule : intérieur, ambiance, terrain."
       >
@@ -121,13 +145,14 @@ export function PlaceForm({
         </div>
       </FormSection>
 
-      <FormSection title="Liens" description="Ajoutés en boutons sur votre fiche publique.">
+      <FormSection id="liens" title="Liens" description="Ajoutés en boutons sur votre fiche publique.">
         <TextField label="Site web" name="website_url" placeholder="monsite.fr" defaultValue={place?.website_url ?? ""} />
         <TextField label="Instagram" name="instagram_url" placeholder="instagram.com/monlieu" defaultValue={place?.instagram_url ?? ""} />
         <TextField label="Facebook" name="facebook_url" placeholder="facebook.com/monlieu" defaultValue={place?.facebook_url ?? ""} />
       </FormSection>
 
       <FormSection
+        id="urgent"
         title="Message urgent"
         description="Affiché en priorité sur la fiche, par exemple une fermeture exceptionnelle. Vous pouvez le retirer en deux clics depuis le bandeau en haut de page."
       >
@@ -138,7 +163,7 @@ export function PlaceForm({
       </FormSection>
 
       {allTags && (
-        <FormSection title="Catégories" description="Elles aident les visiteurs à trouver votre lieu en filtrant.">
+        <FormSection id="categories" title="Catégories" description="Elles aident les visiteurs à trouver votre lieu en filtrant.">
           <input type="hidden" name="tags_present" value="1" />
           <div className="flex flex-wrap gap-2">
             {allTags.map((tag) => (

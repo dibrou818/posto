@@ -1,6 +1,4 @@
-import { notFound, redirect } from "next/navigation";
-import { requireUser } from "@/lib/supabase/server";
-import { getPlaceById } from "@/lib/queries";
+import { getOwnedPlace } from "@/lib/dashboardPlace";
 import { getQrScanStats } from "@/lib/qrScans";
 import { FormSection } from "@/components/dashboard/FormSection";
 import { QrCodeSection } from "@/components/dashboard/QrCodeSection";
@@ -11,11 +9,7 @@ import { deletePlace, generatePlaceQrCode } from "@/app/dashboard/actions";
  * irreversible action, kept away from the everyday information form. */
 export default async function PlaceSettingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase, user } = await requireUser();
-
-  const place = await getPlaceById(supabase, id);
-  if (!place) notFound();
-  if (place.owner_id !== user.id) redirect("/dashboard");
+  const { supabase, place } = await getOwnedPlace(id);
 
   // No scans possible before a code exists — skip the query entirely.
   const scanStats = place.qr_code_url ? await getQrScanStats(supabase, "place", id) : undefined;
